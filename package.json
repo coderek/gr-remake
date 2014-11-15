@@ -22,6 +22,10 @@
     "request-promise": "~0.3.1",
     "request": "~2.48.0",
     "q": "~1.1.1",
-    "mongoose": "~3.8.19"
+    "mongoose": "~3.8.19",
+    "passport-local-mongoose": "~1.0.0",
+    "passport-local": "~1.0.0",
+    "passport": "~0.2.1",
+    "express-session": "~1.9.1"
   }
 }

@@ -1,4 +1,5 @@
 var express = require('express');
+var session = require('express-session')
 var path = require('path');
 var favicon = require('serve-favicon');
 var logger = require('morgan');
@@ -7,6 +8,12 @@ var bodyParser = require('body-parser');
 
 var routes = require('./routes/index');
 var users = require('./routes/users');
+
+var http = require('http');
+var mongoose = require('mongoose');
+var passport = require('passport');
+var LocalStrategy = require('passport-local').Strategy;
+
 
 var app = express();
 
@@ -22,6 +29,17 @@ app.use(bodyParser.urlencoded({ extended: false }));
 app.use(cookieParser());
 app.use(require('node-compass')({mode: 'expanded'}));
 app.use(express.static(path.join(__dirname, 'public')));
+app.use(session({secret: 'geek reader is awesome', resave: true, saveUninitialized: true}));
+
+app.use(passport.initialize());
+app.use(passport.session());
+
+
+// passport config
+var User = require('./libs/models/user');
+passport.use(new LocalStrategy(User.authenticate()));
+passport.serializeUser(User.serializeUser());
+passport.deserializeUser(User.deserializeUser());
 
 app.use('/', routes);
 app.use('/users', users);

@@ -10,6 +10,7 @@
     <inspection_tool class="TaskInspection" enabled="true" level="INFO" enabled_by_default="true">
       <option name="suppressedTasks">
         <set>
+          <option value="Jade" />
           <option value="SCSS" />
           <option value="compass scss" />
         </set>
