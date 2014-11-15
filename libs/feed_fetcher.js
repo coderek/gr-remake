@@ -15,13 +15,18 @@ function fetch_feed(url) {
 
     var def = Q.defer();
 
-    request(url)
-        .on('data', _.partialRight(collectChunk, bufs))
-        .on('end', function () {
-            var full_buf = Buffer.concat(bufs);
-            var result = jschardet.detect(full_buf);
-            def.resolve(parse_feed(full_buf, result.encoding));
-        });
+    try {
+        request(url)
+            .on('data', _.partialRight(collectChunk, bufs))
+            .on('end', function () {
+                var full_buf = Buffer.concat(bufs);
+                var result = jschardet.detect(full_buf);
+                def.resolve(parse_feed(full_buf, result.encoding));
+            });
+    } catch (e) {
+        console.log(e);
+        def.reject(e);
+    }
 
     return def.promise;
 }
