@@ -11,40 +11,27 @@ var request = require('request');
  * @return {Promise}
  */
 function fetch_feed(url) {
-    var encoding_tests = [];
     var bufs = [];
 
     var def = Q.defer();
 
     request(url)
-        .on('data', _.partialRight(detectEncoding, encoding_tests, bufs))
+        .on('data', _.partialRight(collectChunk, bufs))
         .on('end', function () {
-            var encoding = _.max(_.reduce(encoding_tests, combine_encoding, []), 'confidence').encoding;
-            def.resolve(parse_feed(Buffer.concat(bufs), encoding));
+            var full_buf = Buffer.concat(bufs);
+            var result = jschardet.detect(full_buf);
+            def.resolve(parse_feed(full_buf, result.encoding));
         });
 
     return def.promise;
 }
 
-function combine_encoding(results, test) {
-
-    var enc = test.encoding;
-    var idx;
-    if ((idx = _.findIndex(results, function (a) {return a.encoding === enc;})) === -1) {
-        results.push(test);
-    } else {
-        results[idx].confidence += test.confidence;
-    }
-    return results;
-}
-
-function detectEncoding(buf, tests, bufs) {
-    var result = jschardet.detect(buf);
-    tests.push(result);
+function collectChunk(buf, bufs) {
     bufs.push(buf);
 }
 
 function parse_feed(feedtext, encoding) {
+
     var i = new Iconv(encoding, 'UTF-8');
     var converted_feedtext = i.convert(feedtext);
 
