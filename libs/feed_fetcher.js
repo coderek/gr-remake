@@ -69,10 +69,9 @@ function parse_feed(feedtext, encoding) {
     });
 
     feedparser.on('end', function () {
-        def.resolve({
-            meta: meta,
+        def.resolve(_.extend(meta, {
             articles: articles
-        });
+        }));
     });
 
     feedparser.write(converted_feedtext);
