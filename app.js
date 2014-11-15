@@ -8,12 +8,13 @@ var bodyParser = require('body-parser');
 
 var routes = require('./routes/index');
 var users = require('./routes/users');
+var feeds = require('./routes/feeds');
 
 var http = require('http');
 var mongoose = require('mongoose');
 var passport = require('passport');
 var LocalStrategy = require('passport-local').Strategy;
-
+var flash = require('connect-flash');
 
 var app = express();
 
@@ -30,7 +31,7 @@ app.use(cookieParser());
 app.use(require('node-compass')({mode: 'expanded'}));
 app.use(express.static(path.join(__dirname, 'public')));
 app.use(session({secret: 'geek reader is awesome', resave: true, saveUninitialized: true}));
-
+app.use(flash());
 app.use(passport.initialize());
 app.use(passport.session());
 
@@ -43,6 +44,7 @@ passport.deserializeUser(User.deserializeUser());
 
 app.use('/', routes);
 app.use('/users', users);
+app.use('/feeds', feeds);
 
 // catch 404 and forward to error handler
 app.use(function(req, res, next) {
