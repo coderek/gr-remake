@@ -4,11 +4,15 @@ var Feed = require('../libs/models/feed');
 var User = require('../libs/models/user');
 var passport = require('passport');
 
-/* GET home page. */
 router.get('/', function(req, res) {
-    Feed.find(function (err, feeds) {
-        res.render('index', { title: 'Express', feeds: feeds, user: req.user});
-    });
+    if (req.user) {
+        Feed.find(function (err, feeds) {
+            res.render('index', {feeds: feeds, user: req.user, error: req.flash('error')});
+        });
+    } else {
+        res.render('index', {error: req.flash('error')});
+    }
+
 });
 
 router.get('/register', function (req, res) {

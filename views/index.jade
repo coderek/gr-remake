@@ -6,10 +6,17 @@ block content
     a(href="/login") Login
     br
     a(href="/register") Register
+
+  each err in error
+    p= JSON.stringify(err)
+
   if (user)
     p You are currently logged in as #{user.username}
     a(href="/logout") Logout
 
+    form(action='feeds', method='post')
+      input(type='text', name='url')#feed_url
+      button(type=submit).add-feed add feed
 
-  each article in feeds
-    p= article.title
+    each article in feeds
+      p= article.title
