@@ -33,36 +33,44 @@ function collectChunk(buf, bufs) {
 function parse_feed(feedtext, encoding) {
 
     var i = new Iconv(encoding, 'UTF-8');
-    var converted_feedtext = i.convert(feedtext);
+    var converted_feedtext;
 
     var def = Q.defer();
     var options = {addmeta: false};
 
-    var feedparser = new FeedParser(options);
+    try {
+        converted_feedtext = i.convert(feedtext);
 
-    var articles = [];
-    var meta = null;
+        var feedparser = new FeedParser(options);
 
-    feedparser.on('data', function (article) {
-        articles.push(article);
-    });
+        var articles = [];
+        var meta = null;
 
-    feedparser.on('meta', function (_meta) {
-        meta = _meta;
-    });
+        feedparser.on('data', function (article) {
+            articles.push(article);
+        });
 
-    feedparser.on('error', function (err) {
-        def.reject(err);
-    });
+        feedparser.on('meta', function (_meta) {
+            meta = _meta;
+        });
 
-    feedparser.on('end', function () {
-        def.resolve(_.extend(meta, {
-            articles: articles
-        }));
-    });
+        feedparser.on('error', function (err) {
+            def.reject(err);
+        });
 
-    feedparser.write(converted_feedtext);
-    feedparser.end();
+        feedparser.on('end', function () {
+            def.resolve(_.extend(meta, {
+                articles: articles
+            }));
+        });
+
+        feedparser.write(converted_feedtext);
+        feedparser.end();
+
+    } catch (e) {
+        def.reject(e);
+    }
+
     return def.promise;
 }
 
