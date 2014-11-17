@@ -1,14 +1,13 @@
 var express = require('express');
 var path = require('path');
-var favicon = require('serve-favicon');
 var logger = require('morgan');
 var cookieParser = require('cookie-parser');
 var session = require('cookie-session');
 var bodyParser = require('body-parser');
 
 var routes = require('./routes/index');
-var users = require('./routes/users');
 var feeds = require('./routes/feeds');
+var auth = require('./routes/auth');
 
 var passport = require('passport');
 var LocalStrategy = require('passport-local').Strategy;
@@ -21,7 +20,6 @@ app.set('views', path.join(__dirname, 'views'));
 app.set('view engine', 'jade');
 
 // uncomment after placing your favicon in /public
-//app.use(favicon(__dirname + '/public/favicon.ico'));
 app.use(logger('dev'));
 app.use(bodyParser.json());
 app.use(bodyParser.urlencoded({ extended: false }));
@@ -33,20 +31,33 @@ app.use(flash());
 app.use(passport.initialize());
 app.use(passport.session());
 
-
 // passport config
 var User = require('./libs/models/user');
 passport.use(new LocalStrategy(User.authenticate()));
 passport.serializeUser(User.serializeUser());
 passport.deserializeUser(User.deserializeUser());
 
+var Feed = require('./libs/models/feed');
+app.use(function (req, res, next) {
 
+    if (req.user) {
+        Feed.find_user_feeds(req.user)
+            .then(function (feeds) {
+                console.log(feeds);
+                res.locals = {
+                    user: req.user,
+                    feeds: feeds
+                };
 
-app.use('/', routes);
-app.use('/users', users);
+                next();
+            });
+    } else {
+        next();
+    }
+});
+
+app.use('/', auth, routes);
 app.use('/feeds', feeds);
-
-
 
 // catch 404 and forward to error handler
 app.use(function(req, res, next) {
@@ -78,6 +89,5 @@ app.use(function(err, req, res, next) {
         error: {}
     });
 });
-
 
 module.exports = app;

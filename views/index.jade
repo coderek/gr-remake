@@ -3,14 +3,13 @@ extends layout
 block content
 
   if (!user)
+
     a(href="/login") Login
     br
     a(href="/register") Register
 
-  each err in error
-    p= JSON.stringify(err)
+  else
 
-  if (user)
     p You are currently logged in as #{user.username}
     a(href="/logout") Logout
 
@@ -18,5 +17,14 @@ block content
       input(type='text', name='url')#feed_url
       button(type=submit).add-feed add feed
 
-    each article in feeds
-      p= article.title
+    ul
+      each article in feeds
+        li
+          a(href="/feeds/#{article.id}") #{article.title}
+
+
+    if selected_feed
+      h3= selected_feed.title
+
+    script(src='/javascripts/setup.js')
+    script(src='/javascripts/index.js')

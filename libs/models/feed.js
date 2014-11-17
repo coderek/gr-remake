@@ -1,4 +1,5 @@
 var mongoose = require('mongoose');
+var Q = require('q');
 
 var item_schema = mongoose.Schema({
     title      : String,
@@ -45,6 +46,17 @@ var feed_schema = mongoose.Schema({
     articles: [item_schema]
 });
 
+var simple_fields = 'title id author';
+
+feed_schema.statics.find_user_feeds = function (user){
+    return this.find().select(simple_fields).exec();
+};
+
+feed_schema.statics.find_by_id = function (id) {
+    return this.findOne({_id: id}, simple_fields).exec();
+}
+
 var Feed = mongoose.model('Feed', feed_schema);
+
 
 module.exports = Feed;
