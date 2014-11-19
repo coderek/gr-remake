@@ -4,13 +4,27 @@ html
     title= title
     link(rel='stylesheet', href='/stylesheets/style.css')
   body
-    header
-      h1 Geek Reader 2.0
-    block content
+    .top-region
+      header.pull-left
+        h3 Geek Reader 2.0
 
-    script(src='//cdnjs.cloudflare.com/ajax/libs/zepto/1.1.4/zepto.min.js')
+      nav.pull-right
+        if !user
+          a(href="/login") Login
+          span /
+          a(href="/register") Register
+        else
+          p You are currently logged in as #{user.username}
+          a(href="/logout") Logout
+
+    .middle-region
+        block content
+
+    .bottom-region
+
+    script(src='//cdnjs.cloudflare.com/ajax/libs/jquery/2.1.1/jquery.min.js')
     script(src='//cdnjs.cloudflare.com/ajax/libs/lodash.js/2.4.1/lodash.min.js')
     script(src='//cdnjs.cloudflare.com/ajax/libs/backbone.js/1.1.2/backbone-min.js')
     script(src='//cdnjs.cloudflare.com/ajax/libs/backbone.marionette/2.2.2/backbone.marionette.min.js')
-
+    script(src='/javascripts/bootstrap.js')
     block scripts
