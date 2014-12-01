@@ -10,6 +10,7 @@ db.on('error', function (err) {
     def.reject(err);
     console.error('connection error:', err);
 });
+
 db.once('open', function () {
     def.resolve();
 });

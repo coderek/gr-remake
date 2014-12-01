@@ -1,7 +1,7 @@
 var mongoose = require('mongoose');
 var Q = require('q');
 
-var item_schema = mongoose.Schema({
+var article_schema = mongoose.Schema({
     title      : String,
     description: String,
     summary    : String,
@@ -43,17 +43,17 @@ var feed_schema = mongoose.Schema({
     copyright  : String,
     generator  : String,
     categories : [String],
-    articles: [item_schema]
+    articles: [article_schema]
 });
 
-var simple_fields = 'title id author';
+var simple_fields = 'title id';
 
 feed_schema.statics.find_user_feeds = function (user){
     return this.find().select(simple_fields).exec();
 };
 
-feed_schema.statics.find_by_id = function (id) {
-    return this.findOne({_id: id}, simple_fields).exec();
+feed_schema.statics.find_by_id = function (id, fields) {
+    return this.findOne({_id: id}, fields || simple_fields).exec();
 }
 
 var Feed = mongoose.model('Feed', feed_schema);

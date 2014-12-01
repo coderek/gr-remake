@@ -1,10 +1,71 @@
+$border-radius-base: 0;
+
+
 @import "bootstrap";
 
+body, html {
+    height: 100%;
+    width: 100%;
+}
+
 body {
-  padding: 50px;
-  font: 14px "Lucida Grande", Helvetica, Arial, sans-serif;
+    font: 14px "Lucida Grande", Helvetica, Arial, sans-serif;
+    display: flex;
+    flex-direction: column;
 }
 
 a {
-  color: #00B7FF;
+    color: #00B7FF;
 }
+
+.top-region {
+    border-bottom: 1px solid #ddd;
+    flex: 0 0 50px;
+    box-shadow: 0 1px 1px 1px #ddd;
+}
+
+.middle-region {
+    display: flex;
+    flex: 1 1 auto;
+    .left-column {
+        width: 320px;
+        flex: none;
+        border-right: 1px solid #ddd;
+    }
+
+    .right-column {
+        flex: 1 100%;
+        overflow-y: auto;
+        background: #f2f2f2 url('../images/noise.png') top left;
+    }
+}
+
+.bottom-region {
+    border-top: 1px solid #ddd;
+    flex: 0 0 50px;
+}
+
+.feed-list {
+    li {
+        background-color: #f2f2f2;
+        padding: 4px;
+        margin: 1px 0;
+    }
+
+}
+
+.article {
+    .title {
+        background-color: #f2f2f2;
+        margin: 1px 0;
+        padding: 4px;
+
+    }
+
+    .content {
+        padding: 20px;
+        word-break: break-word;
+        word-wrap: break-word;
+    }
+}
+

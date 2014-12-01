@@ -4,13 +4,6 @@ var router = express.Router();
 var User = require('../libs/models/user');
 var passport = require('passport');
 
-router.use(function (req, res, next) {
-    if (!req.user) {
-        res.redirect('/');
-    }
-    else next();
-});
-
 router.get('/register', function (req, res) {
     res.render('register');
 });
@@ -39,4 +32,13 @@ router.get('/logout', function(req, res) {
     req.logout();
     res.redirect('/');
 });
+
+
+router.use(function (req, res, next) {
+    if (!req.user) {
+        res.redirect('/login');
+    }
+    else next();
+});
+
 module.exports = router;

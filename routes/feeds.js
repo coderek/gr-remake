@@ -15,8 +15,12 @@ router.post('/', function (req, res) {
 });
 
 router.get('/:id', function (req, res) {
-    get_feed(req.params.id).then(function (feed) {
-        res.render('index', {selected_feed: feed});
+    get_simple_feed(req.params.id).then(function (feed) {
+        if (req.headers['accept'].indexOf('application/json') !== -1) {
+            res.json(feed);
+        } else {
+            res.render('index', {selected_feed: feed});
+        }
     })
 });
 
@@ -33,6 +37,6 @@ function create_and_save_new_feed(url) {
     return def.promise;
 }
 
-function get_feed(id) {
-    return Feed.find_by_id(id);
+function get_simple_feed(id) {
+    return Feed.find_by_id(id, {title: 1, author: 1, articles: 1});
 }

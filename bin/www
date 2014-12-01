@@ -1,16 +1,15 @@
 #!/usr/bin/env node
-var debug = require('debug')('gr');
+var debug = console.log.bind(console);
 var app = require('../app');
 var db = require('../libs/db');
 
 app.set('port', process.env.PORT || 3000);
 
-db.done(function () {
+function startServer() {
     debug('Mongo is started.')
     var server = app.listen(app.get('port'), function() {
         debug('Express server listening on port ' + server.address().port);
     });
-    server.timeout = 100000;
-}, function () {
-    console.log(err);
-});
+}
+
+db.then(startServer).done();
