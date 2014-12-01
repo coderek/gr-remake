@@ -1,0 +1,22 @@
+{
+  "name": "client",
+  "version": "0.0.0",
+  "authors": [
+    "Zeng Qiang <zen1986@gmail.com>"
+  ],
+  "license": "MIT",
+  "private": true,
+  "ignore": [
+    "**/.*",
+    "node_modules",
+    "bower_components",
+    "test",
+    "tests"
+  ],
+  "dependencies": {
+    "backbone.marionette": "~2.2.2",
+    "lodash": "~2.4.1",
+    "bootstrap-sass": "~3.0.2",
+    "bourbon": "~4.0.2"
+  }
+}
