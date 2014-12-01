@@ -5,3 +5,5 @@ node_modules
 workspace.xml
 tasks.xml
 *.iws
+
+**/bower_components
