@@ -1,0 +1,30 @@
+extends layout
+
+block content
+
+  if user
+    .left-column
+
+      form(action='feeds', method='post')
+        div.input-group
+          input(type='text', name='url').form-control#feed_url
+          span.input-group-btn
+            button(type=submit).add-feed.btn.btn-success add feed
+
+      ul.list-unstyled.feed-list
+        each article in feeds
+          li
+            a(href="/feeds/#{article.id}") #{article.title}
+
+    .right-column
+      if selected_feed
+        h3.feed-title= selected_feed.title
+        ul.list-unstyled.articles
+          each article in selected_feed.articles
+            li.article
+              h4.title
+                a(href="#",data-id="#{article.id}") #{article.title}
+              div.content.collapse 123
+
+block scripts
+  script(src='/javascripts/app.js')
