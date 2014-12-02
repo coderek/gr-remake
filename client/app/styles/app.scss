@@ -1,3 +1,5 @@
+@import "../../bower_components/normalize-scss/normalize";
+
 @import "variables";
 @import "../../bower_components/bourbon/dist/bourbon";
 @import "../../bower_components/bootstrap-sass/lib/bootstrap";
@@ -35,7 +37,7 @@ a {
     .right-column {
         flex: 1 100%;
         overflow-y: auto;
-        background: #f2f2f2 url('../images/noise.png') top left;
+        background: #f2f2f2 url('images/noise.png') top left;
     }
 }
 

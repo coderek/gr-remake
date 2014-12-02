@@ -1,30 +1,28 @@
-extends layout
+include layout
+
+block styles
+  link(rel="stylesheet",type="text/css",href="app.css")
+
 
 block content
 
-  if user
+  .top-region
+    p.welcome welcome
+      strong
+        = user.username
+
+  .middle-region
+
     .left-column
-
-      form(action='feeds', method='post')
-        div.input-group
-          input(type='text', name='url').form-control#feed_url
-          span.input-group-btn
-            button(type=submit).add-feed.btn.btn-success add feed
-
-      ul.list-unstyled.feed-list
-        each article in feeds
-          li
-            a(href="/feeds/#{article.id}") #{article.title}
-
+      ul.feed-list.list-unstyled
+        each feed in feeds
+          li.feed
+            = feed.title
     .right-column
-      if selected_feed
-        h3.feed-title= selected_feed.title
-        ul.list-unstyled.articles
-          each article in selected_feed.articles
-            li.article
-              h4.title
-                a(href="#",data-id="#{article.id}") #{article.title}
-              div.content.collapse 123
 
-block scripts
-  script(src='/javascripts/app.js')
+  .bottom-region made by coderek
+
+script(src="app.js")
+
+script.
+  require('scripts')

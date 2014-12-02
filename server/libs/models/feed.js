@@ -48,11 +48,11 @@ var feed_schema = mongoose.Schema({
 
 var simple_fields = 'title id';
 
-feed_schema.statics.find_user_feeds = function (user){
+feed_schema.statics.findUserFeeds = function (user){
     return this.find().select(simple_fields).exec();
 };
 
-feed_schema.statics.find_by_id = function (id, fields) {
+feed_schema.statics.findById = function (id, fields) {
     return this.findOne({_id: id}, fields || simple_fields).exec();
 }
 

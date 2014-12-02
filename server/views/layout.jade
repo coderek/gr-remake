@@ -1,30 +1,28 @@
-doctype html
-html
+doctype
+html.no-js
   head
-    title= title
-    link(rel='stylesheet', href='/stylesheets/style.css')
+    meta(charset='utf-8')
+    meta(http-equiv='X-UA-Compatible', content='IE=edge')
+    title
+    meta(name='description', content='')
+    meta(name='viewport', content='width=device-width, initial-scale=1')
+    block styles
   body
-    .top-region
-      header.pull-left
-        h3 Geek Reader 2.0
-
-      nav.pull-right
-        if !user
-          a(href="/login") Login
-          span /
-          a(href="/register") Register
-        else
-          p You are currently logged in as #{user.username}
-          a(href="/logout") Logout
-
-    .middle-region
-        block content
-
-    .bottom-region
-
-    script(src='//cdnjs.cloudflare.com/ajax/libs/jquery/2.1.1/jquery.min.js')
-    script(src='//cdnjs.cloudflare.com/ajax/libs/lodash.js/2.4.1/lodash.min.js')
-    script(src='//cdnjs.cloudflare.com/ajax/libs/backbone.js/1.1.2/backbone-min.js')
-    script(src='//cdnjs.cloudflare.com/ajax/libs/backbone.marionette/2.2.2/backbone.marionette.min.js')
-    script(src='/javascripts/bootstrap.js')
-    block scripts
+    <!--[if lt IE 8]>
+    p.browsehappy
+      | You are using an <strong>outdated</strong> browser.
+      | Please <a href="http://browsehappy.com/">upgrade your browser</a>
+      | to improve your experience.
+    <![endif]-->
+    block content
+    //-script(src='javascripts/plugins.js')
+    //-script(src='javascripts/script.js')
+    //- Google Analytics: change UA-XXXXX-X to be your site's ID.
+    //-
+      script
+        (function(b,o,i,l,e,r){b.GoogleAnalyticsObject=l;b[l]||(b[l]=
+        function(){(b[l].q=b[l].q||[]).push(arguments)});b[l].l=+new Date;
+        e=o.createElement(i);r=o.getElementsByTagName(i)[0];
+        e.src='//www.google-analytics.com/analytics.js';
+        r.parentNode.insertBefore(e,r)}(window,document,'script','ga'));
+        ga('create','UA-XXXXX-X');ga('send','pageview');
