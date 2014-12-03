@@ -8,14 +8,22 @@ var Q = require('q');
 router.post('/', function (req, res) {
     var feed_url = req.body.url;
 
-    create_and_save_new_feed(feed_url)
+    createAndSaveNewFeed(feed_url)
         .then(function () {
             res.redirect('/');
         });
 });
 
+
+router.get('/:id/entries', function (req, res) {
+    Feed.findEntries(req.params.id).then(function (entries) {
+        res.json(entries)
+    });
+});
+
+
 router.get('/:id', function (req, res) {
-    get_simple_feed(req.params.id).then(function (feed) {
+    getSimpleFeed(req.params.id).then(function (feed) {
         if (req.headers['accept'].indexOf('application/json') !== -1) {
             res.json(feed);
         } else {
@@ -24,10 +32,11 @@ router.get('/:id', function (req, res) {
     })
 });
 
+
 module.exports = router;
 
 
-function create_and_save_new_feed(url) {
+function createAndSaveNewFeed(url) {
     var def = Q.defer();
     ff(url).then(function (obj) {
         var f = new Feed(obj);
@@ -37,6 +46,6 @@ function create_and_save_new_feed(url) {
     return def.promise;
 }
 
-function get_simple_feed(id) {
-    return Feed.find_by_id(id, {title: 1, author: 1, articles: 1});
+function getSimpleFeed(id) {
+    return Feed.findById(id, {title: 1, author: 1, articles: 1});
 }

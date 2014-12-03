@@ -6,7 +6,8 @@
     "marionette": "~2.2.2",
     "bootstrap-sass": "~3.0.2",
     "bourbon": "~4.0.2",
-    "lodash": "~2.4.1"
+    "lodash": "~2.4.1",
+    "bluebird": "~2.3.11"
   },
   "overrides": {
     "backbone": {

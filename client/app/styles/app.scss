@@ -37,7 +37,7 @@ a {
     .right-column {
         flex: 1 100%;
         overflow-y: auto;
-        background: #f2f2f2 url('images/noise.png') top left;
+        background: #f2f2f2 url('noise.png') top left;
     }
 }
 
@@ -46,27 +46,47 @@ a {
     flex: 0 0 50px;
 }
 
-.feed-list {
+$feed-item-bg: #f2f2f2;
+#feed-list-region {
     li {
-        background-color: #f2f2f2;
+        background-color: $feed-item-bg;
         padding: 4px;
         margin: 1px 0;
+        .title {
+            @include ellipsis;
+        }
+        .author {
+            color: $text-muted;
+            font-size: 80%;
+        }
     }
-
+    li:hover {
+        background-color: darken($feed-item-bg, 10%);
+        cursor: pointer;
+    }
 }
 
+$article-title-bg: #f2f2f2;
 .article {
     .title {
-        background-color: #f2f2f2;
+        background-color: $article-title-bg;
         margin: 1px 0;
         padding: 4px;
 
+        &:hover {
+            background-color: darken($article-title-bg, 10%);
+            cursor: pointer;
+        }
     }
 
     .content {
         padding: 20px;
         word-break: break-word;
         word-wrap: break-word;
+        img {
+            float: left;
+            margin: 10px;
+        }
     }
 }
 

@@ -14,15 +14,14 @@ block content
   .middle-region
 
     .left-column
-      ul.feed-list.list-unstyled
-        each feed in feeds
-          li.feed
-            = feed.title
+      #feed-list-region
     .right-column
+      #entries-region
 
   .bottom-region made by coderek
 
 script(src="app.js")
 
 script.
+  var fds = !{JSON.stringify(feeds)};
   require('scripts')

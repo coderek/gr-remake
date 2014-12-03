@@ -12,7 +12,8 @@ exports.config = {
         },
 
         templates: {
-            joinTo: 'app.js'
+            joinTo: 'app.js',
+            defaultExtension: 'hbs'
         }
     }
 };
