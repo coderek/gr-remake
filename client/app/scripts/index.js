@@ -43,10 +43,6 @@ var FeedItem = Marionette.ItemView.extend({
         'click': 'loadFeed'
     },
 
-//    initialize: function () {
-//        _.bindAll(this);
-//    },
-
     loadFeed: function () {
         this.model.loadEntries().then(this.showEntries.bind(this));
     },
@@ -105,4 +101,59 @@ app.commands.setHandler('show-entries', function (feed, entries) {
     entriesRegion.show(view);
 });
 
+app.commands.setHandler('add-feed', function (feed) {
+    var feed = feeds.add(_.omit(feed, 'articles'));
+    app.execute('show-entries', feed, feed.articles);
+});
+
 region.show(new FeedList({collection: feeds}));
+
+
+
+var FeedForm = Backbone.View.extend({
+
+    events: {
+        'click [data-action=add-feed]': 'submitFeedUrl'
+    },
+
+    submitFeedUrl: function () {
+        var url = this.$('input').val();
+        this.sendNewFeedRequest(url).then(function (feed) {
+            toastr.success('Feed is added.');
+            app.execute('add-feed', feed);
+        }, function (xhr) {
+            var msg = xhr.responseJSON.message;
+            toastr.error(JSON.stringify(msg));
+        }).then(this.resetIcon.bind(this));
+
+        this.disableForm();
+    },
+
+    disableForm: function () {
+        this.$('i.fa').addClass('fa-spin fa-refresh');
+        this.$('.btn').prop('disabled', true);
+        this.$('input').prop('disabled', true);
+    },
+
+    resetIcon: function () {
+        this.$('i.fa').removeClass('fa-spin fa-refresh');
+        this.$('.btn').prop('disabled', false);
+        this.$('input').prop('disabled', false);
+    },
+
+    sendNewFeedRequest: function (url) {
+        var request = $.ajax({
+            type: 'POST',
+            url: '/feeds',
+            data: JSON.stringify({url: url}),
+            headers: {
+                'content-type': 'application/json',
+                'accept': 'application/json'
+            }
+        });
+
+        return Promise.resolve(request);
+    }
+});
+
+new FeedForm({el: '#feed-form'});

@@ -3,6 +3,8 @@
 @import "variables";
 @import "../../bower_components/bourbon/dist/bourbon";
 @import "../../bower_components/bootstrap-sass/lib/bootstrap";
+@import "../../bower_components/font-awesome/scss/font-awesome";
+@import "../../bower_components/toastr/toastr";
 
 body, html {
     height: 100%;
@@ -43,7 +45,7 @@ a {
 
 .bottom-region {
     border-top: 1px solid #ddd;
-    flex: 0 0 50px;
+    flex: 0 1 auto;
 }
 
 $feed-item-bg: #f2f2f2;
@@ -85,6 +87,7 @@ $article-title-bg: #f2f2f2;
         word-wrap: break-word;
         img {
             float: left;
+            max-width: 100%;
             margin: 10px;
         }
     }

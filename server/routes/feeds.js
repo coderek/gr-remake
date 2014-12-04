@@ -9,8 +9,10 @@ router.post('/', function (req, res) {
     var feed_url = req.body.url;
 
     createAndSaveNewFeed(feed_url)
-        .then(function () {
-            res.redirect('/');
+        .then(function (resp) {
+            res.json(resp[0]);
+        }, function () {
+            res.status(400).json({message: 'Invalid url'});
         });
 });
 
@@ -37,13 +39,10 @@ module.exports = router;
 
 
 function createAndSaveNewFeed(url) {
-    var def = Q.defer();
-    ff(url).then(function (obj) {
+    return ff(url).then(function (obj) {
         var f = new Feed(obj);
-        f.save(def.resolve);
-    }, def.reject);
-
-    return def.promise;
+        return Q.npost(f, 'save');
+    });
 }
 
 function getSimpleFeed(id) {

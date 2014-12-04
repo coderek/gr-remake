@@ -1,7 +1,9 @@
 var ff = require('./feed_fetcher');
 //var url = 'http://codingnow.com/atom.xml';
-var url = 'http://coolshell.cn/feed';
+//var url = 'http://coolshell.cn/feed';
 //var url = 'http://derekzeng.me/atom.xml';
+
+var url = 'http://feeds.feedburner.com/xxddite';
 
 ff(url).done(function (obj) {
     console.log(obj.articles.map(function (a) {return a.title;}));

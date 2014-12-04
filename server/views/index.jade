@@ -18,7 +18,18 @@ block content
     .right-column
       #entries-region
 
-  .bottom-region made by coderek
+  .bottom-region
+    .container
+      .form-horizontal
+        #feed-form
+          .col-md-offset-6.col-md-6
+            .input-group
+              input.form-control(placeholder="Feed url")
+              .input-group-btn
+                button.btn.btn-success(data-action="add-feed")
+                  i.fa
+                  | Add Feed
+
 
 script(src="app.js")
 
