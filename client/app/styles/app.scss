@@ -15,6 +15,7 @@ body {
     font: 14px "Lucida Grande", Helvetica, Arial, sans-serif;
     display: flex;
     flex-direction: column;
+    overflow: hidden;
 }
 
 a {
@@ -23,15 +24,33 @@ a {
 
 .top-region {
     border-bottom: 1px solid #ddd;
-    flex: 0 0 50px;
+    flex: 0 0 auto;
     box-shadow: 0 1px 1px 1px #ddd;
+    @include display(flex);
+
+    .welcome {
+        width: 320px;
+        @extend .btn;
+        text-align: left;
+        padding-left: 0;
+    }
+
+    #feed-meta-region {
+        flex: 1 0 auto;
+        background-color: #fff4ac;
+        .title {
+            font-weight: bold;
+            @extend .btn;
+        }
+    }
 }
 
 .middle-region {
     display: flex;
-    flex: 1 1 auto;
+    flex: 1 100%;
     .left-column {
         width: 320px;
+        overflow-y: auto;
         flex: none;
         border-right: 1px solid #ddd;
     }
@@ -46,6 +65,12 @@ a {
 .bottom-region {
     border-top: 1px solid #ddd;
     flex: 0 1 auto;
+
+    #feed-form {
+        input {
+            border: none;
+        }
+    }
 }
 
 $feed-item-bg: #f2f2f2;
@@ -85,6 +110,7 @@ $article-title-bg: #f2f2f2;
         padding: 20px;
         word-break: break-word;
         word-wrap: break-word;
+        background-color: white;
         img {
             float: left;
             max-width: 100%;

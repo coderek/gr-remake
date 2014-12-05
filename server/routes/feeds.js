@@ -4,6 +4,7 @@ var ff = require('../libs/feed_fetcher');
 var Feed = require('../libs/models/feed');
 var _ = require('lodash');
 var Q = require('q');
+var mongoose = require('mongoose');
 
 router.post('/', function (req, res) {
     var feed_url = req.body.url;
@@ -34,6 +35,14 @@ router.get('/:id', function (req, res) {
     })
 });
 
+router.delete('/:id', function (req, res) {
+    deleteFeed(req.params.id).then(function () {
+        res.status(200).json({});
+    }, function (error) {
+        res.status(400).json({message: error});
+    });
+});
+
 
 module.exports = router;
 
@@ -47,4 +56,8 @@ function createAndSaveNewFeed(url) {
 
 function getSimpleFeed(id) {
     return Feed.findById(id, {title: 1, author: 1, articles: 1});
+}
+
+function deleteFeed(id) {
+    return Feed.removeFeed(id);
 }

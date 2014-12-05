@@ -9,7 +9,8 @@
     "lodash": "~2.4.1",
     "bluebird": "~2.3.11",
     "font-awesome": "~4.2.0",
-    "toastr": "~2.1.0"
+    "toastr": "~2.1.0",
+    "moment": "~2.8.4"
   },
   "overrides": {
     "backbone": {

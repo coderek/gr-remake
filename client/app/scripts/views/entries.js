@@ -22,7 +22,11 @@ var EntryView = Marionette.ItemView.extend({
 });
 
 var EntriesView = Marionette.CollectionView.extend({
-    childView: EntryView
+    childView: EntryView,
+
+    collectionEvents: {
+        'feed-destroyed': 'destroy'
+    }
 });
 
 

@@ -46,7 +46,7 @@ var feed_schema = mongoose.Schema({
     articles: [article_schema]
 });
 
-var simple_fields = 'title id author';
+var simple_fields = 'title id author pubdate';
 
 feed_schema.statics.findUserFeeds = function (user){
     return this.find().select(simple_fields).exec();
@@ -60,6 +60,10 @@ feed_schema.statics.findEntries = function (id) {
     return this.findOne({_id: id}, {'articles' : 1}).exec().then(function (feed) {
         return feed.articles;
     });
+};
+
+feed_schema.statics.removeFeed = function (id) {
+    return this.remove({_id: mongoose.Types.ObjectId(id)}).exec();
 };
 
 var Feed = mongoose.model('Feed', feed_schema);

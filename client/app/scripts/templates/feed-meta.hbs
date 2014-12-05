@@ -1,0 +1,9 @@
+{{#if _id}}
+    <span class="title">
+        {{title}}
+    </span>
+
+    <span data-id="{{_id}}" class="btn pull-right btn-danger" data-action="delete">delete</span>
+
+    <span class="pull-right btn"><i class="fa fa-clock-o"></i> {{nice_date pubdate}}</span>
+{{/if}}

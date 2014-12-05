@@ -44,4 +44,4 @@ var FeedForm = Backbone.View.extend({
     }
 });
 
-new FeedForm({el: '#feed-form'});
+module.exports = new FeedForm({el: '#feed-form'});
