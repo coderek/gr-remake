@@ -116,6 +116,10 @@ $article-title-bg: #f2f2f2;
             max-width: 100%;
             margin: 10px;
         }
+
+        &:after {
+            @extend .clearfix;
+        }
     }
 }
 
