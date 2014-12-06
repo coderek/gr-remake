@@ -1,4 +1,5 @@
 var entryTemplate = require('../templates/entry');
+var entriesTemplate = require('../templates/entries');
 
 var EntryView = Marionette.ItemView.extend({
     template: entryTemplate,
@@ -21,11 +22,25 @@ var EntryView = Marionette.ItemView.extend({
     }
 });
 
-var EntriesView = Marionette.CollectionView.extend({
+var EntriesView = Marionette.CompositeView.extend({
     childView: EntryView,
+    template: entriesTemplate,
+    childViewContainer: '.articles',
 
     collectionEvents: {
         'feed-destroyed': 'destroy'
+    },
+
+    ui : {
+        'loadMore': '.load-more'
+    },
+
+    events: {
+        'click @ui.loadMore': 'loadMore'
+    },
+
+    loadMore: function () {
+        this.ui.loadMore.text('Loading more...');
     }
 });
 

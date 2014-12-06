@@ -10,7 +10,8 @@
     "bluebird": "~2.3.11",
     "font-awesome": "~4.2.0",
     "toastr": "~2.1.0",
-    "moment": "~2.8.4"
+    "moment": "~2.8.4",
+    "backbone.paginator": "~2.0.2"
   },
   "overrides": {
     "backbone": {
@@ -19,6 +20,9 @@
         "jquery": "*"
       },
       "main": "backbone.js"
-    }
+    },
+      "backbone.paginator": {
+          "main": "lib/backbone.paginator.js"
+      }
   }
 }

@@ -1,5 +1,6 @@
 var mongoose = require('mongoose');
 var Q = require('q');
+var _ = require('lodash');
 
 var article_schema = mongoose.Schema({
     title      : String,
@@ -56,9 +57,14 @@ feed_schema.statics.findById = function (id, fields) {
     return this.findOne({_id: id}, fields || simple_fields).exec();
 };
 
-feed_schema.statics.findEntries = function (id) {
+feed_schema.statics.findEntries = function (id, options) {
     return this.findOne({_id: id}, {'articles' : 1}).exec().then(function (feed) {
-        return feed.articles;
+        if (_.has(options, 'page') && _.has(options, 'perPage')) {
+            var lastIndex = options.perPage * options.page;
+            return feed.articles.slice(lastIndex - options.perPage, lastIndex);
+        } else {
+            return feed.articles;
+        }
     });
 };
 
