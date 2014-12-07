@@ -35232,6 +35232,10 @@ app.commands.setHandler('delete-feed', function (fid) {
 window.app = app;
 
 module.exports = app;
+
+$('.welcome').click(function () {
+    $('.left-column').toggleClass('hide');
+})
 });
 
 ;require.register("scripts/etc/hbs-helpers", function(exports, require, module) {
@@ -35332,7 +35336,7 @@ helpers = this.merge(helpers, Handlebars.helpers); data = data || {};
   
 
 
-  return "<div class=\"articles\">\n\n</div>\n\n<div class=\"load-more\">Load More</div>";
+  return "<div class=\"articles\">\n\n</div>\n\n<!--<div class=\"load-more\">Load More</div>-->";
   });
 if (typeof define === 'function' && define.amd) {
   define([], function() {
@@ -35444,9 +35448,9 @@ function program1(depth0,data) {
   if (helper = helpers._id) { stack1 = helper.call(depth0, {hash:{},data:data}); }
   else { helper = (depth0 && depth0._id); stack1 = typeof helper === functionType ? helper.call(depth0, {hash:{},data:data}) : helper; }
   buffer += escapeExpression(stack1)
-    + "\" class=\"btn pull-right btn-danger\" data-action=\"delete\">delete</span>\n\n    <span class=\"pull-right btn\"><i class=\"fa fa-clock-o\"></i> "
+    + "\" class=\"btn pull-right btn-danger\" data-action=\"delete\">delete</span>\n\n    <time class=\"pull-right btn\"><i class=\"fa fa-clock-o\"></i> "
     + escapeExpression((helper = helpers.nice_date || (depth0 && depth0.nice_date),options={hash:{},data:data},helper ? helper.call(depth0, (depth0 && depth0.pubdate), options) : helperMissing.call(depth0, "nice_date", (depth0 && depth0.pubdate), options)))
-    + "</span>\n";
+    + "</time>\n\n";
   return buffer;
   }
 
@@ -35611,6 +35615,7 @@ var feedItemTemplate = require('../templates/feed-item');
 
 var FeedItem = Marionette.ItemView.extend({
     tagName : 'li',
+    className: 'feed',
     template: feedItemTemplate,
 
     ui: {

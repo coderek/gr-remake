@@ -8740,5 +8740,41 @@ a {
     background-image: -webkit-linear-gradient(#f8f5ff, #f4f4f4, #f8f5ff);
     background-image: linear-gradient(#f8f5ff, #f4f4f4, #f8f5ff); }
 
+@media (max-width: 650px) {
+  /* line 2, app/styles/mobile */
+  body {
+    display: block;
+    overflow: auto; }
+
+  /* line 7, app/styles/mobile */
+  .top-region, .middle-region, .bottom-region {
+    display: block;
+    max-width: 100%; }
+
+  /* line 12, app/styles/mobile */
+  .left-column {
+    position: absolute;
+    background-color: #ddd;
+    z-index: 2; }
+    /* line 15, app/styles/mobile */
+    .left-column .feed {
+      background-color: #333 !important;
+      color: #ddd; }
+
+  /* line 21, app/styles/mobile */
+  .middle-region {
+    z-index: 2; }
+
+  /* line 25, app/styles/mobile */
+  .bottom-region {
+    margin-top: 10px;
+    padding-top: 10px;
+    z-index: 1; }
+
+  /* line 33, app/styles/mobile */
+  #feed-meta-region time {
+    float: none !important; }
+ }
+
 
 /*# sourceMappingURL=app.css.map*/
