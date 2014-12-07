@@ -11,7 +11,7 @@ router.post('/', function (req, res) {
 
     createAndSaveNewFeed(feed_url)
         .then(function (resp) {
-            res.json(resp[0]);
+            res.json(resp);
         }, function () {
             res.status(400).json({message: 'Invalid url'});
         });
@@ -49,8 +49,10 @@ module.exports = router;
 
 function createAndSaveNewFeed(url) {
     return ff(url).then(function (obj) {
-        var f = new Feed(obj);
-        return Q.npost(f, 'save');
+        // TODO avoid simple replacing articles (update sub documents)
+        return Feed.update({link: obj.link}, obj, {upsert: true}).exec().then(function () {
+            return Feed.findOne({link: obj.link}).exec();
+        });
     });
 }
 

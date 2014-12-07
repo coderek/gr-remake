@@ -53,10 +53,6 @@ feed_schema.statics.findUserFeeds = function (user){
     return this.find().select(simple_fields).exec();
 };
 
-feed_schema.statics.findById = function (id, fields) {
-    return this.findOne({_id: id}, fields || simple_fields).exec();
-};
-
 feed_schema.statics.findEntries = function (id, options) {
     return this.findOne({_id: id}, {'articles' : 1}).exec().then(function (feed) {
         if (_.has(options, 'page') && _.has(options, 'perPage')) {
@@ -71,6 +67,14 @@ feed_schema.statics.findEntries = function (id, options) {
 feed_schema.statics.removeFeed = function (id) {
     return this.remove({_id: mongoose.Types.ObjectId(id)}).exec();
 };
+
+feed_schema.pre('save', function (next) {
+//    isFeedExisted(this).then()
+//    if (isFeedExisted(this)) {
+//
+//    }
+    next();
+});
 
 var Feed = mongoose.model('Feed', feed_schema);
 
