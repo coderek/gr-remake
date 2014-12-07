@@ -2,6 +2,7 @@ var feedItemTemplate = require('../templates/feed-item');
 
 var FeedItem = Marionette.ItemView.extend({
     tagName : 'li',
+    className: 'feed',
     template: feedItemTemplate,
 
     ui: {
