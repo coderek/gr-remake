@@ -46,3 +46,7 @@ app.commands.setHandler('delete-feed', function (fid) {
 window.app = app;
 
 module.exports = app;
+
+$('.welcome').click(function () {
+    $('.left-column').toggleClass('hide');
+})
