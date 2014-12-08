@@ -15,10 +15,14 @@ var EntryView = Marionette.ItemView.extend({
     },
 
     toggleContent: function () {
+        var that = this;
         if (!this._isContentRendered) {
             this.ui.content.html(this.model.get('description'));
         }
         this.ui.content.toggle();
+        this.model.save({isread: true}, {patch: true}).then(function () {
+            that.$el.addClass('is-read');
+        });
     }
 });
 

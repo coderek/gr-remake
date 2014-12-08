@@ -93,8 +93,15 @@ $feed-item-bg: #f2f2f2;
     }
 }
 
-$article-title-bg: #f2f2f2;
+$visited-article-title-bg: #f2f2f2;
+$article-title-bg: #ffffff;
+
 .article {
+    &.is-read {
+        .title {
+            background-color: $visited-article-title-bg;
+        }
+    }
     .title {
         background-color: $article-title-bg;
         margin: 1px 0;
