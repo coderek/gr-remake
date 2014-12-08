@@ -14,7 +14,9 @@ var FeedItem = Marionette.ItemView.extend({
     },
 
     loadFeed: function () {
-        this.model.loadEntries().then(this.showEntries.bind(this));
+        this.$el.addClass('active');
+        this.$el.siblings().removeClass('active');
+        Backbone.history.navigate('/feeds/' + this.model.id, {trigger: true});
     },
 
     showEntries: function () {

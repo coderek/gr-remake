@@ -75,6 +75,9 @@ a {
 
 $feed-item-bg: #f2f2f2;
 #feed-list-region {
+    li.active {
+        background-color: darken($feed-item-bg, 10%);
+    }
     li {
         background-color: $feed-item-bg;
         padding: 4px;

@@ -2,29 +2,21 @@ var Entries = require('./entries');
 
 var Feed = Backbone.Model.extend({
     idAttribute: '_id',
-    entries    : null,
 
     setEntries: function (articles) {
-        this.entries = new Entries(articles, {url: '/feeds/' + this.id + '/entries'});
+        this.entries.set(articles);
     },
 
     initialize: function () {
+        this.entries = new Entries([], {url: '/feeds/' + this.id + '/entries'});
+
         this.on('destroy', function () {
             if (this.entries) {
                 this.entries.trigger('feed-destroyed');
             }
             this.entries = null;
         });
-    },
-
-    loadEntries: function () {
-        if (this.entries) {
-            return Promise.resolve(this.entries);
-        }
-        this.setEntries([]);
-        return Promise.resolve(this.entries.fetch());
     }
-
 });
 
 var Feeds = Backbone.Collection.extend({
