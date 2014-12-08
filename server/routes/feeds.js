@@ -43,6 +43,17 @@ router.delete('/:id', function (req, res) {
     });
 });
 
+router.patch('/:id/entries/:fid', function (req, res) {
+    var obj = req.body;
+    if (_.isObject(obj)) {
+        Feed.updateEntry(req.params.id, req.params.fid, obj).then(function () {
+            res.json(obj);
+        });
+    } else {
+        res.status(400).json({message: 'Wrong arguments type.'});
+    }
+});
+
 
 module.exports = router;
 

@@ -1,4 +1,5 @@
 var mongoose = require('mongoose');
+var ObjectId = mongoose.Types.ObjectId;
 var Q = require('q');
 var _ = require('lodash');
 
@@ -23,7 +24,8 @@ var article_schema = mongoose.Schema({
     },
     enclosures : [
         {}
-    ]
+    ],
+    isread: false
 });
 
 var feed_schema = mongoose.Schema({
@@ -65,8 +67,19 @@ feed_schema.statics.findEntries = function (id, options) {
 };
 
 feed_schema.statics.removeFeed = function (id) {
-    return this.remove({_id: mongoose.Types.ObjectId(id)}).exec();
+    return this.remove({_id: ObjectId(id)}).exec();
 };
+
+feed_schema.statics.updateEntry = function (fid, eid, entry) {
+    var mEntry = {};
+
+    _.each(entry, function (val, key) {
+        mEntry['articles.$.' + key] = val;
+    });
+
+    return this.update({_id: ObjectId(fid),
+        'articles._id': ObjectId(eid)}, mEntry, {upsert: true}).exec();
+}
 
 feed_schema.pre('save', function (next) {
 //    isFeedExisted(this).then()
