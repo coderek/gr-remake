@@ -5,6 +5,12 @@ var EntryView = Marionette.ItemView.extend({
     template: entryTemplate,
     className: 'article',
 
+    initialize: function () {
+        if (this.model.get('isread')) {
+            this.$el.addClass('is-read');
+        }
+    },
+
     ui: {
         content: '.content',
         title: '.title'
