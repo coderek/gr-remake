@@ -37,6 +37,10 @@ var EntriesView = Marionette.CompositeView.extend({
     template: entriesTemplate,
     childViewContainer: '.articles',
 
+    initialize: function () {
+        this.collection.fetch();
+    },
+
     collectionEvents: {
         'feed-destroyed': 'destroy'
     },

@@ -21,6 +21,11 @@ app.addInitializer(function () {
     this.feedMetaRegion.show(feedMetaView);
 });
 
+app.on('start', function () {
+    require('./router');
+    Backbone.history.start({pushState: true});
+});
+
 app.commands.setHandler('show-entries', function (feed, entries) {
     var view = new EntriesView({collection: entries});
     app.entriesRegion.show(view);
@@ -40,6 +45,15 @@ app.commands.setHandler('delete-feed', function (fid) {
             toastr.success('Deleted');
             feedMetaView.trigger('clear');
         }});
+    }
+});
+
+app.commands.setHandler('show-feed', function (fid) {
+    var feed = feeds.get(fid);
+    if (feed) {
+        app.execute('show-entries', feed, feed.entries);
+    } else {
+        toastr.warning('Feed is not found.');
     }
 });
 

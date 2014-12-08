@@ -24,15 +24,10 @@ router.get('/:id/entries', function (req, res) {
     });
 });
 
-
 router.get('/:id', function (req, res) {
     getSimpleFeed(req.params.id).then(function (feed) {
-        if (req.headers['accept'].indexOf('application/json') !== -1) {
-            res.json(feed);
-        } else {
-            res.render('index', {selected_feed: feed});
-        }
-    })
+        res.json(feed);
+    });
 });
 
 router.delete('/:id', function (req, res) {

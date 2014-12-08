@@ -1,7 +1,7 @@
 include layout
 
 block styles
-  link(rel="stylesheet",type="text/css",href="app.css")
+  link(rel="stylesheet",type="text/css",href="/app.css")
 
 
 block content
@@ -32,7 +32,7 @@ block content
                   | Add Feed
 
 
-script(src="app.js")
+script(src="/app.js")
 
 script.
   var fds = !{JSON.stringify(feeds)};
