@@ -28,6 +28,7 @@
     "passport": "~0.2.1",
     "express-session": "~1.9.1",
     "connect-flash": "~0.1.1",
-    "cookie-session": "~1.1.0"
+    "cookie-session": "~1.1.0",
+    "compression": "~1.2.1"
   }
 }
