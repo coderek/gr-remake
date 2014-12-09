@@ -16,7 +16,7 @@ db.then(fetchAllFeeds).then(update).done(function () {
 });
 
 function fetchAllFeeds() {
-    return Feed.find({xmlurl: 'http://localhost:4567'}).exec().then(function (feeds) {
+    return Feed.find().exec().then(function (feeds) {
         return Promise.settle(_.map(feeds, function (feed) {
             var url = feed.xmlurl;
 
