@@ -4,6 +4,8 @@ module.exports = function (app) {
 
     app.use(require('../middlewares/feeds_loader'));
 
+    app.use('/', require('../routes/auth'), require('../routes/home'));
+
     app.use(function (req, res, next) {
         if (req.headers['accept'].indexOf('application/json') !== -1) {
             next();
@@ -12,7 +14,6 @@ module.exports = function (app) {
         }
     });
 
-    app.use('/', require('../routes/auth'), require('../routes/home'));
     app.use('/feeds', require('../routes/feeds'));
 
 

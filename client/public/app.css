@@ -8608,23 +8608,28 @@ button.toast-close-button {
     width: 25em; }
  }
 
-/* line 9, stdin */
+/* line 2, app/styles/auth */
+.auth .content {
+  width: 400px;
+  margin: 0 auto; }
+
+/* line 10, stdin */
 body, html {
   height: 100%;
   width: 100%; }
 
-/* line 14, stdin */
+/* line 15, stdin */
 body {
   font: 14px "Lucida Grande", Helvetica, Arial, sans-serif;
   display: flex;
   flex-direction: column;
   overflow: hidden; }
 
-/* line 21, stdin */
+/* line 22, stdin */
 a {
   color: #00B7FF; }
 
-/* line 25, stdin */
+/* line 26, stdin */
 .top-region {
   border-bottom: 1px solid #ddd;
   flex: 0 0 auto;
@@ -8636,100 +8641,100 @@ a {
   display: -moz-flex;
   display: -ms-flexbox;
   display: flex; }
-  /* line 31, stdin */
+  /* line 32, stdin */
   .top-region .welcome {
     width: 320px;
     text-align: left;
     padding-left: 0; }
-  /* line 38, stdin */
+  /* line 39, stdin */
   .top-region #feed-meta-region {
     flex: 1 0 auto;
     background-color: #fff4ac; }
-    /* line 41, stdin */
+    /* line 42, stdin */
     .top-region #feed-meta-region .title {
       font-weight: bold; }
 
-/* line 48, stdin */
+/* line 49, stdin */
 .middle-region {
   display: flex;
   flex: 1 100%; }
-  /* line 51, stdin */
+  /* line 52, stdin */
   .middle-region .left-column {
     width: 320px;
     overflow-y: auto;
     flex: none;
     border-right: 1px solid #ddd; }
-  /* line 58, stdin */
+  /* line 59, stdin */
   .middle-region .right-column {
     flex: 1 100%;
     overflow-y: auto;
     background: #f2f2f2 url('noise.png') top left; }
 
-/* line 65, stdin */
+/* line 66, stdin */
 .bottom-region {
   border-top: 1px solid #ddd;
   flex: 0 1 auto; }
-  /* line 70, stdin */
+  /* line 71, stdin */
   .bottom-region #feed-form input {
     border: none; }
 
-/* line 78, stdin */
+/* line 79, stdin */
 #feed-list-region li.active {
   background-color: #d8d8d8; }
-/* line 81, stdin */
+/* line 82, stdin */
 #feed-list-region li {
   background-color: #f2f2f2;
   padding: 4px;
   margin: 1px 0; }
-  /* line 85, stdin */
+  /* line 86, stdin */
   #feed-list-region li .title {
     display: inline-block;
     max-width: 100%;
     overflow: hidden;
     text-overflow: ellipsis;
     white-space: nowrap; }
-  /* line 88, stdin */
+  /* line 89, stdin */
   #feed-list-region li .author {
     color: #999999;
     font-size: 80%; }
-/* line 93, stdin */
+/* line 94, stdin */
 #feed-list-region li:hover {
   background-color: #d8d8d8;
   cursor: pointer; }
 
-/* line 103, stdin */
+/* line 104, stdin */
 .article {
   border-top: 1px solid #aaa; }
-  /* line 105, stdin */
+  /* line 106, stdin */
   .article.is-read .title {
     background-color: #c4c4c4;
     color: #838383;
     border: #838383; }
-  /* line 111, stdin */
+  /* line 112, stdin */
   .article .title {
     background-color: #ffffff;
     margin: 0;
     padding: 4px; }
-    /* line 116, stdin */
+    /* line 117, stdin */
     .article .title:hover {
       background-color: #e6e6e6;
       cursor: pointer; }
-    /* line 120, stdin */
+    /* line 121, stdin */
     .article .title .fa.fa-link {
       color: #aaa; }
-  /* line 125, stdin */
+  /* line 126, stdin */
   .article .content {
     padding: 20px;
     word-break: break-word;
     word-wrap: break-word;
     background-color: white; }
-    /* line 130, stdin */
+    /* line 131, stdin */
     .article .content img {
       float: left;
       max-width: 100%;
       margin: 10px; }
 
-/* line 143, stdin */
+/* line 144, stdin */
 .load-more {
   font-weight: bold;
   color: #333;
@@ -8740,7 +8745,7 @@ a {
   background-color: #e0dde7;
   background-image: -webkit-linear-gradient(bottom, #e0dde7 5%, #f4f4f4 50%, #e0dde7 95%);
   background-image: linear-gradient(to top,#e0dde7 5%, #f4f4f4 50%, #e0dde7 95%); }
-  /* line 144, stdin */
+  /* line 145, stdin */
   .load-more:hover {
     cursor: pointer;
     color: #888;
