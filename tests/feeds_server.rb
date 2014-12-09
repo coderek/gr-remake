@@ -4,7 +4,7 @@ require 'tinyatom'
 feed = TinyAtom::Feed.new(
   'http://mysite.com/blog/',
   'My Blog',
-  'http://mysite.com/blog/atom.xml',
+  'http://localhost:4567',
 
   # optional
 
@@ -23,8 +23,8 @@ get '/' do
 
   feed.add_entry(
     counter + 1,
-    'post ' + counter.to_s,
-    Time.now - 3600 * counter,
+    'post zengqiang' + counter.to_s,
+    Time.now +  3600 * counter,
     'http://mysite.com/blog/' + counter.to_s,
   :summary => 'the summary',
   :content => 'the content',
