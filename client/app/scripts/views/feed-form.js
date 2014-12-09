@@ -1,7 +1,15 @@
 var FeedForm = Backbone.View.extend({
 
     events: {
-        'click [data-action=add-feed]': 'submitFeedUrl'
+        'click [data-action=add-feed]': 'submitFeedUrl',
+        'keyup input': 'checkEnter'
+    },
+
+    checkEnter: function (ev) {
+        var code = ev.keyCode || ev.which;
+        if (code === 13) {
+            this.submitFeedUrl();
+        }
     },
 
     submitFeedUrl: function () {

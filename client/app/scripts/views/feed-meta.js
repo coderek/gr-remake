@@ -27,6 +27,7 @@ var FeedMetaView = Marionette.ItemView.extend({
     deleteFeed: function () {
         var feedId = this.ui.delete.data('id');
         app.execute('delete-feed', feedId);
+        Backbone.history.navigate('/', {trigger: true});
     },
 
     template  : metaTemplate
