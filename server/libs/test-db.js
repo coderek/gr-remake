@@ -1,5 +1,5 @@
 var db = require('./db');
-var ff = require('./feed_fetcher');
+var ff = require('./feed-fetcher');
 var log = console.log.bind(console);
 var mongoose = require('mongoose');
 

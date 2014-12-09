@@ -1,6 +1,6 @@
 var express = require('express');
 var router = express.Router();
-var ff = require('../libs/feed_fetcher');
+var ff = require('../libs/feed-fetcher');
 var Feed = require('../libs/models/feed');
 var _ = require('lodash');
 var Q = require('q');

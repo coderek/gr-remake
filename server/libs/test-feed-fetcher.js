@@ -1,4 +1,4 @@
-var ff = require('./feed_fetcher');
+var ff = require('./feed-fetcher');
 //var url = 'http://codingnow.com/atom.xml';
 //var url = 'http://coolshell.cn/feed';
 //var url = 'http://derekzeng.me/atom.xml';
