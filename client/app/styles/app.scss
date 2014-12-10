@@ -6,7 +6,10 @@
 @import "../../bower_components/font-awesome/scss/font-awesome";
 @import "../../bower_components/toastr/toastr";
 @import "auth";
+@import "article";
 
+
+$tool-color: #cffcff;
 body, html {
     height: 100%;
     width: 100%;
@@ -26,19 +29,19 @@ a {
 .top-region {
     border-bottom: 1px solid #ddd;
     flex: 0 0 auto;
-    box-shadow: 0 1px 1px 1px #ddd;
     @include display(flex);
+    background-color: $tool-color;
 
     .welcome {
         width: 320px;
         @extend .btn;
         text-align: left;
         padding-left: 0;
+        font-weight: bold;
     }
 
     #feed-meta-region {
         flex: 1 0 auto;
-        background-color: #fff4ac;
         .title {
             font-weight: bold;
             @extend .btn;
@@ -53,13 +56,13 @@ a {
         width: 320px;
         overflow-y: auto;
         flex: none;
-        border-right: 1px solid #ddd;
+        background-color: #e9e9e9;
     }
 
     .right-column {
         flex: 1 100%;
         overflow-y: auto;
-        background: #f2f2f2 url('noise.png') top left;
+        background-color: white;
     }
 }
 
@@ -70,19 +73,27 @@ a {
     #feed-form {
         input {
             border: none;
+            background-color: $tool-color;
         }
     }
+    background-color: $tool-color;
+
 }
 
-$feed-item-bg: #f2f2f2;
+$feed-item-bg: #c2c2c2;
 #feed-list-region {
     li.active {
         background-color: darken($feed-item-bg, 10%);
+        box-shadow: inset 0 0 10px 1px #444;
     }
     li {
-        background-color: $feed-item-bg;
+//        background-color: $feed-item-bg;
+        border-top: 1px solid #ddd;
+
         padding: 4px;
-        margin: 1px 0;
+        margin: 0;
+        color: #5b8187;
+
         .title {
             @include ellipsis;
         }
@@ -94,11 +105,14 @@ $feed-item-bg: #f2f2f2;
     li:hover {
         background-color: darken($feed-item-bg, 10%);
         cursor: pointer;
+        .author {
+            color: $text-color;
+        }
     }
 }
 
-$visited-article-title-bg: #c4c4c4;
-$visited-article-title-color: #838383;
+$visited-article-title-bg: #e0e0e0;
+$visited-article-title-color: $text-muted;
 $article-title-bg: #ffffff;
 
 .article {
@@ -112,7 +126,7 @@ $article-title-bg: #ffffff;
     .title {
         background-color: $article-title-bg;
         margin: 0;
-        padding: 4px;
+        padding: 10px;
 
         &:hover {
             background-color: darken($article-title-bg, 10%);
@@ -124,19 +138,7 @@ $article-title-bg: #ffffff;
     }
 
     .content {
-        padding: 20px;
-        word-break: break-word;
-        word-wrap: break-word;
-        background-color: white;
-        img {
-            float: left;
-            max-width: 100%;
-            margin: 10px;
-        }
-
-        &:after {
-            @extend .clearfix;
-        }
+        @include article-style;
     }
     border-top: 1px solid #aaa;
 }

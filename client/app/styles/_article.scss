@@ -1,0 +1,19 @@
+@mixin article-style {
+    font-family: 'Open Sans', sans-serif;
+    padding: 20px;
+    word-break: break-word;
+    word-wrap: break-word;
+    background-color: white;
+
+    img {
+        max-width: 100%;
+        margin: 10px auto;
+        display: block;
+    }
+
+    &:after {
+        @extend .clearfix;
+    }
+
+
+}
