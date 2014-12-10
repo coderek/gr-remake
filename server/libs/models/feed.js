@@ -81,14 +81,6 @@ feed_schema.statics.updateEntry = function (fid, eid, entry) {
         'articles._id': ObjectId(eid)}, mEntry, {upsert: true}).exec();
 }
 
-feed_schema.pre('save', function (next) {
-//    isFeedExisted(this).then()
-//    if (isFeedExisted(this)) {
-//
-//    }
-    next();
-});
-
 var Feed = mongoose.model('Feed', feed_schema);
 
 module.exports = Feed;

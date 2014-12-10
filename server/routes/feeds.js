@@ -5,6 +5,7 @@ var Feed = require('../libs/models/feed');
 var _ = require('lodash');
 var Q = require('q');
 var mongoose = require('mongoose');
+var processEntries = require('../libs/feed-processor');
 
 router.post('/', function (req, res) {
     var feed_url = req.body.url;
@@ -55,10 +56,8 @@ module.exports = router;
 
 function createAndSaveNewFeed(url) {
     return ff(url).then(function (obj) {
-        // TODO avoid simple replacing articles (update sub documents)
-        return Feed.update({link: obj.link}, obj, {upsert: true}).exec().then(function () {
-            return Feed.findOne({link: obj.link}).exec();
-        });
+//        processEntries(obj);
+        return Feed.create(obj);
     });
 }
 
