@@ -35306,6 +35306,10 @@ var Entries = Backbone.Collection.extend({
     model: Entry,
     initialize: function (models, options) {
         this.url = options.url;
+    },
+
+    comparator: function (e1, e2) {
+        return e1.get('pubdate') > e2.get('pubdate')? -1 : 1;
     }
 });
 
@@ -35416,7 +35420,7 @@ helpers = this.merge(helpers, Handlebars.helpers); data = data || {};
   if (helper = helpers.link) { stack1 = helper.call(depth0, {hash:{},data:data}); }
   else { helper = (depth0 && depth0.link); stack1 = typeof helper === functionType ? helper.call(depth0, {hash:{},data:data}) : helper; }
   buffer += escapeExpression(stack1)
-    + "\" target=\"_blank\" data-bypass><i class=\"fa fa-link\"></i></a>\n</div>\n\n<div class=\"content\" style=\"display: none\">\n</div>\n";
+    + "\" target=\"_blank\" data-bypass>\n    <i class=\"fa fa-link fa-fw\"></i></a>\n\n    <i class=\"fa fa-bookmark-o fa-fw\"></i>\n\n</div>\n\n<div class=\"content\" style=\"display: none\">\n</div>\n";
   return buffer;
   });
 if (typeof define === 'function' && define.amd) {
@@ -35572,7 +35576,15 @@ module.exports = EntriesView;
 var FeedForm = Backbone.View.extend({
 
     events: {
-        'click [data-action=add-feed]': 'submitFeedUrl'
+        'click [data-action=add-feed]': 'submitFeedUrl',
+        'keyup input': 'checkEnter'
+    },
+
+    checkEnter: function (ev) {
+        var code = ev.keyCode || ev.which;
+        if (code === 13) {
+            this.submitFeedUrl();
+        }
     },
 
     submitFeedUrl: function () {
@@ -35648,6 +35660,7 @@ var FeedMetaView = Marionette.ItemView.extend({
     deleteFeed: function () {
         var feedId = this.ui.delete.data('id');
         app.execute('delete-feed', feedId);
+        Backbone.history.navigate('/', {trigger: true});
     },
 
     template  : metaTemplate
