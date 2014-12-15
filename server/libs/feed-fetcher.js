@@ -4,6 +4,7 @@ var _ = require('lodash');
 var jschardet = require('jschardet');
 var Iconv = require('iconv').Iconv;
 var request = require('request');
+var wash = require('./washer').wash;
 
 /**
  *
@@ -52,6 +53,8 @@ function parse_feed(feedtext, encoding) {
         var meta = null;
 
         feedparser.on('data', function (article) {
+            article.summary = wash(article.summary);
+            article.description = wash(article.description);
             articles.push(article);
         });
 

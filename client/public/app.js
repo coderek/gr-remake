@@ -35360,10 +35360,12 @@ var Feed = Backbone.Model.extend({
     },
 
     setupEntriesCollection: function (fid) {
-        this.entries = new Entries([], {url: '/feeds/' + fid + '/entries'});
-        this.entries.on('change:isread add', function () {
-            this.trigger('read-entry');
-        }, this);
+        if (!this.entries) {
+            this.entries = new Entries([], {url: '/feeds/' + fid + '/entries'});
+            this.entries.on('change:isread add', function () {
+                this.trigger('read-entry');
+            }, this);
+        }
     },
 
     setEntries: function (articles) {
@@ -35371,6 +35373,7 @@ var Feed = Backbone.Model.extend({
     },
 
     initialize: function () {
+        this.setupEntriesCollection(this.id);
         this.on('destroy', function () {
             if (this.entries) {
                 this.entries.trigger('feed-destroyed');

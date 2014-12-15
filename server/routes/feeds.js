@@ -5,7 +5,6 @@ var Feed = require('../libs/models/feed');
 var _ = require('lodash');
 var Q = require('q');
 var mongoose = require('mongoose');
-var processEntries = require('../libs/feed-processor');
 
 router.post('/', function (req, res) {
     var feed_url = req.body.url;
