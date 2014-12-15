@@ -6,11 +6,23 @@ var FeedItem = Marionette.ItemView.extend({
     template: feedItemTemplate,
 
     ui: {
+        'unreadCounter': '.unread-counter'
+    },
 
+    modelEvents: {
+        'read-entry add-entry': 'updateUnreadCount'
     },
 
     events: {
         'click': 'loadFeed'
+    },
+
+    onShow: function () {
+        this.updateUnreadCount();
+    },
+
+    updateUnreadCount: function () {
+        this.ui.unreadCounter.text(this.model.getUnreadCount());
     },
 
     loadFeed: function () {

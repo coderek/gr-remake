@@ -9281,7 +9281,7 @@ return jQuery;
 
 }));
 
-;/**
+/**
  * @license
  * Lo-Dash 2.4.1 (Custom Build) <http://lodash.com/>
  * Build: `lodash -o ./dist/lodash.compat.js`
@@ -16439,7 +16439,7 @@ return jQuery;
   }
 }.call(this));
 
-;//     Backbone.js 1.1.2
+//     Backbone.js 1.1.2
 
 //     (c) 2010-2014 Jeremy Ashkenas, DocumentCloud and Investigative Reporters & Editors
 //     Backbone may be freely distributed under the MIT license.
@@ -18048,7 +18048,7 @@ return jQuery;
 
 }));
 
-;//     Underscore.js 1.6.0
+//     Underscore.js 1.6.0
 //     http://underscorejs.org
 //     (c) 2009-2014 Jeremy Ashkenas, DocumentCloud and Investigative Reporters & Editors
 //     Underscore may be freely distributed under the MIT license.
@@ -19392,7 +19392,198 @@ return jQuery;
   }
 }).call(this);
 
-;// Backbone.Wreqr (Backbone.Marionette)
+// Backbone.BabySitter
+// -------------------
+// v0.1.5
+//
+// Copyright (c)2014 Derick Bailey, Muted Solutions, LLC.
+// Distributed under MIT license
+//
+// http://github.com/marionettejs/backbone.babysitter
+
+(function(root, factory) {
+
+  if (typeof define === 'function' && define.amd) {
+    define(['backbone', 'underscore'], function(Backbone, _) {
+      return factory(Backbone, _);
+    });
+  } else if (typeof exports !== 'undefined') {
+    var Backbone = require('backbone');
+    var _ = require('underscore');
+    module.exports = factory(Backbone, _);
+  } else {
+    factory(root.Backbone, root._);
+  }
+
+}(this, function(Backbone, _) {
+  'use strict';
+
+  var previousChildViewContainer = Backbone.ChildViewContainer;
+
+  // BabySitter.ChildViewContainer
+  // -----------------------------
+  //
+  // Provide a container to store, retrieve and
+  // shut down child views.
+  
+  Backbone.ChildViewContainer = (function (Backbone, _) {
+  
+    // Container Constructor
+    // ---------------------
+  
+    var Container = function(views){
+      this._views = {};
+      this._indexByModel = {};
+      this._indexByCustom = {};
+      this._updateLength();
+  
+      _.each(views, this.add, this);
+    };
+  
+    // Container Methods
+    // -----------------
+  
+    _.extend(Container.prototype, {
+  
+      // Add a view to this container. Stores the view
+      // by `cid` and makes it searchable by the model
+      // cid (and model itself). Optionally specify
+      // a custom key to store an retrieve the view.
+      add: function(view, customIndex){
+        var viewCid = view.cid;
+  
+        // store the view
+        this._views[viewCid] = view;
+  
+        // index it by model
+        if (view.model){
+          this._indexByModel[view.model.cid] = viewCid;
+        }
+  
+        // index by custom
+        if (customIndex){
+          this._indexByCustom[customIndex] = viewCid;
+        }
+  
+        this._updateLength();
+        return this;
+      },
+  
+      // Find a view by the model that was attached to
+      // it. Uses the model's `cid` to find it.
+      findByModel: function(model){
+        return this.findByModelCid(model.cid);
+      },
+  
+      // Find a view by the `cid` of the model that was attached to
+      // it. Uses the model's `cid` to find the view `cid` and
+      // retrieve the view using it.
+      findByModelCid: function(modelCid){
+        var viewCid = this._indexByModel[modelCid];
+        return this.findByCid(viewCid);
+      },
+  
+      // Find a view by a custom indexer.
+      findByCustom: function(index){
+        var viewCid = this._indexByCustom[index];
+        return this.findByCid(viewCid);
+      },
+  
+      // Find by index. This is not guaranteed to be a
+      // stable index.
+      findByIndex: function(index){
+        return _.values(this._views)[index];
+      },
+  
+      // retrieve a view by its `cid` directly
+      findByCid: function(cid){
+        return this._views[cid];
+      },
+  
+      // Remove a view
+      remove: function(view){
+        var viewCid = view.cid;
+  
+        // delete model index
+        if (view.model){
+          delete this._indexByModel[view.model.cid];
+        }
+  
+        // delete custom index
+        _.any(this._indexByCustom, function(cid, key) {
+          if (cid === viewCid) {
+            delete this._indexByCustom[key];
+            return true;
+          }
+        }, this);
+  
+        // remove the view from the container
+        delete this._views[viewCid];
+  
+        // update the length
+        this._updateLength();
+        return this;
+      },
+  
+      // Call a method on every view in the container,
+      // passing parameters to the call method one at a
+      // time, like `function.call`.
+      call: function(method){
+        this.apply(method, _.tail(arguments));
+      },
+  
+      // Apply a method on every view in the container,
+      // passing parameters to the call method one at a
+      // time, like `function.apply`.
+      apply: function(method, args){
+        _.each(this._views, function(view){
+          if (_.isFunction(view[method])){
+            view[method].apply(view, args || []);
+          }
+        });
+      },
+  
+      // Update the `.length` attribute on this container
+      _updateLength: function(){
+        this.length = _.size(this._views);
+      }
+    });
+  
+    // Borrowing this code from Backbone.Collection:
+    // http://backbonejs.org/docs/backbone.html#section-106
+    //
+    // Mix in methods from Underscore, for iteration, and other
+    // collection related features.
+    var methods = ['forEach', 'each', 'map', 'find', 'detect', 'filter',
+      'select', 'reject', 'every', 'all', 'some', 'any', 'include',
+      'contains', 'invoke', 'toArray', 'first', 'initial', 'rest',
+      'last', 'without', 'isEmpty', 'pluck'];
+  
+    _.each(methods, function(method) {
+      Container.prototype[method] = function() {
+        var views = _.values(this._views);
+        var args = [views].concat(_.toArray(arguments));
+        return _[method].apply(_, args);
+      };
+    });
+  
+    // return the public API
+    return Container;
+  })(Backbone, _);
+  
+
+  Backbone.ChildViewContainer.VERSION = '0.1.5';
+
+  Backbone.ChildViewContainer.noConflict = function () {
+    Backbone.ChildViewContainer = previousChildViewContainer;
+    return this;
+  };
+
+  return Backbone.ChildViewContainer;
+
+}));
+
+// Backbone.Wreqr (Backbone.Marionette)
 // ----------------------------------
 // v1.3.1
 //
@@ -19833,5513 +20024,7 @@ return jQuery;
 
 }));
 
-;// Backbone.BabySitter
-// -------------------
-// v0.1.5
-//
-// Copyright (c)2014 Derick Bailey, Muted Solutions, LLC.
-// Distributed under MIT license
-//
-// http://github.com/marionettejs/backbone.babysitter
-
-(function(root, factory) {
-
-  if (typeof define === 'function' && define.amd) {
-    define(['backbone', 'underscore'], function(Backbone, _) {
-      return factory(Backbone, _);
-    });
-  } else if (typeof exports !== 'undefined') {
-    var Backbone = require('backbone');
-    var _ = require('underscore');
-    module.exports = factory(Backbone, _);
-  } else {
-    factory(root.Backbone, root._);
-  }
-
-}(this, function(Backbone, _) {
-  'use strict';
-
-  var previousChildViewContainer = Backbone.ChildViewContainer;
-
-  // BabySitter.ChildViewContainer
-  // -----------------------------
-  //
-  // Provide a container to store, retrieve and
-  // shut down child views.
-  
-  Backbone.ChildViewContainer = (function (Backbone, _) {
-  
-    // Container Constructor
-    // ---------------------
-  
-    var Container = function(views){
-      this._views = {};
-      this._indexByModel = {};
-      this._indexByCustom = {};
-      this._updateLength();
-  
-      _.each(views, this.add, this);
-    };
-  
-    // Container Methods
-    // -----------------
-  
-    _.extend(Container.prototype, {
-  
-      // Add a view to this container. Stores the view
-      // by `cid` and makes it searchable by the model
-      // cid (and model itself). Optionally specify
-      // a custom key to store an retrieve the view.
-      add: function(view, customIndex){
-        var viewCid = view.cid;
-  
-        // store the view
-        this._views[viewCid] = view;
-  
-        // index it by model
-        if (view.model){
-          this._indexByModel[view.model.cid] = viewCid;
-        }
-  
-        // index by custom
-        if (customIndex){
-          this._indexByCustom[customIndex] = viewCid;
-        }
-  
-        this._updateLength();
-        return this;
-      },
-  
-      // Find a view by the model that was attached to
-      // it. Uses the model's `cid` to find it.
-      findByModel: function(model){
-        return this.findByModelCid(model.cid);
-      },
-  
-      // Find a view by the `cid` of the model that was attached to
-      // it. Uses the model's `cid` to find the view `cid` and
-      // retrieve the view using it.
-      findByModelCid: function(modelCid){
-        var viewCid = this._indexByModel[modelCid];
-        return this.findByCid(viewCid);
-      },
-  
-      // Find a view by a custom indexer.
-      findByCustom: function(index){
-        var viewCid = this._indexByCustom[index];
-        return this.findByCid(viewCid);
-      },
-  
-      // Find by index. This is not guaranteed to be a
-      // stable index.
-      findByIndex: function(index){
-        return _.values(this._views)[index];
-      },
-  
-      // retrieve a view by its `cid` directly
-      findByCid: function(cid){
-        return this._views[cid];
-      },
-  
-      // Remove a view
-      remove: function(view){
-        var viewCid = view.cid;
-  
-        // delete model index
-        if (view.model){
-          delete this._indexByModel[view.model.cid];
-        }
-  
-        // delete custom index
-        _.any(this._indexByCustom, function(cid, key) {
-          if (cid === viewCid) {
-            delete this._indexByCustom[key];
-            return true;
-          }
-        }, this);
-  
-        // remove the view from the container
-        delete this._views[viewCid];
-  
-        // update the length
-        this._updateLength();
-        return this;
-      },
-  
-      // Call a method on every view in the container,
-      // passing parameters to the call method one at a
-      // time, like `function.call`.
-      call: function(method){
-        this.apply(method, _.tail(arguments));
-      },
-  
-      // Apply a method on every view in the container,
-      // passing parameters to the call method one at a
-      // time, like `function.apply`.
-      apply: function(method, args){
-        _.each(this._views, function(view){
-          if (_.isFunction(view[method])){
-            view[method].apply(view, args || []);
-          }
-        });
-      },
-  
-      // Update the `.length` attribute on this container
-      _updateLength: function(){
-        this.length = _.size(this._views);
-      }
-    });
-  
-    // Borrowing this code from Backbone.Collection:
-    // http://backbonejs.org/docs/backbone.html#section-106
-    //
-    // Mix in methods from Underscore, for iteration, and other
-    // collection related features.
-    var methods = ['forEach', 'each', 'map', 'find', 'detect', 'filter',
-      'select', 'reject', 'every', 'all', 'some', 'any', 'include',
-      'contains', 'invoke', 'toArray', 'first', 'initial', 'rest',
-      'last', 'without', 'isEmpty', 'pluck'];
-  
-    _.each(methods, function(method) {
-      Container.prototype[method] = function() {
-        var views = _.values(this._views);
-        var args = [views].concat(_.toArray(arguments));
-        return _[method].apply(_, args);
-      };
-    });
-  
-    // return the public API
-    return Container;
-  })(Backbone, _);
-  
-
-  Backbone.ChildViewContainer.VERSION = '0.1.5';
-
-  Backbone.ChildViewContainer.noConflict = function () {
-    Backbone.ChildViewContainer = previousChildViewContainer;
-    return this;
-  };
-
-  return Backbone.ChildViewContainer;
-
-}));
-
-;/*!
- * Bootstrap v3.0.2 by @fat and @mdo
- * Copyright 2013 Twitter, Inc.
- * Licensed under http://www.apache.org/licenses/LICENSE-2.0
- *
- * Designed and built with all the love in the world by @mdo and @fat.
- */
-
-if (typeof jQuery === "undefined") { throw new Error("Bootstrap requires jQuery") }
-
-/* ========================================================================
- * Bootstrap: transition.js v3.0.2
- * http://getbootstrap.com/javascript/#transitions
- * ========================================================================
- * Copyright 2013 Twitter, Inc.
- *
- * Licensed under the Apache License, Version 2.0 (the "License");
- * you may not use this file except in compliance with the License.
- * You may obtain a copy of the License at
- *
- * http://www.apache.org/licenses/LICENSE-2.0
- *
- * Unless required by applicable law or agreed to in writing, software
- * distributed under the License is distributed on an "AS IS" BASIS,
- * WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
- * See the License for the specific language governing permissions and
- * limitations under the License.
- * ======================================================================== */
-
-
-+function ($) { "use strict";
-
-  // CSS TRANSITION SUPPORT (Shoutout: http://www.modernizr.com/)
-  // ============================================================
-
-  function transitionEnd() {
-    var el = document.createElement('bootstrap')
-
-    var transEndEventNames = {
-      'WebkitTransition' : 'webkitTransitionEnd'
-    , 'MozTransition'    : 'transitionend'
-    , 'OTransition'      : 'oTransitionEnd otransitionend'
-    , 'transition'       : 'transitionend'
-    }
-
-    for (var name in transEndEventNames) {
-      if (el.style[name] !== undefined) {
-        return { end: transEndEventNames[name] }
-      }
-    }
-  }
-
-  // http://blog.alexmaccaw.com/css-transitions
-  $.fn.emulateTransitionEnd = function (duration) {
-    var called = false, $el = this
-    $(this).one($.support.transition.end, function () { called = true })
-    var callback = function () { if (!called) $($el).trigger($.support.transition.end) }
-    setTimeout(callback, duration)
-    return this
-  }
-
-  $(function () {
-    $.support.transition = transitionEnd()
-  })
-
-}(jQuery);
-
-/* ========================================================================
- * Bootstrap: alert.js v3.0.2
- * http://getbootstrap.com/javascript/#alerts
- * ========================================================================
- * Copyright 2013 Twitter, Inc.
- *
- * Licensed under the Apache License, Version 2.0 (the "License");
- * you may not use this file except in compliance with the License.
- * You may obtain a copy of the License at
- *
- * http://www.apache.org/licenses/LICENSE-2.0
- *
- * Unless required by applicable law or agreed to in writing, software
- * distributed under the License is distributed on an "AS IS" BASIS,
- * WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
- * See the License for the specific language governing permissions and
- * limitations under the License.
- * ======================================================================== */
-
-
-+function ($) { "use strict";
-
-  // ALERT CLASS DEFINITION
-  // ======================
-
-  var dismiss = '[data-dismiss="alert"]'
-  var Alert   = function (el) {
-    $(el).on('click', dismiss, this.close)
-  }
-
-  Alert.prototype.close = function (e) {
-    var $this    = $(this)
-    var selector = $this.attr('data-target')
-
-    if (!selector) {
-      selector = $this.attr('href')
-      selector = selector && selector.replace(/.*(?=#[^\s]*$)/, '') // strip for ie7
-    }
-
-    var $parent = $(selector)
-
-    if (e) e.preventDefault()
-
-    if (!$parent.length) {
-      $parent = $this.hasClass('alert') ? $this : $this.parent()
-    }
-
-    $parent.trigger(e = $.Event('close.bs.alert'))
-
-    if (e.isDefaultPrevented()) return
-
-    $parent.removeClass('in')
-
-    function removeElement() {
-      $parent.trigger('closed.bs.alert').remove()
-    }
-
-    $.support.transition && $parent.hasClass('fade') ?
-      $parent
-        .one($.support.transition.end, removeElement)
-        .emulateTransitionEnd(150) :
-      removeElement()
-  }
-
-
-  // ALERT PLUGIN DEFINITION
-  // =======================
-
-  var old = $.fn.alert
-
-  $.fn.alert = function (option) {
-    return this.each(function () {
-      var $this = $(this)
-      var data  = $this.data('bs.alert')
-
-      if (!data) $this.data('bs.alert', (data = new Alert(this)))
-      if (typeof option == 'string') data[option].call($this)
-    })
-  }
-
-  $.fn.alert.Constructor = Alert
-
-
-  // ALERT NO CONFLICT
-  // =================
-
-  $.fn.alert.noConflict = function () {
-    $.fn.alert = old
-    return this
-  }
-
-
-  // ALERT DATA-API
-  // ==============
-
-  $(document).on('click.bs.alert.data-api', dismiss, Alert.prototype.close)
-
-}(jQuery);
-
-/* ========================================================================
- * Bootstrap: button.js v3.0.2
- * http://getbootstrap.com/javascript/#buttons
- * ========================================================================
- * Copyright 2013 Twitter, Inc.
- *
- * Licensed under the Apache License, Version 2.0 (the "License");
- * you may not use this file except in compliance with the License.
- * You may obtain a copy of the License at
- *
- * http://www.apache.org/licenses/LICENSE-2.0
- *
- * Unless required by applicable law or agreed to in writing, software
- * distributed under the License is distributed on an "AS IS" BASIS,
- * WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
- * See the License for the specific language governing permissions and
- * limitations under the License.
- * ======================================================================== */
-
-
-+function ($) { "use strict";
-
-  // BUTTON PUBLIC CLASS DEFINITION
-  // ==============================
-
-  var Button = function (element, options) {
-    this.$element = $(element)
-    this.options  = $.extend({}, Button.DEFAULTS, options)
-  }
-
-  Button.DEFAULTS = {
-    loadingText: 'loading...'
-  }
-
-  Button.prototype.setState = function (state) {
-    var d    = 'disabled'
-    var $el  = this.$element
-    var val  = $el.is('input') ? 'val' : 'html'
-    var data = $el.data()
-
-    state = state + 'Text'
-
-    if (!data.resetText) $el.data('resetText', $el[val]())
-
-    $el[val](data[state] || this.options[state])
-
-    // push to event loop to allow forms to submit
-    setTimeout(function () {
-      state == 'loadingText' ?
-        $el.addClass(d).attr(d, d) :
-        $el.removeClass(d).removeAttr(d);
-    }, 0)
-  }
-
-  Button.prototype.toggle = function () {
-    var $parent = this.$element.closest('[data-toggle="buttons"]')
-
-    if ($parent.length) {
-      var $input = this.$element.find('input')
-        .prop('checked', !this.$element.hasClass('active'))
-        .trigger('change')
-      if ($input.prop('type') === 'radio') $parent.find('.active').removeClass('active')
-    }
-
-    this.$element.toggleClass('active')
-  }
-
-
-  // BUTTON PLUGIN DEFINITION
-  // ========================
-
-  var old = $.fn.button
-
-  $.fn.button = function (option) {
-    return this.each(function () {
-      var $this   = $(this)
-      var data    = $this.data('bs.button')
-      var options = typeof option == 'object' && option
-
-      if (!data) $this.data('bs.button', (data = new Button(this, options)))
-
-      if (option == 'toggle') data.toggle()
-      else if (option) data.setState(option)
-    })
-  }
-
-  $.fn.button.Constructor = Button
-
-
-  // BUTTON NO CONFLICT
-  // ==================
-
-  $.fn.button.noConflict = function () {
-    $.fn.button = old
-    return this
-  }
-
-
-  // BUTTON DATA-API
-  // ===============
-
-  $(document).on('click.bs.button.data-api', '[data-toggle^=button]', function (e) {
-    var $btn = $(e.target)
-    if (!$btn.hasClass('btn')) $btn = $btn.closest('.btn')
-    $btn.button('toggle')
-    e.preventDefault()
-  })
-
-}(jQuery);
-
-/* ========================================================================
- * Bootstrap: carousel.js v3.0.2
- * http://getbootstrap.com/javascript/#carousel
- * ========================================================================
- * Copyright 2013 Twitter, Inc.
- *
- * Licensed under the Apache License, Version 2.0 (the "License");
- * you may not use this file except in compliance with the License.
- * You may obtain a copy of the License at
- *
- * http://www.apache.org/licenses/LICENSE-2.0
- *
- * Unless required by applicable law or agreed to in writing, software
- * distributed under the License is distributed on an "AS IS" BASIS,
- * WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
- * See the License for the specific language governing permissions and
- * limitations under the License.
- * ======================================================================== */
-
-
-+function ($) { "use strict";
-
-  // CAROUSEL CLASS DEFINITION
-  // =========================
-
-  var Carousel = function (element, options) {
-    this.$element    = $(element)
-    this.$indicators = this.$element.find('.carousel-indicators')
-    this.options     = options
-    this.paused      =
-    this.sliding     =
-    this.interval    =
-    this.$active     =
-    this.$items      = null
-
-    this.options.pause == 'hover' && this.$element
-      .on('mouseenter', $.proxy(this.pause, this))
-      .on('mouseleave', $.proxy(this.cycle, this))
-  }
-
-  Carousel.DEFAULTS = {
-    interval: 5000
-  , pause: 'hover'
-  , wrap: true
-  }
-
-  Carousel.prototype.cycle =  function (e) {
-    e || (this.paused = false)
-
-    this.interval && clearInterval(this.interval)
-
-    this.options.interval
-      && !this.paused
-      && (this.interval = setInterval($.proxy(this.next, this), this.options.interval))
-
-    return this
-  }
-
-  Carousel.prototype.getActiveIndex = function () {
-    this.$active = this.$element.find('.item.active')
-    this.$items  = this.$active.parent().children()
-
-    return this.$items.index(this.$active)
-  }
-
-  Carousel.prototype.to = function (pos) {
-    var that        = this
-    var activeIndex = this.getActiveIndex()
-
-    if (pos > (this.$items.length - 1) || pos < 0) return
-
-    if (this.sliding)       return this.$element.one('slid', function () { that.to(pos) })
-    if (activeIndex == pos) return this.pause().cycle()
-
-    return this.slide(pos > activeIndex ? 'next' : 'prev', $(this.$items[pos]))
-  }
-
-  Carousel.prototype.pause = function (e) {
-    e || (this.paused = true)
-
-    if (this.$element.find('.next, .prev').length && $.support.transition.end) {
-      this.$element.trigger($.support.transition.end)
-      this.cycle(true)
-    }
-
-    this.interval = clearInterval(this.interval)
-
-    return this
-  }
-
-  Carousel.prototype.next = function () {
-    if (this.sliding) return
-    return this.slide('next')
-  }
-
-  Carousel.prototype.prev = function () {
-    if (this.sliding) return
-    return this.slide('prev')
-  }
-
-  Carousel.prototype.slide = function (type, next) {
-    var $active   = this.$element.find('.item.active')
-    var $next     = next || $active[type]()
-    var isCycling = this.interval
-    var direction = type == 'next' ? 'left' : 'right'
-    var fallback  = type == 'next' ? 'first' : 'last'
-    var that      = this
-
-    if (!$next.length) {
-      if (!this.options.wrap) return
-      $next = this.$element.find('.item')[fallback]()
-    }
-
-    this.sliding = true
-
-    isCycling && this.pause()
-
-    var e = $.Event('slide.bs.carousel', { relatedTarget: $next[0], direction: direction })
-
-    if ($next.hasClass('active')) return
-
-    if (this.$indicators.length) {
-      this.$indicators.find('.active').removeClass('active')
-      this.$element.one('slid', function () {
-        var $nextIndicator = $(that.$indicators.children()[that.getActiveIndex()])
-        $nextIndicator && $nextIndicator.addClass('active')
-      })
-    }
-
-    if ($.support.transition && this.$element.hasClass('slide')) {
-      this.$element.trigger(e)
-      if (e.isDefaultPrevented()) return
-      $next.addClass(type)
-      $next[0].offsetWidth // force reflow
-      $active.addClass(direction)
-      $next.addClass(direction)
-      $active
-        .one($.support.transition.end, function () {
-          $next.removeClass([type, direction].join(' ')).addClass('active')
-          $active.removeClass(['active', direction].join(' '))
-          that.sliding = false
-          setTimeout(function () { that.$element.trigger('slid') }, 0)
-        })
-        .emulateTransitionEnd(600)
-    } else {
-      this.$element.trigger(e)
-      if (e.isDefaultPrevented()) return
-      $active.removeClass('active')
-      $next.addClass('active')
-      this.sliding = false
-      this.$element.trigger('slid')
-    }
-
-    isCycling && this.cycle()
-
-    return this
-  }
-
-
-  // CAROUSEL PLUGIN DEFINITION
-  // ==========================
-
-  var old = $.fn.carousel
-
-  $.fn.carousel = function (option) {
-    return this.each(function () {
-      var $this   = $(this)
-      var data    = $this.data('bs.carousel')
-      var options = $.extend({}, Carousel.DEFAULTS, $this.data(), typeof option == 'object' && option)
-      var action  = typeof option == 'string' ? option : options.slide
-
-      if (!data) $this.data('bs.carousel', (data = new Carousel(this, options)))
-      if (typeof option == 'number') data.to(option)
-      else if (action) data[action]()
-      else if (options.interval) data.pause().cycle()
-    })
-  }
-
-  $.fn.carousel.Constructor = Carousel
-
-
-  // CAROUSEL NO CONFLICT
-  // ====================
-
-  $.fn.carousel.noConflict = function () {
-    $.fn.carousel = old
-    return this
-  }
-
-
-  // CAROUSEL DATA-API
-  // =================
-
-  $(document).on('click.bs.carousel.data-api', '[data-slide], [data-slide-to]', function (e) {
-    var $this   = $(this), href
-    var $target = $($this.attr('data-target') || (href = $this.attr('href')) && href.replace(/.*(?=#[^\s]+$)/, '')) //strip for ie7
-    var options = $.extend({}, $target.data(), $this.data())
-    var slideIndex = $this.attr('data-slide-to')
-    if (slideIndex) options.interval = false
-
-    $target.carousel(options)
-
-    if (slideIndex = $this.attr('data-slide-to')) {
-      $target.data('bs.carousel').to(slideIndex)
-    }
-
-    e.preventDefault()
-  })
-
-  $(window).on('load', function () {
-    $('[data-ride="carousel"]').each(function () {
-      var $carousel = $(this)
-      $carousel.carousel($carousel.data())
-    })
-  })
-
-}(jQuery);
-
-/* ========================================================================
- * Bootstrap: collapse.js v3.0.2
- * http://getbootstrap.com/javascript/#collapse
- * ========================================================================
- * Copyright 2013 Twitter, Inc.
- *
- * Licensed under the Apache License, Version 2.0 (the "License");
- * you may not use this file except in compliance with the License.
- * You may obtain a copy of the License at
- *
- * http://www.apache.org/licenses/LICENSE-2.0
- *
- * Unless required by applicable law or agreed to in writing, software
- * distributed under the License is distributed on an "AS IS" BASIS,
- * WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
- * See the License for the specific language governing permissions and
- * limitations under the License.
- * ======================================================================== */
-
-
-+function ($) { "use strict";
-
-  // COLLAPSE PUBLIC CLASS DEFINITION
-  // ================================
-
-  var Collapse = function (element, options) {
-    this.$element      = $(element)
-    this.options       = $.extend({}, Collapse.DEFAULTS, options)
-    this.transitioning = null
-
-    if (this.options.parent) this.$parent = $(this.options.parent)
-    if (this.options.toggle) this.toggle()
-  }
-
-  Collapse.DEFAULTS = {
-    toggle: true
-  }
-
-  Collapse.prototype.dimension = function () {
-    var hasWidth = this.$element.hasClass('width')
-    return hasWidth ? 'width' : 'height'
-  }
-
-  Collapse.prototype.show = function () {
-    if (this.transitioning || this.$element.hasClass('in')) return
-
-    var startEvent = $.Event('show.bs.collapse')
-    this.$element.trigger(startEvent)
-    if (startEvent.isDefaultPrevented()) return
-
-    var actives = this.$parent && this.$parent.find('> .panel > .in')
-
-    if (actives && actives.length) {
-      var hasData = actives.data('bs.collapse')
-      if (hasData && hasData.transitioning) return
-      actives.collapse('hide')
-      hasData || actives.data('bs.collapse', null)
-    }
-
-    var dimension = this.dimension()
-
-    this.$element
-      .removeClass('collapse')
-      .addClass('collapsing')
-      [dimension](0)
-
-    this.transitioning = 1
-
-    var complete = function () {
-      this.$element
-        .removeClass('collapsing')
-        .addClass('in')
-        [dimension]('auto')
-      this.transitioning = 0
-      this.$element.trigger('shown.bs.collapse')
-    }
-
-    if (!$.support.transition) return complete.call(this)
-
-    var scrollSize = $.camelCase(['scroll', dimension].join('-'))
-
-    this.$element
-      .one($.support.transition.end, $.proxy(complete, this))
-      .emulateTransitionEnd(350)
-      [dimension](this.$element[0][scrollSize])
-  }
-
-  Collapse.prototype.hide = function () {
-    if (this.transitioning || !this.$element.hasClass('in')) return
-
-    var startEvent = $.Event('hide.bs.collapse')
-    this.$element.trigger(startEvent)
-    if (startEvent.isDefaultPrevented()) return
-
-    var dimension = this.dimension()
-
-    this.$element
-      [dimension](this.$element[dimension]())
-      [0].offsetHeight
-
-    this.$element
-      .addClass('collapsing')
-      .removeClass('collapse')
-      .removeClass('in')
-
-    this.transitioning = 1
-
-    var complete = function () {
-      this.transitioning = 0
-      this.$element
-        .trigger('hidden.bs.collapse')
-        .removeClass('collapsing')
-        .addClass('collapse')
-    }
-
-    if (!$.support.transition) return complete.call(this)
-
-    this.$element
-      [dimension](0)
-      .one($.support.transition.end, $.proxy(complete, this))
-      .emulateTransitionEnd(350)
-  }
-
-  Collapse.prototype.toggle = function () {
-    this[this.$element.hasClass('in') ? 'hide' : 'show']()
-  }
-
-
-  // COLLAPSE PLUGIN DEFINITION
-  // ==========================
-
-  var old = $.fn.collapse
-
-  $.fn.collapse = function (option) {
-    return this.each(function () {
-      var $this   = $(this)
-      var data    = $this.data('bs.collapse')
-      var options = $.extend({}, Collapse.DEFAULTS, $this.data(), typeof option == 'object' && option)
-
-      if (!data) $this.data('bs.collapse', (data = new Collapse(this, options)))
-      if (typeof option == 'string') data[option]()
-    })
-  }
-
-  $.fn.collapse.Constructor = Collapse
-
-
-  // COLLAPSE NO CONFLICT
-  // ====================
-
-  $.fn.collapse.noConflict = function () {
-    $.fn.collapse = old
-    return this
-  }
-
-
-  // COLLAPSE DATA-API
-  // =================
-
-  $(document).on('click.bs.collapse.data-api', '[data-toggle=collapse]', function (e) {
-    var $this   = $(this), href
-    var target  = $this.attr('data-target')
-        || e.preventDefault()
-        || (href = $this.attr('href')) && href.replace(/.*(?=#[^\s]+$)/, '') //strip for ie7
-    var $target = $(target)
-    var data    = $target.data('bs.collapse')
-    var option  = data ? 'toggle' : $this.data()
-    var parent  = $this.attr('data-parent')
-    var $parent = parent && $(parent)
-
-    if (!data || !data.transitioning) {
-      if ($parent) $parent.find('[data-toggle=collapse][data-parent="' + parent + '"]').not($this).addClass('collapsed')
-      $this[$target.hasClass('in') ? 'addClass' : 'removeClass']('collapsed')
-    }
-
-    $target.collapse(option)
-  })
-
-}(jQuery);
-
-/* ========================================================================
- * Bootstrap: dropdown.js v3.0.2
- * http://getbootstrap.com/javascript/#dropdowns
- * ========================================================================
- * Copyright 2013 Twitter, Inc.
- *
- * Licensed under the Apache License, Version 2.0 (the "License");
- * you may not use this file except in compliance with the License.
- * You may obtain a copy of the License at
- *
- * http://www.apache.org/licenses/LICENSE-2.0
- *
- * Unless required by applicable law or agreed to in writing, software
- * distributed under the License is distributed on an "AS IS" BASIS,
- * WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
- * See the License for the specific language governing permissions and
- * limitations under the License.
- * ======================================================================== */
-
-
-+function ($) { "use strict";
-
-  // DROPDOWN CLASS DEFINITION
-  // =========================
-
-  var backdrop = '.dropdown-backdrop'
-  var toggle   = '[data-toggle=dropdown]'
-  var Dropdown = function (element) {
-    var $el = $(element).on('click.bs.dropdown', this.toggle)
-  }
-
-  Dropdown.prototype.toggle = function (e) {
-    var $this = $(this)
-
-    if ($this.is('.disabled, :disabled')) return
-
-    var $parent  = getParent($this)
-    var isActive = $parent.hasClass('open')
-
-    clearMenus()
-
-    if (!isActive) {
-      if ('ontouchstart' in document.documentElement && !$parent.closest('.navbar-nav').length) {
-        // if mobile we we use a backdrop because click events don't delegate
-        $('<div class="dropdown-backdrop"/>').insertAfter($(this)).on('click', clearMenus)
-      }
-
-      $parent.trigger(e = $.Event('show.bs.dropdown'))
-
-      if (e.isDefaultPrevented()) return
-
-      $parent
-        .toggleClass('open')
-        .trigger('shown.bs.dropdown')
-
-      $this.focus()
-    }
-
-    return false
-  }
-
-  Dropdown.prototype.keydown = function (e) {
-    if (!/(38|40|27)/.test(e.keyCode)) return
-
-    var $this = $(this)
-
-    e.preventDefault()
-    e.stopPropagation()
-
-    if ($this.is('.disabled, :disabled')) return
-
-    var $parent  = getParent($this)
-    var isActive = $parent.hasClass('open')
-
-    if (!isActive || (isActive && e.keyCode == 27)) {
-      if (e.which == 27) $parent.find(toggle).focus()
-      return $this.click()
-    }
-
-    var $items = $('[role=menu] li:not(.divider):visible a', $parent)
-
-    if (!$items.length) return
-
-    var index = $items.index($items.filter(':focus'))
-
-    if (e.keyCode == 38 && index > 0)                 index--                        // up
-    if (e.keyCode == 40 && index < $items.length - 1) index++                        // down
-    if (!~index)                                      index=0
-
-    $items.eq(index).focus()
-  }
-
-  function clearMenus() {
-    $(backdrop).remove()
-    $(toggle).each(function (e) {
-      var $parent = getParent($(this))
-      if (!$parent.hasClass('open')) return
-      $parent.trigger(e = $.Event('hide.bs.dropdown'))
-      if (e.isDefaultPrevented()) return
-      $parent.removeClass('open').trigger('hidden.bs.dropdown')
-    })
-  }
-
-  function getParent($this) {
-    var selector = $this.attr('data-target')
-
-    if (!selector) {
-      selector = $this.attr('href')
-      selector = selector && /#/.test(selector) && selector.replace(/.*(?=#[^\s]*$)/, '') //strip for ie7
-    }
-
-    var $parent = selector && $(selector)
-
-    return $parent && $parent.length ? $parent : $this.parent()
-  }
-
-
-  // DROPDOWN PLUGIN DEFINITION
-  // ==========================
-
-  var old = $.fn.dropdown
-
-  $.fn.dropdown = function (option) {
-    return this.each(function () {
-      var $this = $(this)
-      var data  = $this.data('dropdown')
-
-      if (!data) $this.data('dropdown', (data = new Dropdown(this)))
-      if (typeof option == 'string') data[option].call($this)
-    })
-  }
-
-  $.fn.dropdown.Constructor = Dropdown
-
-
-  // DROPDOWN NO CONFLICT
-  // ====================
-
-  $.fn.dropdown.noConflict = function () {
-    $.fn.dropdown = old
-    return this
-  }
-
-
-  // APPLY TO STANDARD DROPDOWN ELEMENTS
-  // ===================================
-
-  $(document)
-    .on('click.bs.dropdown.data-api', clearMenus)
-    .on('click.bs.dropdown.data-api', '.dropdown form', function (e) { e.stopPropagation() })
-    .on('click.bs.dropdown.data-api'  , toggle, Dropdown.prototype.toggle)
-    .on('keydown.bs.dropdown.data-api', toggle + ', [role=menu]' , Dropdown.prototype.keydown)
-
-}(jQuery);
-
-/* ========================================================================
- * Bootstrap: modal.js v3.0.2
- * http://getbootstrap.com/javascript/#modals
- * ========================================================================
- * Copyright 2013 Twitter, Inc.
- *
- * Licensed under the Apache License, Version 2.0 (the "License");
- * you may not use this file except in compliance with the License.
- * You may obtain a copy of the License at
- *
- * http://www.apache.org/licenses/LICENSE-2.0
- *
- * Unless required by applicable law or agreed to in writing, software
- * distributed under the License is distributed on an "AS IS" BASIS,
- * WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
- * See the License for the specific language governing permissions and
- * limitations under the License.
- * ======================================================================== */
-
-
-+function ($) { "use strict";
-
-  // MODAL CLASS DEFINITION
-  // ======================
-
-  var Modal = function (element, options) {
-    this.options   = options
-    this.$element  = $(element)
-    this.$backdrop =
-    this.isShown   = null
-
-    if (this.options.remote) this.$element.load(this.options.remote)
-  }
-
-  Modal.DEFAULTS = {
-      backdrop: true
-    , keyboard: true
-    , show: true
-  }
-
-  Modal.prototype.toggle = function (_relatedTarget) {
-    return this[!this.isShown ? 'show' : 'hide'](_relatedTarget)
-  }
-
-  Modal.prototype.show = function (_relatedTarget) {
-    var that = this
-    var e    = $.Event('show.bs.modal', { relatedTarget: _relatedTarget })
-
-    this.$element.trigger(e)
-
-    if (this.isShown || e.isDefaultPrevented()) return
-
-    this.isShown = true
-
-    this.escape()
-
-    this.$element.on('click.dismiss.modal', '[data-dismiss="modal"]', $.proxy(this.hide, this))
-
-    this.backdrop(function () {
-      var transition = $.support.transition && that.$element.hasClass('fade')
-
-      if (!that.$element.parent().length) {
-        that.$element.appendTo(document.body) // don't move modals dom position
-      }
-
-      that.$element.show()
-
-      if (transition) {
-        that.$element[0].offsetWidth // force reflow
-      }
-
-      that.$element
-        .addClass('in')
-        .attr('aria-hidden', false)
-
-      that.enforceFocus()
-
-      var e = $.Event('shown.bs.modal', { relatedTarget: _relatedTarget })
-
-      transition ?
-        that.$element.find('.modal-dialog') // wait for modal to slide in
-          .one($.support.transition.end, function () {
-            that.$element.focus().trigger(e)
-          })
-          .emulateTransitionEnd(300) :
-        that.$element.focus().trigger(e)
-    })
-  }
-
-  Modal.prototype.hide = function (e) {
-    if (e) e.preventDefault()
-
-    e = $.Event('hide.bs.modal')
-
-    this.$element.trigger(e)
-
-    if (!this.isShown || e.isDefaultPrevented()) return
-
-    this.isShown = false
-
-    this.escape()
-
-    $(document).off('focusin.bs.modal')
-
-    this.$element
-      .removeClass('in')
-      .attr('aria-hidden', true)
-      .off('click.dismiss.modal')
-
-    $.support.transition && this.$element.hasClass('fade') ?
-      this.$element
-        .one($.support.transition.end, $.proxy(this.hideModal, this))
-        .emulateTransitionEnd(300) :
-      this.hideModal()
-  }
-
-  Modal.prototype.enforceFocus = function () {
-    $(document)
-      .off('focusin.bs.modal') // guard against infinite focus loop
-      .on('focusin.bs.modal', $.proxy(function (e) {
-        if (this.$element[0] !== e.target && !this.$element.has(e.target).length) {
-          this.$element.focus()
-        }
-      }, this))
-  }
-
-  Modal.prototype.escape = function () {
-    if (this.isShown && this.options.keyboard) {
-      this.$element.on('keyup.dismiss.bs.modal', $.proxy(function (e) {
-        e.which == 27 && this.hide()
-      }, this))
-    } else if (!this.isShown) {
-      this.$element.off('keyup.dismiss.bs.modal')
-    }
-  }
-
-  Modal.prototype.hideModal = function () {
-    var that = this
-    this.$element.hide()
-    this.backdrop(function () {
-      that.removeBackdrop()
-      that.$element.trigger('hidden.bs.modal')
-    })
-  }
-
-  Modal.prototype.removeBackdrop = function () {
-    this.$backdrop && this.$backdrop.remove()
-    this.$backdrop = null
-  }
-
-  Modal.prototype.backdrop = function (callback) {
-    var that    = this
-    var animate = this.$element.hasClass('fade') ? 'fade' : ''
-
-    if (this.isShown && this.options.backdrop) {
-      var doAnimate = $.support.transition && animate
-
-      this.$backdrop = $('<div class="modal-backdrop ' + animate + '" />')
-        .appendTo(document.body)
-
-      this.$element.on('click.dismiss.modal', $.proxy(function (e) {
-        if (e.target !== e.currentTarget) return
-        this.options.backdrop == 'static'
-          ? this.$element[0].focus.call(this.$element[0])
-          : this.hide.call(this)
-      }, this))
-
-      if (doAnimate) this.$backdrop[0].offsetWidth // force reflow
-
-      this.$backdrop.addClass('in')
-
-      if (!callback) return
-
-      doAnimate ?
-        this.$backdrop
-          .one($.support.transition.end, callback)
-          .emulateTransitionEnd(150) :
-        callback()
-
-    } else if (!this.isShown && this.$backdrop) {
-      this.$backdrop.removeClass('in')
-
-      $.support.transition && this.$element.hasClass('fade')?
-        this.$backdrop
-          .one($.support.transition.end, callback)
-          .emulateTransitionEnd(150) :
-        callback()
-
-    } else if (callback) {
-      callback()
-    }
-  }
-
-
-  // MODAL PLUGIN DEFINITION
-  // =======================
-
-  var old = $.fn.modal
-
-  $.fn.modal = function (option, _relatedTarget) {
-    return this.each(function () {
-      var $this   = $(this)
-      var data    = $this.data('bs.modal')
-      var options = $.extend({}, Modal.DEFAULTS, $this.data(), typeof option == 'object' && option)
-
-      if (!data) $this.data('bs.modal', (data = new Modal(this, options)))
-      if (typeof option == 'string') data[option](_relatedTarget)
-      else if (options.show) data.show(_relatedTarget)
-    })
-  }
-
-  $.fn.modal.Constructor = Modal
-
-
-  // MODAL NO CONFLICT
-  // =================
-
-  $.fn.modal.noConflict = function () {
-    $.fn.modal = old
-    return this
-  }
-
-
-  // MODAL DATA-API
-  // ==============
-
-  $(document).on('click.bs.modal.data-api', '[data-toggle="modal"]', function (e) {
-    var $this   = $(this)
-    var href    = $this.attr('href')
-    var $target = $($this.attr('data-target') || (href && href.replace(/.*(?=#[^\s]+$)/, ''))) //strip for ie7
-    var option  = $target.data('modal') ? 'toggle' : $.extend({ remote: !/#/.test(href) && href }, $target.data(), $this.data())
-
-    e.preventDefault()
-
-    $target
-      .modal(option, this)
-      .one('hide', function () {
-        $this.is(':visible') && $this.focus()
-      })
-  })
-
-  $(document)
-    .on('show.bs.modal',  '.modal', function () { $(document.body).addClass('modal-open') })
-    .on('hidden.bs.modal', '.modal', function () { $(document.body).removeClass('modal-open') })
-
-}(jQuery);
-
-/* ========================================================================
- * Bootstrap: tooltip.js v3.0.2
- * http://getbootstrap.com/javascript/#tooltip
- * Inspired by the original jQuery.tipsy by Jason Frame
- * ========================================================================
- * Copyright 2013 Twitter, Inc.
- *
- * Licensed under the Apache License, Version 2.0 (the "License");
- * you may not use this file except in compliance with the License.
- * You may obtain a copy of the License at
- *
- * http://www.apache.org/licenses/LICENSE-2.0
- *
- * Unless required by applicable law or agreed to in writing, software
- * distributed under the License is distributed on an "AS IS" BASIS,
- * WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
- * See the License for the specific language governing permissions and
- * limitations under the License.
- * ======================================================================== */
-
-
-+function ($) { "use strict";
-
-  // TOOLTIP PUBLIC CLASS DEFINITION
-  // ===============================
-
-  var Tooltip = function (element, options) {
-    this.type       =
-    this.options    =
-    this.enabled    =
-    this.timeout    =
-    this.hoverState =
-    this.$element   = null
-
-    this.init('tooltip', element, options)
-  }
-
-  Tooltip.DEFAULTS = {
-    animation: true
-  , placement: 'top'
-  , selector: false
-  , template: '<div class="tooltip"><div class="tooltip-arrow"></div><div class="tooltip-inner"></div></div>'
-  , trigger: 'hover focus'
-  , title: ''
-  , delay: 0
-  , html: false
-  , container: false
-  }
-
-  Tooltip.prototype.init = function (type, element, options) {
-    this.enabled  = true
-    this.type     = type
-    this.$element = $(element)
-    this.options  = this.getOptions(options)
-
-    var triggers = this.options.trigger.split(' ')
-
-    for (var i = triggers.length; i--;) {
-      var trigger = triggers[i]
-
-      if (trigger == 'click') {
-        this.$element.on('click.' + this.type, this.options.selector, $.proxy(this.toggle, this))
-      } else if (trigger != 'manual') {
-        var eventIn  = trigger == 'hover' ? 'mouseenter' : 'focus'
-        var eventOut = trigger == 'hover' ? 'mouseleave' : 'blur'
-
-        this.$element.on(eventIn  + '.' + this.type, this.options.selector, $.proxy(this.enter, this))
-        this.$element.on(eventOut + '.' + this.type, this.options.selector, $.proxy(this.leave, this))
-      }
-    }
-
-    this.options.selector ?
-      (this._options = $.extend({}, this.options, { trigger: 'manual', selector: '' })) :
-      this.fixTitle()
-  }
-
-  Tooltip.prototype.getDefaults = function () {
-    return Tooltip.DEFAULTS
-  }
-
-  Tooltip.prototype.getOptions = function (options) {
-    options = $.extend({}, this.getDefaults(), this.$element.data(), options)
-
-    if (options.delay && typeof options.delay == 'number') {
-      options.delay = {
-        show: options.delay
-      , hide: options.delay
-      }
-    }
-
-    return options
-  }
-
-  Tooltip.prototype.getDelegateOptions = function () {
-    var options  = {}
-    var defaults = this.getDefaults()
-
-    this._options && $.each(this._options, function (key, value) {
-      if (defaults[key] != value) options[key] = value
-    })
-
-    return options
-  }
-
-  Tooltip.prototype.enter = function (obj) {
-    var self = obj instanceof this.constructor ?
-      obj : $(obj.currentTarget)[this.type](this.getDelegateOptions()).data('bs.' + this.type)
-
-    clearTimeout(self.timeout)
-
-    self.hoverState = 'in'
-
-    if (!self.options.delay || !self.options.delay.show) return self.show()
-
-    self.timeout = setTimeout(function () {
-      if (self.hoverState == 'in') self.show()
-    }, self.options.delay.show)
-  }
-
-  Tooltip.prototype.leave = function (obj) {
-    var self = obj instanceof this.constructor ?
-      obj : $(obj.currentTarget)[this.type](this.getDelegateOptions()).data('bs.' + this.type)
-
-    clearTimeout(self.timeout)
-
-    self.hoverState = 'out'
-
-    if (!self.options.delay || !self.options.delay.hide) return self.hide()
-
-    self.timeout = setTimeout(function () {
-      if (self.hoverState == 'out') self.hide()
-    }, self.options.delay.hide)
-  }
-
-  Tooltip.prototype.show = function () {
-    var e = $.Event('show.bs.'+ this.type)
-
-    if (this.hasContent() && this.enabled) {
-      this.$element.trigger(e)
-
-      if (e.isDefaultPrevented()) return
-
-      var $tip = this.tip()
-
-      this.setContent()
-
-      if (this.options.animation) $tip.addClass('fade')
-
-      var placement = typeof this.options.placement == 'function' ?
-        this.options.placement.call(this, $tip[0], this.$element[0]) :
-        this.options.placement
-
-      var autoToken = /\s?auto?\s?/i
-      var autoPlace = autoToken.test(placement)
-      if (autoPlace) placement = placement.replace(autoToken, '') || 'top'
-
-      $tip
-        .detach()
-        .css({ top: 0, left: 0, display: 'block' })
-        .addClass(placement)
-
-      this.options.container ? $tip.appendTo(this.options.container) : $tip.insertAfter(this.$element)
-
-      var pos          = this.getPosition()
-      var actualWidth  = $tip[0].offsetWidth
-      var actualHeight = $tip[0].offsetHeight
-
-      if (autoPlace) {
-        var $parent = this.$element.parent()
-
-        var orgPlacement = placement
-        var docScroll    = document.documentElement.scrollTop || document.body.scrollTop
-        var parentWidth  = this.options.container == 'body' ? window.innerWidth  : $parent.outerWidth()
-        var parentHeight = this.options.container == 'body' ? window.innerHeight : $parent.outerHeight()
-        var parentLeft   = this.options.container == 'body' ? 0 : $parent.offset().left
-
-        placement = placement == 'bottom' && pos.top   + pos.height  + actualHeight - docScroll > parentHeight  ? 'top'    :
-                    placement == 'top'    && pos.top   - docScroll   - actualHeight < 0                         ? 'bottom' :
-                    placement == 'right'  && pos.right + actualWidth > parentWidth                              ? 'left'   :
-                    placement == 'left'   && pos.left  - actualWidth < parentLeft                               ? 'right'  :
-                    placement
-
-        $tip
-          .removeClass(orgPlacement)
-          .addClass(placement)
-      }
-
-      var calculatedOffset = this.getCalculatedOffset(placement, pos, actualWidth, actualHeight)
-
-      this.applyPlacement(calculatedOffset, placement)
-      this.$element.trigger('shown.bs.' + this.type)
-    }
-  }
-
-  Tooltip.prototype.applyPlacement = function(offset, placement) {
-    var replace
-    var $tip   = this.tip()
-    var width  = $tip[0].offsetWidth
-    var height = $tip[0].offsetHeight
-
-    // manually read margins because getBoundingClientRect includes difference
-    var marginTop = parseInt($tip.css('margin-top'), 10)
-    var marginLeft = parseInt($tip.css('margin-left'), 10)
-
-    // we must check for NaN for ie 8/9
-    if (isNaN(marginTop))  marginTop  = 0
-    if (isNaN(marginLeft)) marginLeft = 0
-
-    offset.top  = offset.top  + marginTop
-    offset.left = offset.left + marginLeft
-
-    $tip
-      .offset(offset)
-      .addClass('in')
-
-    // check to see if placing tip in new offset caused the tip to resize itself
-    var actualWidth  = $tip[0].offsetWidth
-    var actualHeight = $tip[0].offsetHeight
-
-    if (placement == 'top' && actualHeight != height) {
-      replace = true
-      offset.top = offset.top + height - actualHeight
-    }
-
-    if (/bottom|top/.test(placement)) {
-      var delta = 0
-
-      if (offset.left < 0) {
-        delta       = offset.left * -2
-        offset.left = 0
-
-        $tip.offset(offset)
-
-        actualWidth  = $tip[0].offsetWidth
-        actualHeight = $tip[0].offsetHeight
-      }
-
-      this.replaceArrow(delta - width + actualWidth, actualWidth, 'left')
-    } else {
-      this.replaceArrow(actualHeight - height, actualHeight, 'top')
-    }
-
-    if (replace) $tip.offset(offset)
-  }
-
-  Tooltip.prototype.replaceArrow = function(delta, dimension, position) {
-    this.arrow().css(position, delta ? (50 * (1 - delta / dimension) + "%") : '')
-  }
-
-  Tooltip.prototype.setContent = function () {
-    var $tip  = this.tip()
-    var title = this.getTitle()
-
-    $tip.find('.tooltip-inner')[this.options.html ? 'html' : 'text'](title)
-    $tip.removeClass('fade in top bottom left right')
-  }
-
-  Tooltip.prototype.hide = function () {
-    var that = this
-    var $tip = this.tip()
-    var e    = $.Event('hide.bs.' + this.type)
-
-    function complete() {
-      if (that.hoverState != 'in') $tip.detach()
-    }
-
-    this.$element.trigger(e)
-
-    if (e.isDefaultPrevented()) return
-
-    $tip.removeClass('in')
-
-    $.support.transition && this.$tip.hasClass('fade') ?
-      $tip
-        .one($.support.transition.end, complete)
-        .emulateTransitionEnd(150) :
-      complete()
-
-    this.$element.trigger('hidden.bs.' + this.type)
-
-    return this
-  }
-
-  Tooltip.prototype.fixTitle = function () {
-    var $e = this.$element
-    if ($e.attr('title') || typeof($e.attr('data-original-title')) != 'string') {
-      $e.attr('data-original-title', $e.attr('title') || '').attr('title', '')
-    }
-  }
-
-  Tooltip.prototype.hasContent = function () {
-    return this.getTitle()
-  }
-
-  Tooltip.prototype.getPosition = function () {
-    var el = this.$element[0]
-    return $.extend({}, (typeof el.getBoundingClientRect == 'function') ? el.getBoundingClientRect() : {
-      width: el.offsetWidth
-    , height: el.offsetHeight
-    }, this.$element.offset())
-  }
-
-  Tooltip.prototype.getCalculatedOffset = function (placement, pos, actualWidth, actualHeight) {
-    return placement == 'bottom' ? { top: pos.top + pos.height,   left: pos.left + pos.width / 2 - actualWidth / 2  } :
-           placement == 'top'    ? { top: pos.top - actualHeight, left: pos.left + pos.width / 2 - actualWidth / 2  } :
-           placement == 'left'   ? { top: pos.top + pos.height / 2 - actualHeight / 2, left: pos.left - actualWidth } :
-        /* placement == 'right' */ { top: pos.top + pos.height / 2 - actualHeight / 2, left: pos.left + pos.width   }
-  }
-
-  Tooltip.prototype.getTitle = function () {
-    var title
-    var $e = this.$element
-    var o  = this.options
-
-    title = $e.attr('data-original-title')
-      || (typeof o.title == 'function' ? o.title.call($e[0]) :  o.title)
-
-    return title
-  }
-
-  Tooltip.prototype.tip = function () {
-    return this.$tip = this.$tip || $(this.options.template)
-  }
-
-  Tooltip.prototype.arrow = function () {
-    return this.$arrow = this.$arrow || this.tip().find('.tooltip-arrow')
-  }
-
-  Tooltip.prototype.validate = function () {
-    if (!this.$element[0].parentNode) {
-      this.hide()
-      this.$element = null
-      this.options  = null
-    }
-  }
-
-  Tooltip.prototype.enable = function () {
-    this.enabled = true
-  }
-
-  Tooltip.prototype.disable = function () {
-    this.enabled = false
-  }
-
-  Tooltip.prototype.toggleEnabled = function () {
-    this.enabled = !this.enabled
-  }
-
-  Tooltip.prototype.toggle = function (e) {
-    var self = e ? $(e.currentTarget)[this.type](this.getDelegateOptions()).data('bs.' + this.type) : this
-    self.tip().hasClass('in') ? self.leave(self) : self.enter(self)
-  }
-
-  Tooltip.prototype.destroy = function () {
-    this.hide().$element.off('.' + this.type).removeData('bs.' + this.type)
-  }
-
-
-  // TOOLTIP PLUGIN DEFINITION
-  // =========================
-
-  var old = $.fn.tooltip
-
-  $.fn.tooltip = function (option) {
-    return this.each(function () {
-      var $this   = $(this)
-      var data    = $this.data('bs.tooltip')
-      var options = typeof option == 'object' && option
-
-      if (!data) $this.data('bs.tooltip', (data = new Tooltip(this, options)))
-      if (typeof option == 'string') data[option]()
-    })
-  }
-
-  $.fn.tooltip.Constructor = Tooltip
-
-
-  // TOOLTIP NO CONFLICT
-  // ===================
-
-  $.fn.tooltip.noConflict = function () {
-    $.fn.tooltip = old
-    return this
-  }
-
-}(jQuery);
-
-/* ========================================================================
- * Bootstrap: popover.js v3.0.2
- * http://getbootstrap.com/javascript/#popovers
- * ========================================================================
- * Copyright 2013 Twitter, Inc.
- *
- * Licensed under the Apache License, Version 2.0 (the "License");
- * you may not use this file except in compliance with the License.
- * You may obtain a copy of the License at
- *
- * http://www.apache.org/licenses/LICENSE-2.0
- *
- * Unless required by applicable law or agreed to in writing, software
- * distributed under the License is distributed on an "AS IS" BASIS,
- * WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
- * See the License for the specific language governing permissions and
- * limitations under the License.
- * ======================================================================== */
-
-
-+function ($) { "use strict";
-
-  // POPOVER PUBLIC CLASS DEFINITION
-  // ===============================
-
-  var Popover = function (element, options) {
-    this.init('popover', element, options)
-  }
-
-  if (!$.fn.tooltip) throw new Error('Popover requires tooltip.js')
-
-  Popover.DEFAULTS = $.extend({} , $.fn.tooltip.Constructor.DEFAULTS, {
-    placement: 'right'
-  , trigger: 'click'
-  , content: ''
-  , template: '<div class="popover"><div class="arrow"></div><h3 class="popover-title"></h3><div class="popover-content"></div></div>'
-  })
-
-
-  // NOTE: POPOVER EXTENDS tooltip.js
-  // ================================
-
-  Popover.prototype = $.extend({}, $.fn.tooltip.Constructor.prototype)
-
-  Popover.prototype.constructor = Popover
-
-  Popover.prototype.getDefaults = function () {
-    return Popover.DEFAULTS
-  }
-
-  Popover.prototype.setContent = function () {
-    var $tip    = this.tip()
-    var title   = this.getTitle()
-    var content = this.getContent()
-
-    $tip.find('.popover-title')[this.options.html ? 'html' : 'text'](title)
-    $tip.find('.popover-content')[this.options.html ? 'html' : 'text'](content)
-
-    $tip.removeClass('fade top bottom left right in')
-
-    // IE8 doesn't accept hiding via the `:empty` pseudo selector, we have to do
-    // this manually by checking the contents.
-    if (!$tip.find('.popover-title').html()) $tip.find('.popover-title').hide()
-  }
-
-  Popover.prototype.hasContent = function () {
-    return this.getTitle() || this.getContent()
-  }
-
-  Popover.prototype.getContent = function () {
-    var $e = this.$element
-    var o  = this.options
-
-    return $e.attr('data-content')
-      || (typeof o.content == 'function' ?
-            o.content.call($e[0]) :
-            o.content)
-  }
-
-  Popover.prototype.arrow = function () {
-    return this.$arrow = this.$arrow || this.tip().find('.arrow')
-  }
-
-  Popover.prototype.tip = function () {
-    if (!this.$tip) this.$tip = $(this.options.template)
-    return this.$tip
-  }
-
-
-  // POPOVER PLUGIN DEFINITION
-  // =========================
-
-  var old = $.fn.popover
-
-  $.fn.popover = function (option) {
-    return this.each(function () {
-      var $this   = $(this)
-      var data    = $this.data('bs.popover')
-      var options = typeof option == 'object' && option
-
-      if (!data) $this.data('bs.popover', (data = new Popover(this, options)))
-      if (typeof option == 'string') data[option]()
-    })
-  }
-
-  $.fn.popover.Constructor = Popover
-
-
-  // POPOVER NO CONFLICT
-  // ===================
-
-  $.fn.popover.noConflict = function () {
-    $.fn.popover = old
-    return this
-  }
-
-}(jQuery);
-
-/* ========================================================================
- * Bootstrap: scrollspy.js v3.0.2
- * http://getbootstrap.com/javascript/#scrollspy
- * ========================================================================
- * Copyright 2013 Twitter, Inc.
- *
- * Licensed under the Apache License, Version 2.0 (the "License");
- * you may not use this file except in compliance with the License.
- * You may obtain a copy of the License at
- *
- * http://www.apache.org/licenses/LICENSE-2.0
- *
- * Unless required by applicable law or agreed to in writing, software
- * distributed under the License is distributed on an "AS IS" BASIS,
- * WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
- * See the License for the specific language governing permissions and
- * limitations under the License.
- * ======================================================================== */
-
-
-+function ($) { "use strict";
-
-  // SCROLLSPY CLASS DEFINITION
-  // ==========================
-
-  function ScrollSpy(element, options) {
-    var href
-    var process  = $.proxy(this.process, this)
-
-    this.$element       = $(element).is('body') ? $(window) : $(element)
-    this.$body          = $('body')
-    this.$scrollElement = this.$element.on('scroll.bs.scroll-spy.data-api', process)
-    this.options        = $.extend({}, ScrollSpy.DEFAULTS, options)
-    this.selector       = (this.options.target
-      || ((href = $(element).attr('href')) && href.replace(/.*(?=#[^\s]+$)/, '')) //strip for ie7
-      || '') + ' .nav li > a'
-    this.offsets        = $([])
-    this.targets        = $([])
-    this.activeTarget   = null
-
-    this.refresh()
-    this.process()
-  }
-
-  ScrollSpy.DEFAULTS = {
-    offset: 10
-  }
-
-  ScrollSpy.prototype.refresh = function () {
-    var offsetMethod = this.$element[0] == window ? 'offset' : 'position'
-
-    this.offsets = $([])
-    this.targets = $([])
-
-    var self     = this
-    var $targets = this.$body
-      .find(this.selector)
-      .map(function () {
-        var $el   = $(this)
-        var href  = $el.data('target') || $el.attr('href')
-        var $href = /^#\w/.test(href) && $(href)
-
-        return ($href
-          && $href.length
-          && [[ $href[offsetMethod]().top + (!$.isWindow(self.$scrollElement.get(0)) && self.$scrollElement.scrollTop()), href ]]) || null
-      })
-      .sort(function (a, b) { return a[0] - b[0] })
-      .each(function () {
-        self.offsets.push(this[0])
-        self.targets.push(this[1])
-      })
-  }
-
-  ScrollSpy.prototype.process = function () {
-    var scrollTop    = this.$scrollElement.scrollTop() + this.options.offset
-    var scrollHeight = this.$scrollElement[0].scrollHeight || this.$body[0].scrollHeight
-    var maxScroll    = scrollHeight - this.$scrollElement.height()
-    var offsets      = this.offsets
-    var targets      = this.targets
-    var activeTarget = this.activeTarget
-    var i
-
-    if (scrollTop >= maxScroll) {
-      return activeTarget != (i = targets.last()[0]) && this.activate(i)
-    }
-
-    for (i = offsets.length; i--;) {
-      activeTarget != targets[i]
-        && scrollTop >= offsets[i]
-        && (!offsets[i + 1] || scrollTop <= offsets[i + 1])
-        && this.activate( targets[i] )
-    }
-  }
-
-  ScrollSpy.prototype.activate = function (target) {
-    this.activeTarget = target
-
-    $(this.selector)
-      .parents('.active')
-      .removeClass('active')
-
-    var selector = this.selector
-      + '[data-target="' + target + '"],'
-      + this.selector + '[href="' + target + '"]'
-
-    var active = $(selector)
-      .parents('li')
-      .addClass('active')
-
-    if (active.parent('.dropdown-menu').length)  {
-      active = active
-        .closest('li.dropdown')
-        .addClass('active')
-    }
-
-    active.trigger('activate')
-  }
-
-
-  // SCROLLSPY PLUGIN DEFINITION
-  // ===========================
-
-  var old = $.fn.scrollspy
-
-  $.fn.scrollspy = function (option) {
-    return this.each(function () {
-      var $this   = $(this)
-      var data    = $this.data('bs.scrollspy')
-      var options = typeof option == 'object' && option
-
-      if (!data) $this.data('bs.scrollspy', (data = new ScrollSpy(this, options)))
-      if (typeof option == 'string') data[option]()
-    })
-  }
-
-  $.fn.scrollspy.Constructor = ScrollSpy
-
-
-  // SCROLLSPY NO CONFLICT
-  // =====================
-
-  $.fn.scrollspy.noConflict = function () {
-    $.fn.scrollspy = old
-    return this
-  }
-
-
-  // SCROLLSPY DATA-API
-  // ==================
-
-  $(window).on('load', function () {
-    $('[data-spy="scroll"]').each(function () {
-      var $spy = $(this)
-      $spy.scrollspy($spy.data())
-    })
-  })
-
-}(jQuery);
-
-/* ========================================================================
- * Bootstrap: tab.js v3.0.2
- * http://getbootstrap.com/javascript/#tabs
- * ========================================================================
- * Copyright 2013 Twitter, Inc.
- *
- * Licensed under the Apache License, Version 2.0 (the "License");
- * you may not use this file except in compliance with the License.
- * You may obtain a copy of the License at
- *
- * http://www.apache.org/licenses/LICENSE-2.0
- *
- * Unless required by applicable law or agreed to in writing, software
- * distributed under the License is distributed on an "AS IS" BASIS,
- * WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
- * See the License for the specific language governing permissions and
- * limitations under the License.
- * ======================================================================== */
-
-
-+function ($) { "use strict";
-
-  // TAB CLASS DEFINITION
-  // ====================
-
-  var Tab = function (element) {
-    this.element = $(element)
-  }
-
-  Tab.prototype.show = function () {
-    var $this    = this.element
-    var $ul      = $this.closest('ul:not(.dropdown-menu)')
-    var selector = $this.data('target')
-
-    if (!selector) {
-      selector = $this.attr('href')
-      selector = selector && selector.replace(/.*(?=#[^\s]*$)/, '') //strip for ie7
-    }
-
-    if ($this.parent('li').hasClass('active')) return
-
-    var previous = $ul.find('.active:last a')[0]
-    var e        = $.Event('show.bs.tab', {
-      relatedTarget: previous
-    })
-
-    $this.trigger(e)
-
-    if (e.isDefaultPrevented()) return
-
-    var $target = $(selector)
-
-    this.activate($this.parent('li'), $ul)
-    this.activate($target, $target.parent(), function () {
-      $this.trigger({
-        type: 'shown.bs.tab'
-      , relatedTarget: previous
-      })
-    })
-  }
-
-  Tab.prototype.activate = function (element, container, callback) {
-    var $active    = container.find('> .active')
-    var transition = callback
-      && $.support.transition
-      && $active.hasClass('fade')
-
-    function next() {
-      $active
-        .removeClass('active')
-        .find('> .dropdown-menu > .active')
-        .removeClass('active')
-
-      element.addClass('active')
-
-      if (transition) {
-        element[0].offsetWidth // reflow for transition
-        element.addClass('in')
-      } else {
-        element.removeClass('fade')
-      }
-
-      if (element.parent('.dropdown-menu')) {
-        element.closest('li.dropdown').addClass('active')
-      }
-
-      callback && callback()
-    }
-
-    transition ?
-      $active
-        .one($.support.transition.end, next)
-        .emulateTransitionEnd(150) :
-      next()
-
-    $active.removeClass('in')
-  }
-
-
-  // TAB PLUGIN DEFINITION
-  // =====================
-
-  var old = $.fn.tab
-
-  $.fn.tab = function ( option ) {
-    return this.each(function () {
-      var $this = $(this)
-      var data  = $this.data('bs.tab')
-
-      if (!data) $this.data('bs.tab', (data = new Tab(this)))
-      if (typeof option == 'string') data[option]()
-    })
-  }
-
-  $.fn.tab.Constructor = Tab
-
-
-  // TAB NO CONFLICT
-  // ===============
-
-  $.fn.tab.noConflict = function () {
-    $.fn.tab = old
-    return this
-  }
-
-
-  // TAB DATA-API
-  // ============
-
-  $(document).on('click.bs.tab.data-api', '[data-toggle="tab"], [data-toggle="pill"]', function (e) {
-    e.preventDefault()
-    $(this).tab('show')
-  })
-
-}(jQuery);
-
-/* ========================================================================
- * Bootstrap: affix.js v3.0.2
- * http://getbootstrap.com/javascript/#affix
- * ========================================================================
- * Copyright 2013 Twitter, Inc.
- *
- * Licensed under the Apache License, Version 2.0 (the "License");
- * you may not use this file except in compliance with the License.
- * You may obtain a copy of the License at
- *
- * http://www.apache.org/licenses/LICENSE-2.0
- *
- * Unless required by applicable law or agreed to in writing, software
- * distributed under the License is distributed on an "AS IS" BASIS,
- * WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
- * See the License for the specific language governing permissions and
- * limitations under the License.
- * ======================================================================== */
-
-
-+function ($) { "use strict";
-
-  // AFFIX CLASS DEFINITION
-  // ======================
-
-  var Affix = function (element, options) {
-    this.options = $.extend({}, Affix.DEFAULTS, options)
-    this.$window = $(window)
-      .on('scroll.bs.affix.data-api', $.proxy(this.checkPosition, this))
-      .on('click.bs.affix.data-api',  $.proxy(this.checkPositionWithEventLoop, this))
-
-    this.$element = $(element)
-    this.affixed  =
-    this.unpin    = null
-
-    this.checkPosition()
-  }
-
-  Affix.RESET = 'affix affix-top affix-bottom'
-
-  Affix.DEFAULTS = {
-    offset: 0
-  }
-
-  Affix.prototype.checkPositionWithEventLoop = function () {
-    setTimeout($.proxy(this.checkPosition, this), 1)
-  }
-
-  Affix.prototype.checkPosition = function () {
-    if (!this.$element.is(':visible')) return
-
-    var scrollHeight = $(document).height()
-    var scrollTop    = this.$window.scrollTop()
-    var position     = this.$element.offset()
-    var offset       = this.options.offset
-    var offsetTop    = offset.top
-    var offsetBottom = offset.bottom
-
-    if (typeof offset != 'object')         offsetBottom = offsetTop = offset
-    if (typeof offsetTop == 'function')    offsetTop    = offset.top()
-    if (typeof offsetBottom == 'function') offsetBottom = offset.bottom()
-
-    var affix = this.unpin   != null && (scrollTop + this.unpin <= position.top) ? false :
-                offsetBottom != null && (position.top + this.$element.height() >= scrollHeight - offsetBottom) ? 'bottom' :
-                offsetTop    != null && (scrollTop <= offsetTop) ? 'top' : false
-
-    if (this.affixed === affix) return
-    if (this.unpin) this.$element.css('top', '')
-
-    this.affixed = affix
-    this.unpin   = affix == 'bottom' ? position.top - scrollTop : null
-
-    this.$element.removeClass(Affix.RESET).addClass('affix' + (affix ? '-' + affix : ''))
-
-    if (affix == 'bottom') {
-      this.$element.offset({ top: document.body.offsetHeight - offsetBottom - this.$element.height() })
-    }
-  }
-
-
-  // AFFIX PLUGIN DEFINITION
-  // =======================
-
-  var old = $.fn.affix
-
-  $.fn.affix = function (option) {
-    return this.each(function () {
-      var $this   = $(this)
-      var data    = $this.data('bs.affix')
-      var options = typeof option == 'object' && option
-
-      if (!data) $this.data('bs.affix', (data = new Affix(this, options)))
-      if (typeof option == 'string') data[option]()
-    })
-  }
-
-  $.fn.affix.Constructor = Affix
-
-
-  // AFFIX NO CONFLICT
-  // =================
-
-  $.fn.affix.noConflict = function () {
-    $.fn.affix = old
-    return this
-  }
-
-
-  // AFFIX DATA-API
-  // ==============
-
-  $(window).on('load', function () {
-    $('[data-spy="affix"]').each(function () {
-      var $spy = $(this)
-      var data = $spy.data()
-
-      data.offset = data.offset || {}
-
-      if (data.offsetBottom) data.offset.bottom = data.offsetBottom
-      if (data.offsetTop)    data.offset.top    = data.offsetTop
-
-      $spy.affix(data)
-    })
-  })
-
-}(jQuery);
-
-;/*
- * Toastr
- * Copyright 2012-2014 
- * Authors: John Papa, Hans Fjällemark, and Tim Ferrell.
- * All Rights Reserved.
- * Use, reproduction, distribution, and modification of this code is subject to the terms and
- * conditions of the MIT license, available at http://www.opensource.org/licenses/mit-license.php
- *
- * ARIA Support: Greta Krafsig
- *
- * Project: https://github.com/CodeSeven/toastr
- */
-; (function (define) {
-    define(['jquery'], function ($) {
-        return (function () {
-            var $container;
-            var listener;
-            var toastId = 0;
-            var toastType = {
-                error: 'error',
-                info: 'info',
-                success: 'success',
-                warning: 'warning'
-            };
-
-            var toastr = {
-                clear: clear,
-                remove: remove,
-                error: error,
-                getContainer: getContainer,
-                info: info,
-                options: {},
-                subscribe: subscribe,
-                success: success,
-                version: '2.1.0',
-                warning: warning
-            };
-
-            var previousToast;
-
-            return toastr;
-
-            //#region Accessible Methods
-            function error(message, title, optionsOverride) {
-                return notify({
-                    type: toastType.error,
-                    iconClass: getOptions().iconClasses.error,
-                    message: message,
-                    optionsOverride: optionsOverride,
-                    title: title
-                });
-            }
-
-            function getContainer(options, create) {
-                if (!options) { options = getOptions(); }
-                $container = $('#' + options.containerId);
-                if ($container.length) {
-                    return $container;
-                }
-                if (create) {
-                    $container = createContainer(options);
-                }
-                return $container;
-            }
-
-            function info(message, title, optionsOverride) {
-                return notify({
-                    type: toastType.info,
-                    iconClass: getOptions().iconClasses.info,
-                    message: message,
-                    optionsOverride: optionsOverride,
-                    title: title
-                });
-            }
-
-            function subscribe(callback) {
-                listener = callback;
-            }
-
-            function success(message, title, optionsOverride) {
-                return notify({
-                    type: toastType.success,
-                    iconClass: getOptions().iconClasses.success,
-                    message: message,
-                    optionsOverride: optionsOverride,
-                    title: title
-                });
-            }
-
-            function warning(message, title, optionsOverride) {
-                return notify({
-                    type: toastType.warning,
-                    iconClass: getOptions().iconClasses.warning,
-                    message: message,
-                    optionsOverride: optionsOverride,
-                    title: title
-                });
-            }
-
-            function clear($toastElement) {
-                var options = getOptions();
-                if (!$container) { getContainer(options); }
-                if (!clearToast($toastElement, options)) {
-                    clearContainer(options);
-                }
-            }
-
-            function remove($toastElement) {
-                var options = getOptions();
-                if (!$container) { getContainer(options); }
-                if ($toastElement && $(':focus', $toastElement).length === 0) {
-                    removeToast($toastElement);
-                    return;
-                }
-                if ($container.children().length) {
-                    $container.remove();
-                }
-            }
-            //#endregion
-
-            //#region Internal Methods
-
-            function clearContainer (options) {
-                var toastsToClear = $container.children();
-                for (var i = toastsToClear.length - 1; i >= 0; i--) {
-                    clearToast($(toastsToClear[i]), options);
-                }
-            }
-
-            function clearToast ($toastElement, options) {
-                if ($toastElement && $(':focus', $toastElement).length === 0) {
-                    $toastElement[options.hideMethod]({
-                        duration: options.hideDuration,
-                        easing: options.hideEasing,
-                        complete: function () { removeToast($toastElement); }
-                    });
-                    return true;
-                }
-                return false;
-            }
-
-            function createContainer(options) {
-                $container = $('<div/>')
-                    .attr('id', options.containerId)
-                    .addClass(options.positionClass)
-                    .attr('aria-live', 'polite')
-                    .attr('role', 'alert');
-
-                $container.appendTo($(options.target));
-                return $container;
-            }
-
-            function getDefaults() {
-                return {
-                    tapToDismiss: true,
-                    toastClass: 'toast',
-                    containerId: 'toast-container',
-                    debug: false,
-
-                    showMethod: 'fadeIn', //fadeIn, slideDown, and show are built into jQuery
-                    showDuration: 300,
-                    showEasing: 'swing', //swing and linear are built into jQuery
-                    onShown: undefined,
-                    hideMethod: 'fadeOut',
-                    hideDuration: 1000,
-                    hideEasing: 'swing',
-                    onHidden: undefined,
-
-                    extendedTimeOut: 1000,
-                    iconClasses: {
-                        error: 'toast-error',
-                        info: 'toast-info',
-                        success: 'toast-success',
-                        warning: 'toast-warning'
-                    },
-                    iconClass: 'toast-info',
-                    positionClass: 'toast-top-right',
-                    timeOut: 5000, // Set timeOut and extendedTimeOut to 0 to make it sticky
-                    titleClass: 'toast-title',
-                    messageClass: 'toast-message',
-                    target: 'body',
-                    closeHtml: '<button>&times;</button>',
-                    newestOnTop: true,
-                    preventDuplicates: false,
-                    progressBar: false
-                };
-            }
-
-            function publish(args) {
-                if (!listener) { return; }
-                listener(args);
-            }
-
-            function notify(map) {
-                var options = getOptions(),
-                    iconClass = map.iconClass || options.iconClass;
-
-                if (options.preventDuplicates) {
-                    if (map.message === previousToast) {
-                        return;
-                    } else {
-                        previousToast = map.message;
-                    }
-                }
-
-                if (typeof (map.optionsOverride) !== 'undefined') {
-                    options = $.extend(options, map.optionsOverride);
-                    iconClass = map.optionsOverride.iconClass || iconClass;
-                }
-
-                toastId++;
-
-                $container = getContainer(options, true);
-                var intervalId = null,
-                    $toastElement = $('<div/>'),
-                    $titleElement = $('<div/>'),
-                    $messageElement = $('<div/>'),
-                    $progressElement = $('<div/>'),
-                    $closeElement = $(options.closeHtml),
-                    progressBar = {
-                        intervalId: null,
-                        hideEta: null,
-                        maxHideTime: null
-                    },
-                    response = {
-                        toastId: toastId,
-                        state: 'visible',
-                        startTime: new Date(),
-                        options: options,
-                        map: map
-                    };
-
-                if (map.iconClass) {
-                    $toastElement.addClass(options.toastClass).addClass(iconClass);
-                }
-
-                if (map.title) {
-                    $titleElement.append(map.title).addClass(options.titleClass);
-                    $toastElement.append($titleElement);
-                }
-
-                if (map.message) {
-                    $messageElement.append(map.message).addClass(options.messageClass);
-                    $toastElement.append($messageElement);
-                }
-
-                if (options.closeButton) {
-                    $closeElement.addClass('toast-close-button').attr('role', 'button');
-                    $toastElement.prepend($closeElement);
-                }
-
-                if (options.progressBar) {
-                    $progressElement.addClass('toast-progress');
-                    $toastElement.prepend($progressElement);
-                }
-
-                $toastElement.hide();
-                if (options.newestOnTop) {
-                    $container.prepend($toastElement);
-                } else {
-                    $container.append($toastElement);
-                }
-                $toastElement[options.showMethod](
-                    {duration: options.showDuration, easing: options.showEasing, complete: options.onShown}
-                );
-
-                if (options.timeOut > 0) {
-                    intervalId = setTimeout(hideToast, options.timeOut);
-                    progressBar.maxHideTime = parseFloat(options.timeOut);
-                    progressBar.hideEta = new Date().getTime() + progressBar.maxHideTime;
-                    if (options.progressBar) {
-                        progressBar.intervalId = setInterval(updateProgress, 10);
-                    }
-                }
-
-                $toastElement.hover(stickAround, delayedHideToast);
-                if (!options.onclick && options.tapToDismiss) {
-                    $toastElement.click(hideToast);
-                }
-
-                if (options.closeButton && $closeElement) {
-                    $closeElement.click(function (event) {
-                        if (event.stopPropagation) {
-                            event.stopPropagation();
-                        } else if (event.cancelBubble !== undefined && event.cancelBubble !== true) {
-                            event.cancelBubble = true;
-                        }
-                        hideToast(true);
-                    });
-                }
-
-                if (options.onclick) {
-                    $toastElement.click(function () {
-                        options.onclick();
-                        hideToast();
-                    });
-                }
-
-                publish(response);
-
-                if (options.debug && console) {
-                    console.log(response);
-                }
-
-                return $toastElement;
-
-                function hideToast(override) {
-                    if ($(':focus', $toastElement).length && !override) {
-                        return;
-                    }
-                    clearTimeout(progressBar.intervalId);
-                    return $toastElement[options.hideMethod]({
-                        duration: options.hideDuration,
-                        easing: options.hideEasing,
-                        complete: function () {
-                            removeToast($toastElement);
-                            if (options.onHidden && response.state !== 'hidden') {
-                                options.onHidden();
-                            }
-                            response.state = 'hidden';
-                            response.endTime = new Date();
-                            publish(response);
-                        }
-                    });
-                }
-
-                function delayedHideToast() {
-                    if (options.timeOut > 0 || options.extendedTimeOut > 0) {
-                        intervalId = setTimeout(hideToast, options.extendedTimeOut);
-                        progressBar.maxHideTime = parseFloat(options.extendedTimeOut);
-                        progressBar.hideEta = new Date().getTime() + progressBar.maxHideTime;
-                    }
-                }
-
-                function stickAround() {
-                    clearTimeout(intervalId);
-                    progressBar.hideEta = 0;
-                    $toastElement.stop(true, true)[options.showMethod](
-                        {duration: options.showDuration, easing: options.showEasing}
-                    );
-                }
-
-                function updateProgress() {
-                    var percentage = ((progressBar.hideEta - (new Date().getTime())) / progressBar.maxHideTime) * 100;
-                    $progressElement.width(percentage + '%');
-                }
-            }
-
-            function getOptions() {
-                return $.extend({}, getDefaults(), toastr.options);
-            }
-
-            function removeToast($toastElement) {
-                if (!$container) { $container = getContainer(); }
-                if ($toastElement.is(':visible')) {
-                    return;
-                }
-                $toastElement.remove();
-                $toastElement = null;
-                if ($container.children().length === 0) {
-                    $container.remove();
-                }
-            }
-            //#endregion
-
-        })();
-    });
-}(typeof define === 'function' && define.amd ? define : function (deps, factory) {
-    if (typeof module !== 'undefined' && module.exports) { //Node
-        module.exports = factory(require('jquery'));
-    } else {
-        window['toastr'] = factory(window['jQuery']);
-    }
-}));
-
-;//! moment.js
-//! version : 2.8.4
-//! authors : Tim Wood, Iskren Chernev, Moment.js contributors
-//! license : MIT
-//! momentjs.com
-
-(function (undefined) {
-    /************************************
-        Constants
-    ************************************/
-
-    var moment,
-        VERSION = '2.8.4',
-        // the global-scope this is NOT the global object in Node.js
-        globalScope = typeof global !== 'undefined' ? global : this,
-        oldGlobalMoment,
-        round = Math.round,
-        hasOwnProperty = Object.prototype.hasOwnProperty,
-        i,
-
-        YEAR = 0,
-        MONTH = 1,
-        DATE = 2,
-        HOUR = 3,
-        MINUTE = 4,
-        SECOND = 5,
-        MILLISECOND = 6,
-
-        // internal storage for locale config files
-        locales = {},
-
-        // extra moment internal properties (plugins register props here)
-        momentProperties = [],
-
-        // check for nodeJS
-        hasModule = (typeof module !== 'undefined' && module && module.exports),
-
-        // ASP.NET json date format regex
-        aspNetJsonRegex = /^\/?Date\((\-?\d+)/i,
-        aspNetTimeSpanJsonRegex = /(\-)?(?:(\d*)\.)?(\d+)\:(\d+)(?:\:(\d+)\.?(\d{3})?)?/,
-
-        // from http://docs.closure-library.googlecode.com/git/closure_goog_date_date.js.source.html
-        // somewhat more in line with 4.4.3.2 2004 spec, but allows decimal anywhere
-        isoDurationRegex = /^(-)?P(?:(?:([0-9,.]*)Y)?(?:([0-9,.]*)M)?(?:([0-9,.]*)D)?(?:T(?:([0-9,.]*)H)?(?:([0-9,.]*)M)?(?:([0-9,.]*)S)?)?|([0-9,.]*)W)$/,
-
-        // format tokens
-        formattingTokens = /(\[[^\[]*\])|(\\)?(Mo|MM?M?M?|Do|DDDo|DD?D?D?|ddd?d?|do?|w[o|w]?|W[o|W]?|Q|YYYYYY|YYYYY|YYYY|YY|gg(ggg?)?|GG(GGG?)?|e|E|a|A|hh?|HH?|mm?|ss?|S{1,4}|x|X|zz?|ZZ?|.)/g,
-        localFormattingTokens = /(\[[^\[]*\])|(\\)?(LTS|LT|LL?L?L?|l{1,4})/g,
-
-        // parsing token regexes
-        parseTokenOneOrTwoDigits = /\d\d?/, // 0 - 99
-        parseTokenOneToThreeDigits = /\d{1,3}/, // 0 - 999
-        parseTokenOneToFourDigits = /\d{1,4}/, // 0 - 9999
-        parseTokenOneToSixDigits = /[+\-]?\d{1,6}/, // -999,999 - 999,999
-        parseTokenDigits = /\d+/, // nonzero number of digits
-        parseTokenWord = /[0-9]*['a-z\u00A0-\u05FF\u0700-\uD7FF\uF900-\uFDCF\uFDF0-\uFFEF]+|[\u0600-\u06FF\/]+(\s*?[\u0600-\u06FF]+){1,2}/i, // any word (or two) characters or numbers including two/three word month in arabic.
-        parseTokenTimezone = /Z|[\+\-]\d\d:?\d\d/gi, // +00:00 -00:00 +0000 -0000 or Z
-        parseTokenT = /T/i, // T (ISO separator)
-        parseTokenOffsetMs = /[\+\-]?\d+/, // 1234567890123
-        parseTokenTimestampMs = /[\+\-]?\d+(\.\d{1,3})?/, // 123456789 123456789.123
-
-        //strict parsing regexes
-        parseTokenOneDigit = /\d/, // 0 - 9
-        parseTokenTwoDigits = /\d\d/, // 00 - 99
-        parseTokenThreeDigits = /\d{3}/, // 000 - 999
-        parseTokenFourDigits = /\d{4}/, // 0000 - 9999
-        parseTokenSixDigits = /[+-]?\d{6}/, // -999,999 - 999,999
-        parseTokenSignedNumber = /[+-]?\d+/, // -inf - inf
-
-        // iso 8601 regex
-        // 0000-00-00 0000-W00 or 0000-W00-0 + T + 00 or 00:00 or 00:00:00 or 00:00:00.000 + +00:00 or +0000 or +00)
-        isoRegex = /^\s*(?:[+-]\d{6}|\d{4})-(?:(\d\d-\d\d)|(W\d\d$)|(W\d\d-\d)|(\d\d\d))((T| )(\d\d(:\d\d(:\d\d(\.\d+)?)?)?)?([\+\-]\d\d(?::?\d\d)?|\s*Z)?)?$/,
-
-        isoFormat = 'YYYY-MM-DDTHH:mm:ssZ',
-
-        isoDates = [
-            ['YYYYYY-MM-DD', /[+-]\d{6}-\d{2}-\d{2}/],
-            ['YYYY-MM-DD', /\d{4}-\d{2}-\d{2}/],
-            ['GGGG-[W]WW-E', /\d{4}-W\d{2}-\d/],
-            ['GGGG-[W]WW', /\d{4}-W\d{2}/],
-            ['YYYY-DDD', /\d{4}-\d{3}/]
-        ],
-
-        // iso time formats and regexes
-        isoTimes = [
-            ['HH:mm:ss.SSSS', /(T| )\d\d:\d\d:\d\d\.\d+/],
-            ['HH:mm:ss', /(T| )\d\d:\d\d:\d\d/],
-            ['HH:mm', /(T| )\d\d:\d\d/],
-            ['HH', /(T| )\d\d/]
-        ],
-
-        // timezone chunker '+10:00' > ['10', '00'] or '-1530' > ['-15', '30']
-        parseTimezoneChunker = /([\+\-]|\d\d)/gi,
-
-        // getter and setter names
-        proxyGettersAndSetters = 'Date|Hours|Minutes|Seconds|Milliseconds'.split('|'),
-        unitMillisecondFactors = {
-            'Milliseconds' : 1,
-            'Seconds' : 1e3,
-            'Minutes' : 6e4,
-            'Hours' : 36e5,
-            'Days' : 864e5,
-            'Months' : 2592e6,
-            'Years' : 31536e6
-        },
-
-        unitAliases = {
-            ms : 'millisecond',
-            s : 'second',
-            m : 'minute',
-            h : 'hour',
-            d : 'day',
-            D : 'date',
-            w : 'week',
-            W : 'isoWeek',
-            M : 'month',
-            Q : 'quarter',
-            y : 'year',
-            DDD : 'dayOfYear',
-            e : 'weekday',
-            E : 'isoWeekday',
-            gg: 'weekYear',
-            GG: 'isoWeekYear'
-        },
-
-        camelFunctions = {
-            dayofyear : 'dayOfYear',
-            isoweekday : 'isoWeekday',
-            isoweek : 'isoWeek',
-            weekyear : 'weekYear',
-            isoweekyear : 'isoWeekYear'
-        },
-
-        // format function strings
-        formatFunctions = {},
-
-        // default relative time thresholds
-        relativeTimeThresholds = {
-            s: 45,  // seconds to minute
-            m: 45,  // minutes to hour
-            h: 22,  // hours to day
-            d: 26,  // days to month
-            M: 11   // months to year
-        },
-
-        // tokens to ordinalize and pad
-        ordinalizeTokens = 'DDD w W M D d'.split(' '),
-        paddedTokens = 'M D H h m s w W'.split(' '),
-
-        formatTokenFunctions = {
-            M    : function () {
-                return this.month() + 1;
-            },
-            MMM  : function (format) {
-                return this.localeData().monthsShort(this, format);
-            },
-            MMMM : function (format) {
-                return this.localeData().months(this, format);
-            },
-            D    : function () {
-                return this.date();
-            },
-            DDD  : function () {
-                return this.dayOfYear();
-            },
-            d    : function () {
-                return this.day();
-            },
-            dd   : function (format) {
-                return this.localeData().weekdaysMin(this, format);
-            },
-            ddd  : function (format) {
-                return this.localeData().weekdaysShort(this, format);
-            },
-            dddd : function (format) {
-                return this.localeData().weekdays(this, format);
-            },
-            w    : function () {
-                return this.week();
-            },
-            W    : function () {
-                return this.isoWeek();
-            },
-            YY   : function () {
-                return leftZeroFill(this.year() % 100, 2);
-            },
-            YYYY : function () {
-                return leftZeroFill(this.year(), 4);
-            },
-            YYYYY : function () {
-                return leftZeroFill(this.year(), 5);
-            },
-            YYYYYY : function () {
-                var y = this.year(), sign = y >= 0 ? '+' : '-';
-                return sign + leftZeroFill(Math.abs(y), 6);
-            },
-            gg   : function () {
-                return leftZeroFill(this.weekYear() % 100, 2);
-            },
-            gggg : function () {
-                return leftZeroFill(this.weekYear(), 4);
-            },
-            ggggg : function () {
-                return leftZeroFill(this.weekYear(), 5);
-            },
-            GG   : function () {
-                return leftZeroFill(this.isoWeekYear() % 100, 2);
-            },
-            GGGG : function () {
-                return leftZeroFill(this.isoWeekYear(), 4);
-            },
-            GGGGG : function () {
-                return leftZeroFill(this.isoWeekYear(), 5);
-            },
-            e : function () {
-                return this.weekday();
-            },
-            E : function () {
-                return this.isoWeekday();
-            },
-            a    : function () {
-                return this.localeData().meridiem(this.hours(), this.minutes(), true);
-            },
-            A    : function () {
-                return this.localeData().meridiem(this.hours(), this.minutes(), false);
-            },
-            H    : function () {
-                return this.hours();
-            },
-            h    : function () {
-                return this.hours() % 12 || 12;
-            },
-            m    : function () {
-                return this.minutes();
-            },
-            s    : function () {
-                return this.seconds();
-            },
-            S    : function () {
-                return toInt(this.milliseconds() / 100);
-            },
-            SS   : function () {
-                return leftZeroFill(toInt(this.milliseconds() / 10), 2);
-            },
-            SSS  : function () {
-                return leftZeroFill(this.milliseconds(), 3);
-            },
-            SSSS : function () {
-                return leftZeroFill(this.milliseconds(), 3);
-            },
-            Z    : function () {
-                var a = -this.zone(),
-                    b = '+';
-                if (a < 0) {
-                    a = -a;
-                    b = '-';
-                }
-                return b + leftZeroFill(toInt(a / 60), 2) + ':' + leftZeroFill(toInt(a) % 60, 2);
-            },
-            ZZ   : function () {
-                var a = -this.zone(),
-                    b = '+';
-                if (a < 0) {
-                    a = -a;
-                    b = '-';
-                }
-                return b + leftZeroFill(toInt(a / 60), 2) + leftZeroFill(toInt(a) % 60, 2);
-            },
-            z : function () {
-                return this.zoneAbbr();
-            },
-            zz : function () {
-                return this.zoneName();
-            },
-            x    : function () {
-                return this.valueOf();
-            },
-            X    : function () {
-                return this.unix();
-            },
-            Q : function () {
-                return this.quarter();
-            }
-        },
-
-        deprecations = {},
-
-        lists = ['months', 'monthsShort', 'weekdays', 'weekdaysShort', 'weekdaysMin'];
-
-    // Pick the first defined of two or three arguments. dfl comes from
-    // default.
-    function dfl(a, b, c) {
-        switch (arguments.length) {
-            case 2: return a != null ? a : b;
-            case 3: return a != null ? a : b != null ? b : c;
-            default: throw new Error('Implement me');
-        }
-    }
-
-    function hasOwnProp(a, b) {
-        return hasOwnProperty.call(a, b);
-    }
-
-    function defaultParsingFlags() {
-        // We need to deep clone this object, and es5 standard is not very
-        // helpful.
-        return {
-            empty : false,
-            unusedTokens : [],
-            unusedInput : [],
-            overflow : -2,
-            charsLeftOver : 0,
-            nullInput : false,
-            invalidMonth : null,
-            invalidFormat : false,
-            userInvalidated : false,
-            iso: false
-        };
-    }
-
-    function printMsg(msg) {
-        if (moment.suppressDeprecationWarnings === false &&
-                typeof console !== 'undefined' && console.warn) {
-            console.warn('Deprecation warning: ' + msg);
-        }
-    }
-
-    function deprecate(msg, fn) {
-        var firstTime = true;
-        return extend(function () {
-            if (firstTime) {
-                printMsg(msg);
-                firstTime = false;
-            }
-            return fn.apply(this, arguments);
-        }, fn);
-    }
-
-    function deprecateSimple(name, msg) {
-        if (!deprecations[name]) {
-            printMsg(msg);
-            deprecations[name] = true;
-        }
-    }
-
-    function padToken(func, count) {
-        return function (a) {
-            return leftZeroFill(func.call(this, a), count);
-        };
-    }
-    function ordinalizeToken(func, period) {
-        return function (a) {
-            return this.localeData().ordinal(func.call(this, a), period);
-        };
-    }
-
-    while (ordinalizeTokens.length) {
-        i = ordinalizeTokens.pop();
-        formatTokenFunctions[i + 'o'] = ordinalizeToken(formatTokenFunctions[i], i);
-    }
-    while (paddedTokens.length) {
-        i = paddedTokens.pop();
-        formatTokenFunctions[i + i] = padToken(formatTokenFunctions[i], 2);
-    }
-    formatTokenFunctions.DDDD = padToken(formatTokenFunctions.DDD, 3);
-
-
-    /************************************
-        Constructors
-    ************************************/
-
-    function Locale() {
-    }
-
-    // Moment prototype object
-    function Moment(config, skipOverflow) {
-        if (skipOverflow !== false) {
-            checkOverflow(config);
-        }
-        copyConfig(this, config);
-        this._d = new Date(+config._d);
-    }
-
-    // Duration Constructor
-    function Duration(duration) {
-        var normalizedInput = normalizeObjectUnits(duration),
-            years = normalizedInput.year || 0,
-            quarters = normalizedInput.quarter || 0,
-            months = normalizedInput.month || 0,
-            weeks = normalizedInput.week || 0,
-            days = normalizedInput.day || 0,
-            hours = normalizedInput.hour || 0,
-            minutes = normalizedInput.minute || 0,
-            seconds = normalizedInput.second || 0,
-            milliseconds = normalizedInput.millisecond || 0;
-
-        // representation for dateAddRemove
-        this._milliseconds = +milliseconds +
-            seconds * 1e3 + // 1000
-            minutes * 6e4 + // 1000 * 60
-            hours * 36e5; // 1000 * 60 * 60
-        // Because of dateAddRemove treats 24 hours as different from a
-        // day when working around DST, we need to store them separately
-        this._days = +days +
-            weeks * 7;
-        // It is impossible translate months into days without knowing
-        // which months you are are talking about, so we have to store
-        // it separately.
-        this._months = +months +
-            quarters * 3 +
-            years * 12;
-
-        this._data = {};
-
-        this._locale = moment.localeData();
-
-        this._bubble();
-    }
-
-    /************************************
-        Helpers
-    ************************************/
-
-
-    function extend(a, b) {
-        for (var i in b) {
-            if (hasOwnProp(b, i)) {
-                a[i] = b[i];
-            }
-        }
-
-        if (hasOwnProp(b, 'toString')) {
-            a.toString = b.toString;
-        }
-
-        if (hasOwnProp(b, 'valueOf')) {
-            a.valueOf = b.valueOf;
-        }
-
-        return a;
-    }
-
-    function copyConfig(to, from) {
-        var i, prop, val;
-
-        if (typeof from._isAMomentObject !== 'undefined') {
-            to._isAMomentObject = from._isAMomentObject;
-        }
-        if (typeof from._i !== 'undefined') {
-            to._i = from._i;
-        }
-        if (typeof from._f !== 'undefined') {
-            to._f = from._f;
-        }
-        if (typeof from._l !== 'undefined') {
-            to._l = from._l;
-        }
-        if (typeof from._strict !== 'undefined') {
-            to._strict = from._strict;
-        }
-        if (typeof from._tzm !== 'undefined') {
-            to._tzm = from._tzm;
-        }
-        if (typeof from._isUTC !== 'undefined') {
-            to._isUTC = from._isUTC;
-        }
-        if (typeof from._offset !== 'undefined') {
-            to._offset = from._offset;
-        }
-        if (typeof from._pf !== 'undefined') {
-            to._pf = from._pf;
-        }
-        if (typeof from._locale !== 'undefined') {
-            to._locale = from._locale;
-        }
-
-        if (momentProperties.length > 0) {
-            for (i in momentProperties) {
-                prop = momentProperties[i];
-                val = from[prop];
-                if (typeof val !== 'undefined') {
-                    to[prop] = val;
-                }
-            }
-        }
-
-        return to;
-    }
-
-    function absRound(number) {
-        if (number < 0) {
-            return Math.ceil(number);
-        } else {
-            return Math.floor(number);
-        }
-    }
-
-    // left zero fill a number
-    // see http://jsperf.com/left-zero-filling for performance comparison
-    function leftZeroFill(number, targetLength, forceSign) {
-        var output = '' + Math.abs(number),
-            sign = number >= 0;
-
-        while (output.length < targetLength) {
-            output = '0' + output;
-        }
-        return (sign ? (forceSign ? '+' : '') : '-') + output;
-    }
-
-    function positiveMomentsDifference(base, other) {
-        var res = {milliseconds: 0, months: 0};
-
-        res.months = other.month() - base.month() +
-            (other.year() - base.year()) * 12;
-        if (base.clone().add(res.months, 'M').isAfter(other)) {
-            --res.months;
-        }
-
-        res.milliseconds = +other - +(base.clone().add(res.months, 'M'));
-
-        return res;
-    }
-
-    function momentsDifference(base, other) {
-        var res;
-        other = makeAs(other, base);
-        if (base.isBefore(other)) {
-            res = positiveMomentsDifference(base, other);
-        } else {
-            res = positiveMomentsDifference(other, base);
-            res.milliseconds = -res.milliseconds;
-            res.months = -res.months;
-        }
-
-        return res;
-    }
-
-    // TODO: remove 'name' arg after deprecation is removed
-    function createAdder(direction, name) {
-        return function (val, period) {
-            var dur, tmp;
-            //invert the arguments, but complain about it
-            if (period !== null && !isNaN(+period)) {
-                deprecateSimple(name, 'moment().' + name  + '(period, number) is deprecated. Please use moment().' + name + '(number, period).');
-                tmp = val; val = period; period = tmp;
-            }
-
-            val = typeof val === 'string' ? +val : val;
-            dur = moment.duration(val, period);
-            addOrSubtractDurationFromMoment(this, dur, direction);
-            return this;
-        };
-    }
-
-    function addOrSubtractDurationFromMoment(mom, duration, isAdding, updateOffset) {
-        var milliseconds = duration._milliseconds,
-            days = duration._days,
-            months = duration._months;
-        updateOffset = updateOffset == null ? true : updateOffset;
-
-        if (milliseconds) {
-            mom._d.setTime(+mom._d + milliseconds * isAdding);
-        }
-        if (days) {
-            rawSetter(mom, 'Date', rawGetter(mom, 'Date') + days * isAdding);
-        }
-        if (months) {
-            rawMonthSetter(mom, rawGetter(mom, 'Month') + months * isAdding);
-        }
-        if (updateOffset) {
-            moment.updateOffset(mom, days || months);
-        }
-    }
-
-    // check if is an array
-    function isArray(input) {
-        return Object.prototype.toString.call(input) === '[object Array]';
-    }
-
-    function isDate(input) {
-        return Object.prototype.toString.call(input) === '[object Date]' ||
-            input instanceof Date;
-    }
-
-    // compare two arrays, return the number of differences
-    function compareArrays(array1, array2, dontConvert) {
-        var len = Math.min(array1.length, array2.length),
-            lengthDiff = Math.abs(array1.length - array2.length),
-            diffs = 0,
-            i;
-        for (i = 0; i < len; i++) {
-            if ((dontConvert && array1[i] !== array2[i]) ||
-                (!dontConvert && toInt(array1[i]) !== toInt(array2[i]))) {
-                diffs++;
-            }
-        }
-        return diffs + lengthDiff;
-    }
-
-    function normalizeUnits(units) {
-        if (units) {
-            var lowered = units.toLowerCase().replace(/(.)s$/, '$1');
-            units = unitAliases[units] || camelFunctions[lowered] || lowered;
-        }
-        return units;
-    }
-
-    function normalizeObjectUnits(inputObject) {
-        var normalizedInput = {},
-            normalizedProp,
-            prop;
-
-        for (prop in inputObject) {
-            if (hasOwnProp(inputObject, prop)) {
-                normalizedProp = normalizeUnits(prop);
-                if (normalizedProp) {
-                    normalizedInput[normalizedProp] = inputObject[prop];
-                }
-            }
-        }
-
-        return normalizedInput;
-    }
-
-    function makeList(field) {
-        var count, setter;
-
-        if (field.indexOf('week') === 0) {
-            count = 7;
-            setter = 'day';
-        }
-        else if (field.indexOf('month') === 0) {
-            count = 12;
-            setter = 'month';
-        }
-        else {
-            return;
-        }
-
-        moment[field] = function (format, index) {
-            var i, getter,
-                method = moment._locale[field],
-                results = [];
-
-            if (typeof format === 'number') {
-                index = format;
-                format = undefined;
-            }
-
-            getter = function (i) {
-                var m = moment().utc().set(setter, i);
-                return method.call(moment._locale, m, format || '');
-            };
-
-            if (index != null) {
-                return getter(index);
-            }
-            else {
-                for (i = 0; i < count; i++) {
-                    results.push(getter(i));
-                }
-                return results;
-            }
-        };
-    }
-
-    function toInt(argumentForCoercion) {
-        var coercedNumber = +argumentForCoercion,
-            value = 0;
-
-        if (coercedNumber !== 0 && isFinite(coercedNumber)) {
-            if (coercedNumber >= 0) {
-                value = Math.floor(coercedNumber);
-            } else {
-                value = Math.ceil(coercedNumber);
-            }
-        }
-
-        return value;
-    }
-
-    function daysInMonth(year, month) {
-        return new Date(Date.UTC(year, month + 1, 0)).getUTCDate();
-    }
-
-    function weeksInYear(year, dow, doy) {
-        return weekOfYear(moment([year, 11, 31 + dow - doy]), dow, doy).week;
-    }
-
-    function daysInYear(year) {
-        return isLeapYear(year) ? 366 : 365;
-    }
-
-    function isLeapYear(year) {
-        return (year % 4 === 0 && year % 100 !== 0) || year % 400 === 0;
-    }
-
-    function checkOverflow(m) {
-        var overflow;
-        if (m._a && m._pf.overflow === -2) {
-            overflow =
-                m._a[MONTH] < 0 || m._a[MONTH] > 11 ? MONTH :
-                m._a[DATE] < 1 || m._a[DATE] > daysInMonth(m._a[YEAR], m._a[MONTH]) ? DATE :
-                m._a[HOUR] < 0 || m._a[HOUR] > 24 ||
-                    (m._a[HOUR] === 24 && (m._a[MINUTE] !== 0 ||
-                                           m._a[SECOND] !== 0 ||
-                                           m._a[MILLISECOND] !== 0)) ? HOUR :
-                m._a[MINUTE] < 0 || m._a[MINUTE] > 59 ? MINUTE :
-                m._a[SECOND] < 0 || m._a[SECOND] > 59 ? SECOND :
-                m._a[MILLISECOND] < 0 || m._a[MILLISECOND] > 999 ? MILLISECOND :
-                -1;
-
-            if (m._pf._overflowDayOfYear && (overflow < YEAR || overflow > DATE)) {
-                overflow = DATE;
-            }
-
-            m._pf.overflow = overflow;
-        }
-    }
-
-    function isValid(m) {
-        if (m._isValid == null) {
-            m._isValid = !isNaN(m._d.getTime()) &&
-                m._pf.overflow < 0 &&
-                !m._pf.empty &&
-                !m._pf.invalidMonth &&
-                !m._pf.nullInput &&
-                !m._pf.invalidFormat &&
-                !m._pf.userInvalidated;
-
-            if (m._strict) {
-                m._isValid = m._isValid &&
-                    m._pf.charsLeftOver === 0 &&
-                    m._pf.unusedTokens.length === 0 &&
-                    m._pf.bigHour === undefined;
-            }
-        }
-        return m._isValid;
-    }
-
-    function normalizeLocale(key) {
-        return key ? key.toLowerCase().replace('_', '-') : key;
-    }
-
-    // pick the locale from the array
-    // try ['en-au', 'en-gb'] as 'en-au', 'en-gb', 'en', as in move through the list trying each
-    // substring from most specific to least, but move to the next array item if it's a more specific variant than the current root
-    function chooseLocale(names) {
-        var i = 0, j, next, locale, split;
-
-        while (i < names.length) {
-            split = normalizeLocale(names[i]).split('-');
-            j = split.length;
-            next = normalizeLocale(names[i + 1]);
-            next = next ? next.split('-') : null;
-            while (j > 0) {
-                locale = loadLocale(split.slice(0, j).join('-'));
-                if (locale) {
-                    return locale;
-                }
-                if (next && next.length >= j && compareArrays(split, next, true) >= j - 1) {
-                    //the next array item is better than a shallower substring of this one
-                    break;
-                }
-                j--;
-            }
-            i++;
-        }
-        return null;
-    }
-
-    function loadLocale(name) {
-        var oldLocale = null;
-        if (!locales[name] && hasModule) {
-            try {
-                oldLocale = moment.locale();
-                require('./locale/' + name);
-                // because defineLocale currently also sets the global locale, we want to undo that for lazy loaded locales
-                moment.locale(oldLocale);
-            } catch (e) { }
-        }
-        return locales[name];
-    }
-
-    // Return a moment from input, that is local/utc/zone equivalent to model.
-    function makeAs(input, model) {
-        var res, diff;
-        if (model._isUTC) {
-            res = model.clone();
-            diff = (moment.isMoment(input) || isDate(input) ?
-                    +input : +moment(input)) - (+res);
-            // Use low-level api, because this fn is low-level api.
-            res._d.setTime(+res._d + diff);
-            moment.updateOffset(res, false);
-            return res;
-        } else {
-            return moment(input).local();
-        }
-    }
-
-    /************************************
-        Locale
-    ************************************/
-
-
-    extend(Locale.prototype, {
-
-        set : function (config) {
-            var prop, i;
-            for (i in config) {
-                prop = config[i];
-                if (typeof prop === 'function') {
-                    this[i] = prop;
-                } else {
-                    this['_' + i] = prop;
-                }
-            }
-            // Lenient ordinal parsing accepts just a number in addition to
-            // number + (possibly) stuff coming from _ordinalParseLenient.
-            this._ordinalParseLenient = new RegExp(this._ordinalParse.source + '|' + /\d{1,2}/.source);
-        },
-
-        _months : 'January_February_March_April_May_June_July_August_September_October_November_December'.split('_'),
-        months : function (m) {
-            return this._months[m.month()];
-        },
-
-        _monthsShort : 'Jan_Feb_Mar_Apr_May_Jun_Jul_Aug_Sep_Oct_Nov_Dec'.split('_'),
-        monthsShort : function (m) {
-            return this._monthsShort[m.month()];
-        },
-
-        monthsParse : function (monthName, format, strict) {
-            var i, mom, regex;
-
-            if (!this._monthsParse) {
-                this._monthsParse = [];
-                this._longMonthsParse = [];
-                this._shortMonthsParse = [];
-            }
-
-            for (i = 0; i < 12; i++) {
-                // make the regex if we don't have it already
-                mom = moment.utc([2000, i]);
-                if (strict && !this._longMonthsParse[i]) {
-                    this._longMonthsParse[i] = new RegExp('^' + this.months(mom, '').replace('.', '') + '$', 'i');
-                    this._shortMonthsParse[i] = new RegExp('^' + this.monthsShort(mom, '').replace('.', '') + '$', 'i');
-                }
-                if (!strict && !this._monthsParse[i]) {
-                    regex = '^' + this.months(mom, '') + '|^' + this.monthsShort(mom, '');
-                    this._monthsParse[i] = new RegExp(regex.replace('.', ''), 'i');
-                }
-                // test the regex
-                if (strict && format === 'MMMM' && this._longMonthsParse[i].test(monthName)) {
-                    return i;
-                } else if (strict && format === 'MMM' && this._shortMonthsParse[i].test(monthName)) {
-                    return i;
-                } else if (!strict && this._monthsParse[i].test(monthName)) {
-                    return i;
-                }
-            }
-        },
-
-        _weekdays : 'Sunday_Monday_Tuesday_Wednesday_Thursday_Friday_Saturday'.split('_'),
-        weekdays : function (m) {
-            return this._weekdays[m.day()];
-        },
-
-        _weekdaysShort : 'Sun_Mon_Tue_Wed_Thu_Fri_Sat'.split('_'),
-        weekdaysShort : function (m) {
-            return this._weekdaysShort[m.day()];
-        },
-
-        _weekdaysMin : 'Su_Mo_Tu_We_Th_Fr_Sa'.split('_'),
-        weekdaysMin : function (m) {
-            return this._weekdaysMin[m.day()];
-        },
-
-        weekdaysParse : function (weekdayName) {
-            var i, mom, regex;
-
-            if (!this._weekdaysParse) {
-                this._weekdaysParse = [];
-            }
-
-            for (i = 0; i < 7; i++) {
-                // make the regex if we don't have it already
-                if (!this._weekdaysParse[i]) {
-                    mom = moment([2000, 1]).day(i);
-                    regex = '^' + this.weekdays(mom, '') + '|^' + this.weekdaysShort(mom, '') + '|^' + this.weekdaysMin(mom, '');
-                    this._weekdaysParse[i] = new RegExp(regex.replace('.', ''), 'i');
-                }
-                // test the regex
-                if (this._weekdaysParse[i].test(weekdayName)) {
-                    return i;
-                }
-            }
-        },
-
-        _longDateFormat : {
-            LTS : 'h:mm:ss A',
-            LT : 'h:mm A',
-            L : 'MM/DD/YYYY',
-            LL : 'MMMM D, YYYY',
-            LLL : 'MMMM D, YYYY LT',
-            LLLL : 'dddd, MMMM D, YYYY LT'
-        },
-        longDateFormat : function (key) {
-            var output = this._longDateFormat[key];
-            if (!output && this._longDateFormat[key.toUpperCase()]) {
-                output = this._longDateFormat[key.toUpperCase()].replace(/MMMM|MM|DD|dddd/g, function (val) {
-                    return val.slice(1);
-                });
-                this._longDateFormat[key] = output;
-            }
-            return output;
-        },
-
-        isPM : function (input) {
-            // IE8 Quirks Mode & IE7 Standards Mode do not allow accessing strings like arrays
-            // Using charAt should be more compatible.
-            return ((input + '').toLowerCase().charAt(0) === 'p');
-        },
-
-        _meridiemParse : /[ap]\.?m?\.?/i,
-        meridiem : function (hours, minutes, isLower) {
-            if (hours > 11) {
-                return isLower ? 'pm' : 'PM';
-            } else {
-                return isLower ? 'am' : 'AM';
-            }
-        },
-
-        _calendar : {
-            sameDay : '[Today at] LT',
-            nextDay : '[Tomorrow at] LT',
-            nextWeek : 'dddd [at] LT',
-            lastDay : '[Yesterday at] LT',
-            lastWeek : '[Last] dddd [at] LT',
-            sameElse : 'L'
-        },
-        calendar : function (key, mom, now) {
-            var output = this._calendar[key];
-            return typeof output === 'function' ? output.apply(mom, [now]) : output;
-        },
-
-        _relativeTime : {
-            future : 'in %s',
-            past : '%s ago',
-            s : 'a few seconds',
-            m : 'a minute',
-            mm : '%d minutes',
-            h : 'an hour',
-            hh : '%d hours',
-            d : 'a day',
-            dd : '%d days',
-            M : 'a month',
-            MM : '%d months',
-            y : 'a year',
-            yy : '%d years'
-        },
-
-        relativeTime : function (number, withoutSuffix, string, isFuture) {
-            var output = this._relativeTime[string];
-            return (typeof output === 'function') ?
-                output(number, withoutSuffix, string, isFuture) :
-                output.replace(/%d/i, number);
-        },
-
-        pastFuture : function (diff, output) {
-            var format = this._relativeTime[diff > 0 ? 'future' : 'past'];
-            return typeof format === 'function' ? format(output) : format.replace(/%s/i, output);
-        },
-
-        ordinal : function (number) {
-            return this._ordinal.replace('%d', number);
-        },
-        _ordinal : '%d',
-        _ordinalParse : /\d{1,2}/,
-
-        preparse : function (string) {
-            return string;
-        },
-
-        postformat : function (string) {
-            return string;
-        },
-
-        week : function (mom) {
-            return weekOfYear(mom, this._week.dow, this._week.doy).week;
-        },
-
-        _week : {
-            dow : 0, // Sunday is the first day of the week.
-            doy : 6  // The week that contains Jan 1st is the first week of the year.
-        },
-
-        _invalidDate: 'Invalid date',
-        invalidDate: function () {
-            return this._invalidDate;
-        }
-    });
-
-    /************************************
-        Formatting
-    ************************************/
-
-
-    function removeFormattingTokens(input) {
-        if (input.match(/\[[\s\S]/)) {
-            return input.replace(/^\[|\]$/g, '');
-        }
-        return input.replace(/\\/g, '');
-    }
-
-    function makeFormatFunction(format) {
-        var array = format.match(formattingTokens), i, length;
-
-        for (i = 0, length = array.length; i < length; i++) {
-            if (formatTokenFunctions[array[i]]) {
-                array[i] = formatTokenFunctions[array[i]];
-            } else {
-                array[i] = removeFormattingTokens(array[i]);
-            }
-        }
-
-        return function (mom) {
-            var output = '';
-            for (i = 0; i < length; i++) {
-                output += array[i] instanceof Function ? array[i].call(mom, format) : array[i];
-            }
-            return output;
-        };
-    }
-
-    // format date using native date object
-    function formatMoment(m, format) {
-        if (!m.isValid()) {
-            return m.localeData().invalidDate();
-        }
-
-        format = expandFormat(format, m.localeData());
-
-        if (!formatFunctions[format]) {
-            formatFunctions[format] = makeFormatFunction(format);
-        }
-
-        return formatFunctions[format](m);
-    }
-
-    function expandFormat(format, locale) {
-        var i = 5;
-
-        function replaceLongDateFormatTokens(input) {
-            return locale.longDateFormat(input) || input;
-        }
-
-        localFormattingTokens.lastIndex = 0;
-        while (i >= 0 && localFormattingTokens.test(format)) {
-            format = format.replace(localFormattingTokens, replaceLongDateFormatTokens);
-            localFormattingTokens.lastIndex = 0;
-            i -= 1;
-        }
-
-        return format;
-    }
-
-
-    /************************************
-        Parsing
-    ************************************/
-
-
-    // get the regex to find the next token
-    function getParseRegexForToken(token, config) {
-        var a, strict = config._strict;
-        switch (token) {
-        case 'Q':
-            return parseTokenOneDigit;
-        case 'DDDD':
-            return parseTokenThreeDigits;
-        case 'YYYY':
-        case 'GGGG':
-        case 'gggg':
-            return strict ? parseTokenFourDigits : parseTokenOneToFourDigits;
-        case 'Y':
-        case 'G':
-        case 'g':
-            return parseTokenSignedNumber;
-        case 'YYYYYY':
-        case 'YYYYY':
-        case 'GGGGG':
-        case 'ggggg':
-            return strict ? parseTokenSixDigits : parseTokenOneToSixDigits;
-        case 'S':
-            if (strict) {
-                return parseTokenOneDigit;
-            }
-            /* falls through */
-        case 'SS':
-            if (strict) {
-                return parseTokenTwoDigits;
-            }
-            /* falls through */
-        case 'SSS':
-            if (strict) {
-                return parseTokenThreeDigits;
-            }
-            /* falls through */
-        case 'DDD':
-            return parseTokenOneToThreeDigits;
-        case 'MMM':
-        case 'MMMM':
-        case 'dd':
-        case 'ddd':
-        case 'dddd':
-            return parseTokenWord;
-        case 'a':
-        case 'A':
-            return config._locale._meridiemParse;
-        case 'x':
-            return parseTokenOffsetMs;
-        case 'X':
-            return parseTokenTimestampMs;
-        case 'Z':
-        case 'ZZ':
-            return parseTokenTimezone;
-        case 'T':
-            return parseTokenT;
-        case 'SSSS':
-            return parseTokenDigits;
-        case 'MM':
-        case 'DD':
-        case 'YY':
-        case 'GG':
-        case 'gg':
-        case 'HH':
-        case 'hh':
-        case 'mm':
-        case 'ss':
-        case 'ww':
-        case 'WW':
-            return strict ? parseTokenTwoDigits : parseTokenOneOrTwoDigits;
-        case 'M':
-        case 'D':
-        case 'd':
-        case 'H':
-        case 'h':
-        case 'm':
-        case 's':
-        case 'w':
-        case 'W':
-        case 'e':
-        case 'E':
-            return parseTokenOneOrTwoDigits;
-        case 'Do':
-            return strict ? config._locale._ordinalParse : config._locale._ordinalParseLenient;
-        default :
-            a = new RegExp(regexpEscape(unescapeFormat(token.replace('\\', '')), 'i'));
-            return a;
-        }
-    }
-
-    function timezoneMinutesFromString(string) {
-        string = string || '';
-        var possibleTzMatches = (string.match(parseTokenTimezone) || []),
-            tzChunk = possibleTzMatches[possibleTzMatches.length - 1] || [],
-            parts = (tzChunk + '').match(parseTimezoneChunker) || ['-', 0, 0],
-            minutes = +(parts[1] * 60) + toInt(parts[2]);
-
-        return parts[0] === '+' ? -minutes : minutes;
-    }
-
-    // function to convert string input to date
-    function addTimeToArrayFromToken(token, input, config) {
-        var a, datePartArray = config._a;
-
-        switch (token) {
-        // QUARTER
-        case 'Q':
-            if (input != null) {
-                datePartArray[MONTH] = (toInt(input) - 1) * 3;
-            }
-            break;
-        // MONTH
-        case 'M' : // fall through to MM
-        case 'MM' :
-            if (input != null) {
-                datePartArray[MONTH] = toInt(input) - 1;
-            }
-            break;
-        case 'MMM' : // fall through to MMMM
-        case 'MMMM' :
-            a = config._locale.monthsParse(input, token, config._strict);
-            // if we didn't find a month name, mark the date as invalid.
-            if (a != null) {
-                datePartArray[MONTH] = a;
-            } else {
-                config._pf.invalidMonth = input;
-            }
-            break;
-        // DAY OF MONTH
-        case 'D' : // fall through to DD
-        case 'DD' :
-            if (input != null) {
-                datePartArray[DATE] = toInt(input);
-            }
-            break;
-        case 'Do' :
-            if (input != null) {
-                datePartArray[DATE] = toInt(parseInt(
-                            input.match(/\d{1,2}/)[0], 10));
-            }
-            break;
-        // DAY OF YEAR
-        case 'DDD' : // fall through to DDDD
-        case 'DDDD' :
-            if (input != null) {
-                config._dayOfYear = toInt(input);
-            }
-
-            break;
-        // YEAR
-        case 'YY' :
-            datePartArray[YEAR] = moment.parseTwoDigitYear(input);
-            break;
-        case 'YYYY' :
-        case 'YYYYY' :
-        case 'YYYYYY' :
-            datePartArray[YEAR] = toInt(input);
-            break;
-        // AM / PM
-        case 'a' : // fall through to A
-        case 'A' :
-            config._isPm = config._locale.isPM(input);
-            break;
-        // HOUR
-        case 'h' : // fall through to hh
-        case 'hh' :
-            config._pf.bigHour = true;
-            /* falls through */
-        case 'H' : // fall through to HH
-        case 'HH' :
-            datePartArray[HOUR] = toInt(input);
-            break;
-        // MINUTE
-        case 'm' : // fall through to mm
-        case 'mm' :
-            datePartArray[MINUTE] = toInt(input);
-            break;
-        // SECOND
-        case 's' : // fall through to ss
-        case 'ss' :
-            datePartArray[SECOND] = toInt(input);
-            break;
-        // MILLISECOND
-        case 'S' :
-        case 'SS' :
-        case 'SSS' :
-        case 'SSSS' :
-            datePartArray[MILLISECOND] = toInt(('0.' + input) * 1000);
-            break;
-        // UNIX OFFSET (MILLISECONDS)
-        case 'x':
-            config._d = new Date(toInt(input));
-            break;
-        // UNIX TIMESTAMP WITH MS
-        case 'X':
-            config._d = new Date(parseFloat(input) * 1000);
-            break;
-        // TIMEZONE
-        case 'Z' : // fall through to ZZ
-        case 'ZZ' :
-            config._useUTC = true;
-            config._tzm = timezoneMinutesFromString(input);
-            break;
-        // WEEKDAY - human
-        case 'dd':
-        case 'ddd':
-        case 'dddd':
-            a = config._locale.weekdaysParse(input);
-            // if we didn't get a weekday name, mark the date as invalid
-            if (a != null) {
-                config._w = config._w || {};
-                config._w['d'] = a;
-            } else {
-                config._pf.invalidWeekday = input;
-            }
-            break;
-        // WEEK, WEEK DAY - numeric
-        case 'w':
-        case 'ww':
-        case 'W':
-        case 'WW':
-        case 'd':
-        case 'e':
-        case 'E':
-            token = token.substr(0, 1);
-            /* falls through */
-        case 'gggg':
-        case 'GGGG':
-        case 'GGGGG':
-            token = token.substr(0, 2);
-            if (input) {
-                config._w = config._w || {};
-                config._w[token] = toInt(input);
-            }
-            break;
-        case 'gg':
-        case 'GG':
-            config._w = config._w || {};
-            config._w[token] = moment.parseTwoDigitYear(input);
-        }
-    }
-
-    function dayOfYearFromWeekInfo(config) {
-        var w, weekYear, week, weekday, dow, doy, temp;
-
-        w = config._w;
-        if (w.GG != null || w.W != null || w.E != null) {
-            dow = 1;
-            doy = 4;
-
-            // TODO: We need to take the current isoWeekYear, but that depends on
-            // how we interpret now (local, utc, fixed offset). So create
-            // a now version of current config (take local/utc/offset flags, and
-            // create now).
-            weekYear = dfl(w.GG, config._a[YEAR], weekOfYear(moment(), 1, 4).year);
-            week = dfl(w.W, 1);
-            weekday = dfl(w.E, 1);
-        } else {
-            dow = config._locale._week.dow;
-            doy = config._locale._week.doy;
-
-            weekYear = dfl(w.gg, config._a[YEAR], weekOfYear(moment(), dow, doy).year);
-            week = dfl(w.w, 1);
-
-            if (w.d != null) {
-                // weekday -- low day numbers are considered next week
-                weekday = w.d;
-                if (weekday < dow) {
-                    ++week;
-                }
-            } else if (w.e != null) {
-                // local weekday -- counting starts from begining of week
-                weekday = w.e + dow;
-            } else {
-                // default to begining of week
-                weekday = dow;
-            }
-        }
-        temp = dayOfYearFromWeeks(weekYear, week, weekday, doy, dow);
-
-        config._a[YEAR] = temp.year;
-        config._dayOfYear = temp.dayOfYear;
-    }
-
-    // convert an array to a date.
-    // the array should mirror the parameters below
-    // note: all values past the year are optional and will default to the lowest possible value.
-    // [year, month, day , hour, minute, second, millisecond]
-    function dateFromConfig(config) {
-        var i, date, input = [], currentDate, yearToUse;
-
-        if (config._d) {
-            return;
-        }
-
-        currentDate = currentDateArray(config);
-
-        //compute day of the year from weeks and weekdays
-        if (config._w && config._a[DATE] == null && config._a[MONTH] == null) {
-            dayOfYearFromWeekInfo(config);
-        }
-
-        //if the day of the year is set, figure out what it is
-        if (config._dayOfYear) {
-            yearToUse = dfl(config._a[YEAR], currentDate[YEAR]);
-
-            if (config._dayOfYear > daysInYear(yearToUse)) {
-                config._pf._overflowDayOfYear = true;
-            }
-
-            date = makeUTCDate(yearToUse, 0, config._dayOfYear);
-            config._a[MONTH] = date.getUTCMonth();
-            config._a[DATE] = date.getUTCDate();
-        }
-
-        // Default to current date.
-        // * if no year, month, day of month are given, default to today
-        // * if day of month is given, default month and year
-        // * if month is given, default only year
-        // * if year is given, don't default anything
-        for (i = 0; i < 3 && config._a[i] == null; ++i) {
-            config._a[i] = input[i] = currentDate[i];
-        }
-
-        // Zero out whatever was not defaulted, including time
-        for (; i < 7; i++) {
-            config._a[i] = input[i] = (config._a[i] == null) ? (i === 2 ? 1 : 0) : config._a[i];
-        }
-
-        // Check for 24:00:00.000
-        if (config._a[HOUR] === 24 &&
-                config._a[MINUTE] === 0 &&
-                config._a[SECOND] === 0 &&
-                config._a[MILLISECOND] === 0) {
-            config._nextDay = true;
-            config._a[HOUR] = 0;
-        }
-
-        config._d = (config._useUTC ? makeUTCDate : makeDate).apply(null, input);
-        // Apply timezone offset from input. The actual zone can be changed
-        // with parseZone.
-        if (config._tzm != null) {
-            config._d.setUTCMinutes(config._d.getUTCMinutes() + config._tzm);
-        }
-
-        if (config._nextDay) {
-            config._a[HOUR] = 24;
-        }
-    }
-
-    function dateFromObject(config) {
-        var normalizedInput;
-
-        if (config._d) {
-            return;
-        }
-
-        normalizedInput = normalizeObjectUnits(config._i);
-        config._a = [
-            normalizedInput.year,
-            normalizedInput.month,
-            normalizedInput.day || normalizedInput.date,
-            normalizedInput.hour,
-            normalizedInput.minute,
-            normalizedInput.second,
-            normalizedInput.millisecond
-        ];
-
-        dateFromConfig(config);
-    }
-
-    function currentDateArray(config) {
-        var now = new Date();
-        if (config._useUTC) {
-            return [
-                now.getUTCFullYear(),
-                now.getUTCMonth(),
-                now.getUTCDate()
-            ];
-        } else {
-            return [now.getFullYear(), now.getMonth(), now.getDate()];
-        }
-    }
-
-    // date from string and format string
-    function makeDateFromStringAndFormat(config) {
-        if (config._f === moment.ISO_8601) {
-            parseISO(config);
-            return;
-        }
-
-        config._a = [];
-        config._pf.empty = true;
-
-        // This array is used to make a Date, either with `new Date` or `Date.UTC`
-        var string = '' + config._i,
-            i, parsedInput, tokens, token, skipped,
-            stringLength = string.length,
-            totalParsedInputLength = 0;
-
-        tokens = expandFormat(config._f, config._locale).match(formattingTokens) || [];
-
-        for (i = 0; i < tokens.length; i++) {
-            token = tokens[i];
-            parsedInput = (string.match(getParseRegexForToken(token, config)) || [])[0];
-            if (parsedInput) {
-                skipped = string.substr(0, string.indexOf(parsedInput));
-                if (skipped.length > 0) {
-                    config._pf.unusedInput.push(skipped);
-                }
-                string = string.slice(string.indexOf(parsedInput) + parsedInput.length);
-                totalParsedInputLength += parsedInput.length;
-            }
-            // don't parse if it's not a known token
-            if (formatTokenFunctions[token]) {
-                if (parsedInput) {
-                    config._pf.empty = false;
-                }
-                else {
-                    config._pf.unusedTokens.push(token);
-                }
-                addTimeToArrayFromToken(token, parsedInput, config);
-            }
-            else if (config._strict && !parsedInput) {
-                config._pf.unusedTokens.push(token);
-            }
-        }
-
-        // add remaining unparsed input length to the string
-        config._pf.charsLeftOver = stringLength - totalParsedInputLength;
-        if (string.length > 0) {
-            config._pf.unusedInput.push(string);
-        }
-
-        // clear _12h flag if hour is <= 12
-        if (config._pf.bigHour === true && config._a[HOUR] <= 12) {
-            config._pf.bigHour = undefined;
-        }
-        // handle am pm
-        if (config._isPm && config._a[HOUR] < 12) {
-            config._a[HOUR] += 12;
-        }
-        // if is 12 am, change hours to 0
-        if (config._isPm === false && config._a[HOUR] === 12) {
-            config._a[HOUR] = 0;
-        }
-        dateFromConfig(config);
-        checkOverflow(config);
-    }
-
-    function unescapeFormat(s) {
-        return s.replace(/\\(\[)|\\(\])|\[([^\]\[]*)\]|\\(.)/g, function (matched, p1, p2, p3, p4) {
-            return p1 || p2 || p3 || p4;
-        });
-    }
-
-    // Code from http://stackoverflow.com/questions/3561493/is-there-a-regexp-escape-function-in-javascript
-    function regexpEscape(s) {
-        return s.replace(/[-\/\\^$*+?.()|[\]{}]/g, '\\$&');
-    }
-
-    // date from string and array of format strings
-    function makeDateFromStringAndArray(config) {
-        var tempConfig,
-            bestMoment,
-
-            scoreToBeat,
-            i,
-            currentScore;
-
-        if (config._f.length === 0) {
-            config._pf.invalidFormat = true;
-            config._d = new Date(NaN);
-            return;
-        }
-
-        for (i = 0; i < config._f.length; i++) {
-            currentScore = 0;
-            tempConfig = copyConfig({}, config);
-            if (config._useUTC != null) {
-                tempConfig._useUTC = config._useUTC;
-            }
-            tempConfig._pf = defaultParsingFlags();
-            tempConfig._f = config._f[i];
-            makeDateFromStringAndFormat(tempConfig);
-
-            if (!isValid(tempConfig)) {
-                continue;
-            }
-
-            // if there is any input that was not parsed add a penalty for that format
-            currentScore += tempConfig._pf.charsLeftOver;
-
-            //or tokens
-            currentScore += tempConfig._pf.unusedTokens.length * 10;
-
-            tempConfig._pf.score = currentScore;
-
-            if (scoreToBeat == null || currentScore < scoreToBeat) {
-                scoreToBeat = currentScore;
-                bestMoment = tempConfig;
-            }
-        }
-
-        extend(config, bestMoment || tempConfig);
-    }
-
-    // date from iso format
-    function parseISO(config) {
-        var i, l,
-            string = config._i,
-            match = isoRegex.exec(string);
-
-        if (match) {
-            config._pf.iso = true;
-            for (i = 0, l = isoDates.length; i < l; i++) {
-                if (isoDates[i][1].exec(string)) {
-                    // match[5] should be 'T' or undefined
-                    config._f = isoDates[i][0] + (match[6] || ' ');
-                    break;
-                }
-            }
-            for (i = 0, l = isoTimes.length; i < l; i++) {
-                if (isoTimes[i][1].exec(string)) {
-                    config._f += isoTimes[i][0];
-                    break;
-                }
-            }
-            if (string.match(parseTokenTimezone)) {
-                config._f += 'Z';
-            }
-            makeDateFromStringAndFormat(config);
-        } else {
-            config._isValid = false;
-        }
-    }
-
-    // date from iso format or fallback
-    function makeDateFromString(config) {
-        parseISO(config);
-        if (config._isValid === false) {
-            delete config._isValid;
-            moment.createFromInputFallback(config);
-        }
-    }
-
-    function map(arr, fn) {
-        var res = [], i;
-        for (i = 0; i < arr.length; ++i) {
-            res.push(fn(arr[i], i));
-        }
-        return res;
-    }
-
-    function makeDateFromInput(config) {
-        var input = config._i, matched;
-        if (input === undefined) {
-            config._d = new Date();
-        } else if (isDate(input)) {
-            config._d = new Date(+input);
-        } else if ((matched = aspNetJsonRegex.exec(input)) !== null) {
-            config._d = new Date(+matched[1]);
-        } else if (typeof input === 'string') {
-            makeDateFromString(config);
-        } else if (isArray(input)) {
-            config._a = map(input.slice(0), function (obj) {
-                return parseInt(obj, 10);
-            });
-            dateFromConfig(config);
-        } else if (typeof(input) === 'object') {
-            dateFromObject(config);
-        } else if (typeof(input) === 'number') {
-            // from milliseconds
-            config._d = new Date(input);
-        } else {
-            moment.createFromInputFallback(config);
-        }
-    }
-
-    function makeDate(y, m, d, h, M, s, ms) {
-        //can't just apply() to create a date:
-        //http://stackoverflow.com/questions/181348/instantiating-a-javascript-object-by-calling-prototype-constructor-apply
-        var date = new Date(y, m, d, h, M, s, ms);
-
-        //the date constructor doesn't accept years < 1970
-        if (y < 1970) {
-            date.setFullYear(y);
-        }
-        return date;
-    }
-
-    function makeUTCDate(y) {
-        var date = new Date(Date.UTC.apply(null, arguments));
-        if (y < 1970) {
-            date.setUTCFullYear(y);
-        }
-        return date;
-    }
-
-    function parseWeekday(input, locale) {
-        if (typeof input === 'string') {
-            if (!isNaN(input)) {
-                input = parseInt(input, 10);
-            }
-            else {
-                input = locale.weekdaysParse(input);
-                if (typeof input !== 'number') {
-                    return null;
-                }
-            }
-        }
-        return input;
-    }
-
-    /************************************
-        Relative Time
-    ************************************/
-
-
-    // helper function for moment.fn.from, moment.fn.fromNow, and moment.duration.fn.humanize
-    function substituteTimeAgo(string, number, withoutSuffix, isFuture, locale) {
-        return locale.relativeTime(number || 1, !!withoutSuffix, string, isFuture);
-    }
-
-    function relativeTime(posNegDuration, withoutSuffix, locale) {
-        var duration = moment.duration(posNegDuration).abs(),
-            seconds = round(duration.as('s')),
-            minutes = round(duration.as('m')),
-            hours = round(duration.as('h')),
-            days = round(duration.as('d')),
-            months = round(duration.as('M')),
-            years = round(duration.as('y')),
-
-            args = seconds < relativeTimeThresholds.s && ['s', seconds] ||
-                minutes === 1 && ['m'] ||
-                minutes < relativeTimeThresholds.m && ['mm', minutes] ||
-                hours === 1 && ['h'] ||
-                hours < relativeTimeThresholds.h && ['hh', hours] ||
-                days === 1 && ['d'] ||
-                days < relativeTimeThresholds.d && ['dd', days] ||
-                months === 1 && ['M'] ||
-                months < relativeTimeThresholds.M && ['MM', months] ||
-                years === 1 && ['y'] || ['yy', years];
-
-        args[2] = withoutSuffix;
-        args[3] = +posNegDuration > 0;
-        args[4] = locale;
-        return substituteTimeAgo.apply({}, args);
-    }
-
-
-    /************************************
-        Week of Year
-    ************************************/
-
-
-    // firstDayOfWeek       0 = sun, 6 = sat
-    //                      the day of the week that starts the week
-    //                      (usually sunday or monday)
-    // firstDayOfWeekOfYear 0 = sun, 6 = sat
-    //                      the first week is the week that contains the first
-    //                      of this day of the week
-    //                      (eg. ISO weeks use thursday (4))
-    function weekOfYear(mom, firstDayOfWeek, firstDayOfWeekOfYear) {
-        var end = firstDayOfWeekOfYear - firstDayOfWeek,
-            daysToDayOfWeek = firstDayOfWeekOfYear - mom.day(),
-            adjustedMoment;
-
-
-        if (daysToDayOfWeek > end) {
-            daysToDayOfWeek -= 7;
-        }
-
-        if (daysToDayOfWeek < end - 7) {
-            daysToDayOfWeek += 7;
-        }
-
-        adjustedMoment = moment(mom).add(daysToDayOfWeek, 'd');
-        return {
-            week: Math.ceil(adjustedMoment.dayOfYear() / 7),
-            year: adjustedMoment.year()
-        };
-    }
-
-    //http://en.wikipedia.org/wiki/ISO_week_date#Calculating_a_date_given_the_year.2C_week_number_and_weekday
-    function dayOfYearFromWeeks(year, week, weekday, firstDayOfWeekOfYear, firstDayOfWeek) {
-        var d = makeUTCDate(year, 0, 1).getUTCDay(), daysToAdd, dayOfYear;
-
-        d = d === 0 ? 7 : d;
-        weekday = weekday != null ? weekday : firstDayOfWeek;
-        daysToAdd = firstDayOfWeek - d + (d > firstDayOfWeekOfYear ? 7 : 0) - (d < firstDayOfWeek ? 7 : 0);
-        dayOfYear = 7 * (week - 1) + (weekday - firstDayOfWeek) + daysToAdd + 1;
-
-        return {
-            year: dayOfYear > 0 ? year : year - 1,
-            dayOfYear: dayOfYear > 0 ?  dayOfYear : daysInYear(year - 1) + dayOfYear
-        };
-    }
-
-    /************************************
-        Top Level Functions
-    ************************************/
-
-    function makeMoment(config) {
-        var input = config._i,
-            format = config._f,
-            res;
-
-        config._locale = config._locale || moment.localeData(config._l);
-
-        if (input === null || (format === undefined && input === '')) {
-            return moment.invalid({nullInput: true});
-        }
-
-        if (typeof input === 'string') {
-            config._i = input = config._locale.preparse(input);
-        }
-
-        if (moment.isMoment(input)) {
-            return new Moment(input, true);
-        } else if (format) {
-            if (isArray(format)) {
-                makeDateFromStringAndArray(config);
-            } else {
-                makeDateFromStringAndFormat(config);
-            }
-        } else {
-            makeDateFromInput(config);
-        }
-
-        res = new Moment(config);
-        if (res._nextDay) {
-            // Adding is smart enough around DST
-            res.add(1, 'd');
-            res._nextDay = undefined;
-        }
-
-        return res;
-    }
-
-    moment = function (input, format, locale, strict) {
-        var c;
-
-        if (typeof(locale) === 'boolean') {
-            strict = locale;
-            locale = undefined;
-        }
-        // object construction must be done this way.
-        // https://github.com/moment/moment/issues/1423
-        c = {};
-        c._isAMomentObject = true;
-        c._i = input;
-        c._f = format;
-        c._l = locale;
-        c._strict = strict;
-        c._isUTC = false;
-        c._pf = defaultParsingFlags();
-
-        return makeMoment(c);
-    };
-
-    moment.suppressDeprecationWarnings = false;
-
-    moment.createFromInputFallback = deprecate(
-        'moment construction falls back to js Date. This is ' +
-        'discouraged and will be removed in upcoming major ' +
-        'release. Please refer to ' +
-        'https://github.com/moment/moment/issues/1407 for more info.',
-        function (config) {
-            config._d = new Date(config._i + (config._useUTC ? ' UTC' : ''));
-        }
-    );
-
-    // Pick a moment m from moments so that m[fn](other) is true for all
-    // other. This relies on the function fn to be transitive.
-    //
-    // moments should either be an array of moment objects or an array, whose
-    // first element is an array of moment objects.
-    function pickBy(fn, moments) {
-        var res, i;
-        if (moments.length === 1 && isArray(moments[0])) {
-            moments = moments[0];
-        }
-        if (!moments.length) {
-            return moment();
-        }
-        res = moments[0];
-        for (i = 1; i < moments.length; ++i) {
-            if (moments[i][fn](res)) {
-                res = moments[i];
-            }
-        }
-        return res;
-    }
-
-    moment.min = function () {
-        var args = [].slice.call(arguments, 0);
-
-        return pickBy('isBefore', args);
-    };
-
-    moment.max = function () {
-        var args = [].slice.call(arguments, 0);
-
-        return pickBy('isAfter', args);
-    };
-
-    // creating with utc
-    moment.utc = function (input, format, locale, strict) {
-        var c;
-
-        if (typeof(locale) === 'boolean') {
-            strict = locale;
-            locale = undefined;
-        }
-        // object construction must be done this way.
-        // https://github.com/moment/moment/issues/1423
-        c = {};
-        c._isAMomentObject = true;
-        c._useUTC = true;
-        c._isUTC = true;
-        c._l = locale;
-        c._i = input;
-        c._f = format;
-        c._strict = strict;
-        c._pf = defaultParsingFlags();
-
-        return makeMoment(c).utc();
-    };
-
-    // creating with unix timestamp (in seconds)
-    moment.unix = function (input) {
-        return moment(input * 1000);
-    };
-
-    // duration
-    moment.duration = function (input, key) {
-        var duration = input,
-            // matching against regexp is expensive, do it on demand
-            match = null,
-            sign,
-            ret,
-            parseIso,
-            diffRes;
-
-        if (moment.isDuration(input)) {
-            duration = {
-                ms: input._milliseconds,
-                d: input._days,
-                M: input._months
-            };
-        } else if (typeof input === 'number') {
-            duration = {};
-            if (key) {
-                duration[key] = input;
-            } else {
-                duration.milliseconds = input;
-            }
-        } else if (!!(match = aspNetTimeSpanJsonRegex.exec(input))) {
-            sign = (match[1] === '-') ? -1 : 1;
-            duration = {
-                y: 0,
-                d: toInt(match[DATE]) * sign,
-                h: toInt(match[HOUR]) * sign,
-                m: toInt(match[MINUTE]) * sign,
-                s: toInt(match[SECOND]) * sign,
-                ms: toInt(match[MILLISECOND]) * sign
-            };
-        } else if (!!(match = isoDurationRegex.exec(input))) {
-            sign = (match[1] === '-') ? -1 : 1;
-            parseIso = function (inp) {
-                // We'd normally use ~~inp for this, but unfortunately it also
-                // converts floats to ints.
-                // inp may be undefined, so careful calling replace on it.
-                var res = inp && parseFloat(inp.replace(',', '.'));
-                // apply sign while we're at it
-                return (isNaN(res) ? 0 : res) * sign;
-            };
-            duration = {
-                y: parseIso(match[2]),
-                M: parseIso(match[3]),
-                d: parseIso(match[4]),
-                h: parseIso(match[5]),
-                m: parseIso(match[6]),
-                s: parseIso(match[7]),
-                w: parseIso(match[8])
-            };
-        } else if (typeof duration === 'object' &&
-                ('from' in duration || 'to' in duration)) {
-            diffRes = momentsDifference(moment(duration.from), moment(duration.to));
-
-            duration = {};
-            duration.ms = diffRes.milliseconds;
-            duration.M = diffRes.months;
-        }
-
-        ret = new Duration(duration);
-
-        if (moment.isDuration(input) && hasOwnProp(input, '_locale')) {
-            ret._locale = input._locale;
-        }
-
-        return ret;
-    };
-
-    // version number
-    moment.version = VERSION;
-
-    // default format
-    moment.defaultFormat = isoFormat;
-
-    // constant that refers to the ISO standard
-    moment.ISO_8601 = function () {};
-
-    // Plugins that add properties should also add the key here (null value),
-    // so we can properly clone ourselves.
-    moment.momentProperties = momentProperties;
-
-    // This function will be called whenever a moment is mutated.
-    // It is intended to keep the offset in sync with the timezone.
-    moment.updateOffset = function () {};
-
-    // This function allows you to set a threshold for relative time strings
-    moment.relativeTimeThreshold = function (threshold, limit) {
-        if (relativeTimeThresholds[threshold] === undefined) {
-            return false;
-        }
-        if (limit === undefined) {
-            return relativeTimeThresholds[threshold];
-        }
-        relativeTimeThresholds[threshold] = limit;
-        return true;
-    };
-
-    moment.lang = deprecate(
-        'moment.lang is deprecated. Use moment.locale instead.',
-        function (key, value) {
-            return moment.locale(key, value);
-        }
-    );
-
-    // This function will load locale and then set the global locale.  If
-    // no arguments are passed in, it will simply return the current global
-    // locale key.
-    moment.locale = function (key, values) {
-        var data;
-        if (key) {
-            if (typeof(values) !== 'undefined') {
-                data = moment.defineLocale(key, values);
-            }
-            else {
-                data = moment.localeData(key);
-            }
-
-            if (data) {
-                moment.duration._locale = moment._locale = data;
-            }
-        }
-
-        return moment._locale._abbr;
-    };
-
-    moment.defineLocale = function (name, values) {
-        if (values !== null) {
-            values.abbr = name;
-            if (!locales[name]) {
-                locales[name] = new Locale();
-            }
-            locales[name].set(values);
-
-            // backwards compat for now: also set the locale
-            moment.locale(name);
-
-            return locales[name];
-        } else {
-            // useful for testing
-            delete locales[name];
-            return null;
-        }
-    };
-
-    moment.langData = deprecate(
-        'moment.langData is deprecated. Use moment.localeData instead.',
-        function (key) {
-            return moment.localeData(key);
-        }
-    );
-
-    // returns locale data
-    moment.localeData = function (key) {
-        var locale;
-
-        if (key && key._locale && key._locale._abbr) {
-            key = key._locale._abbr;
-        }
-
-        if (!key) {
-            return moment._locale;
-        }
-
-        if (!isArray(key)) {
-            //short-circuit everything else
-            locale = loadLocale(key);
-            if (locale) {
-                return locale;
-            }
-            key = [key];
-        }
-
-        return chooseLocale(key);
-    };
-
-    // compare moment object
-    moment.isMoment = function (obj) {
-        return obj instanceof Moment ||
-            (obj != null && hasOwnProp(obj, '_isAMomentObject'));
-    };
-
-    // for typechecking Duration objects
-    moment.isDuration = function (obj) {
-        return obj instanceof Duration;
-    };
-
-    for (i = lists.length - 1; i >= 0; --i) {
-        makeList(lists[i]);
-    }
-
-    moment.normalizeUnits = function (units) {
-        return normalizeUnits(units);
-    };
-
-    moment.invalid = function (flags) {
-        var m = moment.utc(NaN);
-        if (flags != null) {
-            extend(m._pf, flags);
-        }
-        else {
-            m._pf.userInvalidated = true;
-        }
-
-        return m;
-    };
-
-    moment.parseZone = function () {
-        return moment.apply(null, arguments).parseZone();
-    };
-
-    moment.parseTwoDigitYear = function (input) {
-        return toInt(input) + (toInt(input) > 68 ? 1900 : 2000);
-    };
-
-    /************************************
-        Moment Prototype
-    ************************************/
-
-
-    extend(moment.fn = Moment.prototype, {
-
-        clone : function () {
-            return moment(this);
-        },
-
-        valueOf : function () {
-            return +this._d + ((this._offset || 0) * 60000);
-        },
-
-        unix : function () {
-            return Math.floor(+this / 1000);
-        },
-
-        toString : function () {
-            return this.clone().locale('en').format('ddd MMM DD YYYY HH:mm:ss [GMT]ZZ');
-        },
-
-        toDate : function () {
-            return this._offset ? new Date(+this) : this._d;
-        },
-
-        toISOString : function () {
-            var m = moment(this).utc();
-            if (0 < m.year() && m.year() <= 9999) {
-                if ('function' === typeof Date.prototype.toISOString) {
-                    // native implementation is ~50x faster, use it when we can
-                    return this.toDate().toISOString();
-                } else {
-                    return formatMoment(m, 'YYYY-MM-DD[T]HH:mm:ss.SSS[Z]');
-                }
-            } else {
-                return formatMoment(m, 'YYYYYY-MM-DD[T]HH:mm:ss.SSS[Z]');
-            }
-        },
-
-        toArray : function () {
-            var m = this;
-            return [
-                m.year(),
-                m.month(),
-                m.date(),
-                m.hours(),
-                m.minutes(),
-                m.seconds(),
-                m.milliseconds()
-            ];
-        },
-
-        isValid : function () {
-            return isValid(this);
-        },
-
-        isDSTShifted : function () {
-            if (this._a) {
-                return this.isValid() && compareArrays(this._a, (this._isUTC ? moment.utc(this._a) : moment(this._a)).toArray()) > 0;
-            }
-
-            return false;
-        },
-
-        parsingFlags : function () {
-            return extend({}, this._pf);
-        },
-
-        invalidAt: function () {
-            return this._pf.overflow;
-        },
-
-        utc : function (keepLocalTime) {
-            return this.zone(0, keepLocalTime);
-        },
-
-        local : function (keepLocalTime) {
-            if (this._isUTC) {
-                this.zone(0, keepLocalTime);
-                this._isUTC = false;
-
-                if (keepLocalTime) {
-                    this.add(this._dateTzOffset(), 'm');
-                }
-            }
-            return this;
-        },
-
-        format : function (inputString) {
-            var output = formatMoment(this, inputString || moment.defaultFormat);
-            return this.localeData().postformat(output);
-        },
-
-        add : createAdder(1, 'add'),
-
-        subtract : createAdder(-1, 'subtract'),
-
-        diff : function (input, units, asFloat) {
-            var that = makeAs(input, this),
-                zoneDiff = (this.zone() - that.zone()) * 6e4,
-                diff, output, daysAdjust;
-
-            units = normalizeUnits(units);
-
-            if (units === 'year' || units === 'month') {
-                // average number of days in the months in the given dates
-                diff = (this.daysInMonth() + that.daysInMonth()) * 432e5; // 24 * 60 * 60 * 1000 / 2
-                // difference in months
-                output = ((this.year() - that.year()) * 12) + (this.month() - that.month());
-                // adjust by taking difference in days, average number of days
-                // and dst in the given months.
-                daysAdjust = (this - moment(this).startOf('month')) -
-                    (that - moment(that).startOf('month'));
-                // same as above but with zones, to negate all dst
-                daysAdjust -= ((this.zone() - moment(this).startOf('month').zone()) -
-                        (that.zone() - moment(that).startOf('month').zone())) * 6e4;
-                output += daysAdjust / diff;
-                if (units === 'year') {
-                    output = output / 12;
-                }
-            } else {
-                diff = (this - that);
-                output = units === 'second' ? diff / 1e3 : // 1000
-                    units === 'minute' ? diff / 6e4 : // 1000 * 60
-                    units === 'hour' ? diff / 36e5 : // 1000 * 60 * 60
-                    units === 'day' ? (diff - zoneDiff) / 864e5 : // 1000 * 60 * 60 * 24, negate dst
-                    units === 'week' ? (diff - zoneDiff) / 6048e5 : // 1000 * 60 * 60 * 24 * 7, negate dst
-                    diff;
-            }
-            return asFloat ? output : absRound(output);
-        },
-
-        from : function (time, withoutSuffix) {
-            return moment.duration({to: this, from: time}).locale(this.locale()).humanize(!withoutSuffix);
-        },
-
-        fromNow : function (withoutSuffix) {
-            return this.from(moment(), withoutSuffix);
-        },
-
-        calendar : function (time) {
-            // We want to compare the start of today, vs this.
-            // Getting start-of-today depends on whether we're zone'd or not.
-            var now = time || moment(),
-                sod = makeAs(now, this).startOf('day'),
-                diff = this.diff(sod, 'days', true),
-                format = diff < -6 ? 'sameElse' :
-                    diff < -1 ? 'lastWeek' :
-                    diff < 0 ? 'lastDay' :
-                    diff < 1 ? 'sameDay' :
-                    diff < 2 ? 'nextDay' :
-                    diff < 7 ? 'nextWeek' : 'sameElse';
-            return this.format(this.localeData().calendar(format, this, moment(now)));
-        },
-
-        isLeapYear : function () {
-            return isLeapYear(this.year());
-        },
-
-        isDST : function () {
-            return (this.zone() < this.clone().month(0).zone() ||
-                this.zone() < this.clone().month(5).zone());
-        },
-
-        day : function (input) {
-            var day = this._isUTC ? this._d.getUTCDay() : this._d.getDay();
-            if (input != null) {
-                input = parseWeekday(input, this.localeData());
-                return this.add(input - day, 'd');
-            } else {
-                return day;
-            }
-        },
-
-        month : makeAccessor('Month', true),
-
-        startOf : function (units) {
-            units = normalizeUnits(units);
-            // the following switch intentionally omits break keywords
-            // to utilize falling through the cases.
-            switch (units) {
-            case 'year':
-                this.month(0);
-                /* falls through */
-            case 'quarter':
-            case 'month':
-                this.date(1);
-                /* falls through */
-            case 'week':
-            case 'isoWeek':
-            case 'day':
-                this.hours(0);
-                /* falls through */
-            case 'hour':
-                this.minutes(0);
-                /* falls through */
-            case 'minute':
-                this.seconds(0);
-                /* falls through */
-            case 'second':
-                this.milliseconds(0);
-                /* falls through */
-            }
-
-            // weeks are a special case
-            if (units === 'week') {
-                this.weekday(0);
-            } else if (units === 'isoWeek') {
-                this.isoWeekday(1);
-            }
-
-            // quarters are also special
-            if (units === 'quarter') {
-                this.month(Math.floor(this.month() / 3) * 3);
-            }
-
-            return this;
-        },
-
-        endOf: function (units) {
-            units = normalizeUnits(units);
-            if (units === undefined || units === 'millisecond') {
-                return this;
-            }
-            return this.startOf(units).add(1, (units === 'isoWeek' ? 'week' : units)).subtract(1, 'ms');
-        },
-
-        isAfter: function (input, units) {
-            var inputMs;
-            units = normalizeUnits(typeof units !== 'undefined' ? units : 'millisecond');
-            if (units === 'millisecond') {
-                input = moment.isMoment(input) ? input : moment(input);
-                return +this > +input;
-            } else {
-                inputMs = moment.isMoment(input) ? +input : +moment(input);
-                return inputMs < +this.clone().startOf(units);
-            }
-        },
-
-        isBefore: function (input, units) {
-            var inputMs;
-            units = normalizeUnits(typeof units !== 'undefined' ? units : 'millisecond');
-            if (units === 'millisecond') {
-                input = moment.isMoment(input) ? input : moment(input);
-                return +this < +input;
-            } else {
-                inputMs = moment.isMoment(input) ? +input : +moment(input);
-                return +this.clone().endOf(units) < inputMs;
-            }
-        },
-
-        isSame: function (input, units) {
-            var inputMs;
-            units = normalizeUnits(units || 'millisecond');
-            if (units === 'millisecond') {
-                input = moment.isMoment(input) ? input : moment(input);
-                return +this === +input;
-            } else {
-                inputMs = +moment(input);
-                return +(this.clone().startOf(units)) <= inputMs && inputMs <= +(this.clone().endOf(units));
-            }
-        },
-
-        min: deprecate(
-                 'moment().min is deprecated, use moment.min instead. https://github.com/moment/moment/issues/1548',
-                 function (other) {
-                     other = moment.apply(null, arguments);
-                     return other < this ? this : other;
-                 }
-         ),
-
-        max: deprecate(
-                'moment().max is deprecated, use moment.max instead. https://github.com/moment/moment/issues/1548',
-                function (other) {
-                    other = moment.apply(null, arguments);
-                    return other > this ? this : other;
-                }
-        ),
-
-        // keepLocalTime = true means only change the timezone, without
-        // affecting the local hour. So 5:31:26 +0300 --[zone(2, true)]-->
-        // 5:31:26 +0200 It is possible that 5:31:26 doesn't exist int zone
-        // +0200, so we adjust the time as needed, to be valid.
-        //
-        // Keeping the time actually adds/subtracts (one hour)
-        // from the actual represented time. That is why we call updateOffset
-        // a second time. In case it wants us to change the offset again
-        // _changeInProgress == true case, then we have to adjust, because
-        // there is no such time in the given timezone.
-        zone : function (input, keepLocalTime) {
-            var offset = this._offset || 0,
-                localAdjust;
-            if (input != null) {
-                if (typeof input === 'string') {
-                    input = timezoneMinutesFromString(input);
-                }
-                if (Math.abs(input) < 16) {
-                    input = input * 60;
-                }
-                if (!this._isUTC && keepLocalTime) {
-                    localAdjust = this._dateTzOffset();
-                }
-                this._offset = input;
-                this._isUTC = true;
-                if (localAdjust != null) {
-                    this.subtract(localAdjust, 'm');
-                }
-                if (offset !== input) {
-                    if (!keepLocalTime || this._changeInProgress) {
-                        addOrSubtractDurationFromMoment(this,
-                                moment.duration(offset - input, 'm'), 1, false);
-                    } else if (!this._changeInProgress) {
-                        this._changeInProgress = true;
-                        moment.updateOffset(this, true);
-                        this._changeInProgress = null;
-                    }
-                }
-            } else {
-                return this._isUTC ? offset : this._dateTzOffset();
-            }
-            return this;
-        },
-
-        zoneAbbr : function () {
-            return this._isUTC ? 'UTC' : '';
-        },
-
-        zoneName : function () {
-            return this._isUTC ? 'Coordinated Universal Time' : '';
-        },
-
-        parseZone : function () {
-            if (this._tzm) {
-                this.zone(this._tzm);
-            } else if (typeof this._i === 'string') {
-                this.zone(this._i);
-            }
-            return this;
-        },
-
-        hasAlignedHourOffset : function (input) {
-            if (!input) {
-                input = 0;
-            }
-            else {
-                input = moment(input).zone();
-            }
-
-            return (this.zone() - input) % 60 === 0;
-        },
-
-        daysInMonth : function () {
-            return daysInMonth(this.year(), this.month());
-        },
-
-        dayOfYear : function (input) {
-            var dayOfYear = round((moment(this).startOf('day') - moment(this).startOf('year')) / 864e5) + 1;
-            return input == null ? dayOfYear : this.add((input - dayOfYear), 'd');
-        },
-
-        quarter : function (input) {
-            return input == null ? Math.ceil((this.month() + 1) / 3) : this.month((input - 1) * 3 + this.month() % 3);
-        },
-
-        weekYear : function (input) {
-            var year = weekOfYear(this, this.localeData()._week.dow, this.localeData()._week.doy).year;
-            return input == null ? year : this.add((input - year), 'y');
-        },
-
-        isoWeekYear : function (input) {
-            var year = weekOfYear(this, 1, 4).year;
-            return input == null ? year : this.add((input - year), 'y');
-        },
-
-        week : function (input) {
-            var week = this.localeData().week(this);
-            return input == null ? week : this.add((input - week) * 7, 'd');
-        },
-
-        isoWeek : function (input) {
-            var week = weekOfYear(this, 1, 4).week;
-            return input == null ? week : this.add((input - week) * 7, 'd');
-        },
-
-        weekday : function (input) {
-            var weekday = (this.day() + 7 - this.localeData()._week.dow) % 7;
-            return input == null ? weekday : this.add(input - weekday, 'd');
-        },
-
-        isoWeekday : function (input) {
-            // behaves the same as moment#day except
-            // as a getter, returns 7 instead of 0 (1-7 range instead of 0-6)
-            // as a setter, sunday should belong to the previous week.
-            return input == null ? this.day() || 7 : this.day(this.day() % 7 ? input : input - 7);
-        },
-
-        isoWeeksInYear : function () {
-            return weeksInYear(this.year(), 1, 4);
-        },
-
-        weeksInYear : function () {
-            var weekInfo = this.localeData()._week;
-            return weeksInYear(this.year(), weekInfo.dow, weekInfo.doy);
-        },
-
-        get : function (units) {
-            units = normalizeUnits(units);
-            return this[units]();
-        },
-
-        set : function (units, value) {
-            units = normalizeUnits(units);
-            if (typeof this[units] === 'function') {
-                this[units](value);
-            }
-            return this;
-        },
-
-        // If passed a locale key, it will set the locale for this
-        // instance.  Otherwise, it will return the locale configuration
-        // variables for this instance.
-        locale : function (key) {
-            var newLocaleData;
-
-            if (key === undefined) {
-                return this._locale._abbr;
-            } else {
-                newLocaleData = moment.localeData(key);
-                if (newLocaleData != null) {
-                    this._locale = newLocaleData;
-                }
-                return this;
-            }
-        },
-
-        lang : deprecate(
-            'moment().lang() is deprecated. Instead, use moment().localeData() to get the language configuration. Use moment().locale() to change languages.',
-            function (key) {
-                if (key === undefined) {
-                    return this.localeData();
-                } else {
-                    return this.locale(key);
-                }
-            }
-        ),
-
-        localeData : function () {
-            return this._locale;
-        },
-
-        _dateTzOffset : function () {
-            // On Firefox.24 Date#getTimezoneOffset returns a floating point.
-            // https://github.com/moment/moment/pull/1871
-            return Math.round(this._d.getTimezoneOffset() / 15) * 15;
-        }
-    });
-
-    function rawMonthSetter(mom, value) {
-        var dayOfMonth;
-
-        // TODO: Move this out of here!
-        if (typeof value === 'string') {
-            value = mom.localeData().monthsParse(value);
-            // TODO: Another silent failure?
-            if (typeof value !== 'number') {
-                return mom;
-            }
-        }
-
-        dayOfMonth = Math.min(mom.date(),
-                daysInMonth(mom.year(), value));
-        mom._d['set' + (mom._isUTC ? 'UTC' : '') + 'Month'](value, dayOfMonth);
-        return mom;
-    }
-
-    function rawGetter(mom, unit) {
-        return mom._d['get' + (mom._isUTC ? 'UTC' : '') + unit]();
-    }
-
-    function rawSetter(mom, unit, value) {
-        if (unit === 'Month') {
-            return rawMonthSetter(mom, value);
-        } else {
-            return mom._d['set' + (mom._isUTC ? 'UTC' : '') + unit](value);
-        }
-    }
-
-    function makeAccessor(unit, keepTime) {
-        return function (value) {
-            if (value != null) {
-                rawSetter(this, unit, value);
-                moment.updateOffset(this, keepTime);
-                return this;
-            } else {
-                return rawGetter(this, unit);
-            }
-        };
-    }
-
-    moment.fn.millisecond = moment.fn.milliseconds = makeAccessor('Milliseconds', false);
-    moment.fn.second = moment.fn.seconds = makeAccessor('Seconds', false);
-    moment.fn.minute = moment.fn.minutes = makeAccessor('Minutes', false);
-    // Setting the hour should keep the time, because the user explicitly
-    // specified which hour he wants. So trying to maintain the same hour (in
-    // a new timezone) makes sense. Adding/subtracting hours does not follow
-    // this rule.
-    moment.fn.hour = moment.fn.hours = makeAccessor('Hours', true);
-    // moment.fn.month is defined separately
-    moment.fn.date = makeAccessor('Date', true);
-    moment.fn.dates = deprecate('dates accessor is deprecated. Use date instead.', makeAccessor('Date', true));
-    moment.fn.year = makeAccessor('FullYear', true);
-    moment.fn.years = deprecate('years accessor is deprecated. Use year instead.', makeAccessor('FullYear', true));
-
-    // add plural methods
-    moment.fn.days = moment.fn.day;
-    moment.fn.months = moment.fn.month;
-    moment.fn.weeks = moment.fn.week;
-    moment.fn.isoWeeks = moment.fn.isoWeek;
-    moment.fn.quarters = moment.fn.quarter;
-
-    // add aliased format methods
-    moment.fn.toJSON = moment.fn.toISOString;
-
-    /************************************
-        Duration Prototype
-    ************************************/
-
-
-    function daysToYears (days) {
-        // 400 years have 146097 days (taking into account leap year rules)
-        return days * 400 / 146097;
-    }
-
-    function yearsToDays (years) {
-        // years * 365 + absRound(years / 4) -
-        //     absRound(years / 100) + absRound(years / 400);
-        return years * 146097 / 400;
-    }
-
-    extend(moment.duration.fn = Duration.prototype, {
-
-        _bubble : function () {
-            var milliseconds = this._milliseconds,
-                days = this._days,
-                months = this._months,
-                data = this._data,
-                seconds, minutes, hours, years = 0;
-
-            // The following code bubbles up values, see the tests for
-            // examples of what that means.
-            data.milliseconds = milliseconds % 1000;
-
-            seconds = absRound(milliseconds / 1000);
-            data.seconds = seconds % 60;
-
-            minutes = absRound(seconds / 60);
-            data.minutes = minutes % 60;
-
-            hours = absRound(minutes / 60);
-            data.hours = hours % 24;
-
-            days += absRound(hours / 24);
-
-            // Accurately convert days to years, assume start from year 0.
-            years = absRound(daysToYears(days));
-            days -= absRound(yearsToDays(years));
-
-            // 30 days to a month
-            // TODO (iskren): Use anchor date (like 1st Jan) to compute this.
-            months += absRound(days / 30);
-            days %= 30;
-
-            // 12 months -> 1 year
-            years += absRound(months / 12);
-            months %= 12;
-
-            data.days = days;
-            data.months = months;
-            data.years = years;
-        },
-
-        abs : function () {
-            this._milliseconds = Math.abs(this._milliseconds);
-            this._days = Math.abs(this._days);
-            this._months = Math.abs(this._months);
-
-            this._data.milliseconds = Math.abs(this._data.milliseconds);
-            this._data.seconds = Math.abs(this._data.seconds);
-            this._data.minutes = Math.abs(this._data.minutes);
-            this._data.hours = Math.abs(this._data.hours);
-            this._data.months = Math.abs(this._data.months);
-            this._data.years = Math.abs(this._data.years);
-
-            return this;
-        },
-
-        weeks : function () {
-            return absRound(this.days() / 7);
-        },
-
-        valueOf : function () {
-            return this._milliseconds +
-              this._days * 864e5 +
-              (this._months % 12) * 2592e6 +
-              toInt(this._months / 12) * 31536e6;
-        },
-
-        humanize : function (withSuffix) {
-            var output = relativeTime(this, !withSuffix, this.localeData());
-
-            if (withSuffix) {
-                output = this.localeData().pastFuture(+this, output);
-            }
-
-            return this.localeData().postformat(output);
-        },
-
-        add : function (input, val) {
-            // supports only 2.0-style add(1, 's') or add(moment)
-            var dur = moment.duration(input, val);
-
-            this._milliseconds += dur._milliseconds;
-            this._days += dur._days;
-            this._months += dur._months;
-
-            this._bubble();
-
-            return this;
-        },
-
-        subtract : function (input, val) {
-            var dur = moment.duration(input, val);
-
-            this._milliseconds -= dur._milliseconds;
-            this._days -= dur._days;
-            this._months -= dur._months;
-
-            this._bubble();
-
-            return this;
-        },
-
-        get : function (units) {
-            units = normalizeUnits(units);
-            return this[units.toLowerCase() + 's']();
-        },
-
-        as : function (units) {
-            var days, months;
-            units = normalizeUnits(units);
-
-            if (units === 'month' || units === 'year') {
-                days = this._days + this._milliseconds / 864e5;
-                months = this._months + daysToYears(days) * 12;
-                return units === 'month' ? months : months / 12;
-            } else {
-                // handle milliseconds separately because of floating point math errors (issue #1867)
-                days = this._days + Math.round(yearsToDays(this._months / 12));
-                switch (units) {
-                    case 'week': return days / 7 + this._milliseconds / 6048e5;
-                    case 'day': return days + this._milliseconds / 864e5;
-                    case 'hour': return days * 24 + this._milliseconds / 36e5;
-                    case 'minute': return days * 24 * 60 + this._milliseconds / 6e4;
-                    case 'second': return days * 24 * 60 * 60 + this._milliseconds / 1000;
-                    // Math.floor prevents floating point math errors here
-                    case 'millisecond': return Math.floor(days * 24 * 60 * 60 * 1000) + this._milliseconds;
-                    default: throw new Error('Unknown unit ' + units);
-                }
-            }
-        },
-
-        lang : moment.fn.lang,
-        locale : moment.fn.locale,
-
-        toIsoString : deprecate(
-            'toIsoString() is deprecated. Please use toISOString() instead ' +
-            '(notice the capitals)',
-            function () {
-                return this.toISOString();
-            }
-        ),
-
-        toISOString : function () {
-            // inspired by https://github.com/dordille/moment-isoduration/blob/master/moment.isoduration.js
-            var years = Math.abs(this.years()),
-                months = Math.abs(this.months()),
-                days = Math.abs(this.days()),
-                hours = Math.abs(this.hours()),
-                minutes = Math.abs(this.minutes()),
-                seconds = Math.abs(this.seconds() + this.milliseconds() / 1000);
-
-            if (!this.asSeconds()) {
-                // this is the same as C#'s (Noda) and python (isodate)...
-                // but not other JS (goog.date)
-                return 'P0D';
-            }
-
-            return (this.asSeconds() < 0 ? '-' : '') +
-                'P' +
-                (years ? years + 'Y' : '') +
-                (months ? months + 'M' : '') +
-                (days ? days + 'D' : '') +
-                ((hours || minutes || seconds) ? 'T' : '') +
-                (hours ? hours + 'H' : '') +
-                (minutes ? minutes + 'M' : '') +
-                (seconds ? seconds + 'S' : '');
-        },
-
-        localeData : function () {
-            return this._locale;
-        }
-    });
-
-    moment.duration.fn.toString = moment.duration.fn.toISOString;
-
-    function makeDurationGetter(name) {
-        moment.duration.fn[name] = function () {
-            return this._data[name];
-        };
-    }
-
-    for (i in unitMillisecondFactors) {
-        if (hasOwnProp(unitMillisecondFactors, i)) {
-            makeDurationGetter(i.toLowerCase());
-        }
-    }
-
-    moment.duration.fn.asMilliseconds = function () {
-        return this.as('ms');
-    };
-    moment.duration.fn.asSeconds = function () {
-        return this.as('s');
-    };
-    moment.duration.fn.asMinutes = function () {
-        return this.as('m');
-    };
-    moment.duration.fn.asHours = function () {
-        return this.as('h');
-    };
-    moment.duration.fn.asDays = function () {
-        return this.as('d');
-    };
-    moment.duration.fn.asWeeks = function () {
-        return this.as('weeks');
-    };
-    moment.duration.fn.asMonths = function () {
-        return this.as('M');
-    };
-    moment.duration.fn.asYears = function () {
-        return this.as('y');
-    };
-
-    /************************************
-        Default Locale
-    ************************************/
-
-
-    // Set default locale, other locale will inherit from English.
-    moment.locale('en', {
-        ordinalParse: /\d{1,2}(th|st|nd|rd)/,
-        ordinal : function (number) {
-            var b = number % 10,
-                output = (toInt(number % 100 / 10) === 1) ? 'th' :
-                (b === 1) ? 'st' :
-                (b === 2) ? 'nd' :
-                (b === 3) ? 'rd' : 'th';
-            return number + output;
-        }
-    });
-
-    /* EMBED_LOCALES */
-
-    /************************************
-        Exposing Moment
-    ************************************/
-
-    function makeGlobal(shouldDeprecate) {
-        /*global ender:false */
-        if (typeof ender !== 'undefined') {
-            return;
-        }
-        oldGlobalMoment = globalScope.moment;
-        if (shouldDeprecate) {
-            globalScope.moment = deprecate(
-                    'Accessing Moment through the global scope is ' +
-                    'deprecated, and will be removed in an upcoming ' +
-                    'release.',
-                    moment);
-        } else {
-            globalScope.moment = moment;
-        }
-    }
-
-    // CommonJS module is defined
-    if (hasModule) {
-        module.exports = moment;
-    } else if (typeof define === 'function' && define.amd) {
-        define('moment', function (require, exports, module) {
-            if (module.config && module.config() && module.config().noGlobal === true) {
-                // release the global variable
-                globalScope.moment = oldGlobalMoment;
-            }
-
-            return moment;
-        });
-        makeGlobal(true);
-    } else {
-        makeGlobal();
-    }
-}).call(this);
-
-;/*
+/*
   backbone.paginator 2.0.0
   http://github.com/backbone-paginator/backbone.paginator
 
@@ -26665,3121 +21350,7 @@ if (typeof jQuery === "undefined") { throw new Error("Bootstrap requires jQuery"
 
 }));
 
-;// MarionetteJS (Backbone.Marionette)
-// ----------------------------------
-// v2.2.2
-//
-// Copyright (c)2014 Derick Bailey, Muted Solutions, LLC.
-// Distributed under MIT license
-//
-// http://marionettejs.com
-
-(function(root, factory) {
-
-  if (typeof define === 'function' && define.amd) {
-    define(['backbone', 'underscore', 'backbone.wreqr', 'backbone.babysitter'], function(Backbone, _) {
-      return (root.Marionette = factory(root, Backbone, _));
-    });
-  } else if (typeof exports !== 'undefined') {
-    var Backbone = require('backbone');
-    var _ = require('underscore');
-    var Wreqr = require('backbone.wreqr');
-    var BabySitter = require('backbone.babysitter');
-    module.exports = factory(root, Backbone, _);
-  } else {
-    root.Marionette = factory(root, root.Backbone, root._);
-  }
-
-}(this, function(root, Backbone, _) {
-  'use strict';
-
-  var previousMarionette = root.Marionette;
-
-  var Marionette = Backbone.Marionette = {};
-
-  Marionette.VERSION = '2.2.2';
-
-  Marionette.noConflict = function() {
-    root.Marionette = previousMarionette;
-    return this;
-  };
-
-  // Get the Deferred creator for later use
-  Marionette.Deferred = Backbone.$.Deferred;
-
-  /* jshint unused: false */
-  
-  // Helpers
-  // -------
-  
-  // For slicing `arguments` in functions
-  var slice = Array.prototype.slice;
-  
-  // Marionette.extend
-  // -----------------
-  
-  // Borrow the Backbone `extend` method so we can use it as needed
-  Marionette.extend = Backbone.Model.extend;
-  
-  // Marionette.getOption
-  // --------------------
-  
-  // Retrieve an object, function or other value from a target
-  // object or its `options`, with `options` taking precedence.
-  Marionette.getOption = function(target, optionName) {
-    if (!target || !optionName) { return; }
-    var value;
-  
-    if (target.options && (target.options[optionName] !== undefined)) {
-      value = target.options[optionName];
-    } else {
-      value = target[optionName];
-    }
-  
-    return value;
-  };
-  
-  // Proxy `Marionette.getOption`
-  Marionette.proxyGetOption = function(optionName) {
-    return Marionette.getOption(this, optionName);
-  };
-  
-  // Marionette.normalizeMethods
-  // ----------------------
-  
-  // Pass in a mapping of events => functions or function names
-  // and return a mapping of events => functions
-  Marionette.normalizeMethods = function(hash) {
-    var normalizedHash = {};
-    _.each(hash, function(method, name) {
-      if (!_.isFunction(method)) {
-        method = this[method];
-      }
-      if (!method) {
-        return;
-      }
-      normalizedHash[name] = method;
-    }, this);
-    return normalizedHash;
-  };
-  
-  // utility method for parsing @ui. syntax strings
-  // into associated selector
-  Marionette.normalizeUIString = function(uiString, ui) {
-    return uiString.replace(/@ui\.[a-zA-Z_$0-9]*/g, function(r) {
-      return ui[r.slice(4)];
-    });
-  };
-  
-  // allows for the use of the @ui. syntax within
-  // a given key for triggers and events
-  // swaps the @ui with the associated selector.
-  // Returns a new, non-mutated, parsed events hash.
-  Marionette.normalizeUIKeys = function(hash, ui) {
-    if (typeof(hash) === 'undefined') {
-      return;
-    }
-  
-    hash = _.clone(hash);
-  
-    _.each(_.keys(hash), function(key) {
-      var normalizedKey = Marionette.normalizeUIString(key, ui);
-      if (normalizedKey !== key) {
-        hash[normalizedKey] = hash[key];
-        delete hash[key];
-      }
-    });
-  
-    return hash;
-  };
-  
-  // allows for the use of the @ui. syntax within
-  // a given value for regions
-  // swaps the @ui with the associated selector
-  Marionette.normalizeUIValues = function(hash, ui) {
-    if (typeof(hash) === 'undefined') {
-      return;
-    }
-  
-    _.each(hash, function(val, key) {
-      if (_.isString(val)) {
-        hash[key] = Marionette.normalizeUIString(val, ui);
-      }
-    });
-  
-    return hash;
-  };
-  
-  // Mix in methods from Underscore, for iteration, and other
-  // collection related features.
-  // Borrowing this code from Backbone.Collection:
-  // http://backbonejs.org/docs/backbone.html#section-121
-  Marionette.actAsCollection = function(object, listProperty) {
-    var methods = ['forEach', 'each', 'map', 'find', 'detect', 'filter',
-      'select', 'reject', 'every', 'all', 'some', 'any', 'include',
-      'contains', 'invoke', 'toArray', 'first', 'initial', 'rest',
-      'last', 'without', 'isEmpty', 'pluck'];
-  
-    _.each(methods, function(method) {
-      object[method] = function() {
-        var list = _.values(_.result(this, listProperty));
-        var args = [list].concat(_.toArray(arguments));
-        return _[method].apply(_, args);
-      };
-    });
-  };
-  
-  // Trigger an event and/or a corresponding method name. Examples:
-  //
-  // `this.triggerMethod("foo")` will trigger the "foo" event and
-  // call the "onFoo" method.
-  //
-  // `this.triggerMethod("foo:bar")` will trigger the "foo:bar" event and
-  // call the "onFooBar" method.
-  Marionette.triggerMethod = function(event) {
-  
-    // split the event name on the ":"
-    var splitter = /(^|:)(\w)/gi;
-  
-    // take the event section ("section1:section2:section3")
-    // and turn it in to uppercase name
-    function getEventName(match, prefix, eventName) {
-      return eventName.toUpperCase();
-    }
-  
-    // get the method name from the event name
-    var methodName = 'on' + event.replace(splitter, getEventName);
-    var method = this[methodName];
-    var result;
-  
-    // call the onMethodName if it exists
-    if (_.isFunction(method)) {
-      // pass all arguments, except the event name
-      result = method.apply(this, _.tail(arguments));
-    }
-  
-    // trigger the event, if a trigger method exists
-    if (_.isFunction(this.trigger)) {
-      this.trigger.apply(this, arguments);
-    }
-  
-    return result;
-  };
-  
-  // triggerMethodOn invokes triggerMethod on a specific context
-  //
-  // e.g. `Marionette.triggerMethodOn(view, 'show')`
-  // will trigger a "show" event or invoke onShow the view.
-  Marionette.triggerMethodOn = function(context, event) {
-    var args = _.tail(arguments, 2);
-    var fnc;
-  
-    if (_.isFunction(context.triggerMethod)) {
-      fnc = context.triggerMethod;
-    } else {
-      fnc = Marionette.triggerMethod;
-    }
-  
-    return fnc.apply(context, [event].concat(args));
-  };
-  
-  // DOMRefresh
-  // ----------
-  //
-  // Monitor a view's state, and after it has been rendered and shown
-  // in the DOM, trigger a "dom:refresh" event every time it is
-  // re-rendered.
-  
-  Marionette.MonitorDOMRefresh = (function(documentElement) {
-    // track when the view has been shown in the DOM,
-    // using a Marionette.Region (or by other means of triggering "show")
-    function handleShow(view) {
-      view._isShown = true;
-      triggerDOMRefresh(view);
-    }
-  
-    // track when the view has been rendered
-    function handleRender(view) {
-      view._isRendered = true;
-      triggerDOMRefresh(view);
-    }
-  
-    // Trigger the "dom:refresh" event and corresponding "onDomRefresh" method
-    function triggerDOMRefresh(view) {
-      if (view._isShown && view._isRendered && isInDOM(view)) {
-        if (_.isFunction(view.triggerMethod)) {
-          view.triggerMethod('dom:refresh');
-        }
-      }
-    }
-  
-    function isInDOM(view) {
-      return Backbone.$.contains(documentElement, view.el);
-    }
-  
-    // Export public API
-    return function(view) {
-      view.listenTo(view, 'show', function() {
-        handleShow(view);
-      });
-  
-      view.listenTo(view, 'render', function() {
-        handleRender(view);
-      });
-    };
-  })(document.documentElement);
-  
-
-  /* jshint maxparams: 5 */
-  
-  // Marionette.bindEntityEvents & unbindEntityEvents
-  // ---------------------------
-  //
-  // These methods are used to bind/unbind a backbone "entity" (collection/model)
-  // to methods on a target object.
-  //
-  // The first parameter, `target`, must have a `listenTo` method from the
-  // EventBinder object.
-  //
-  // The second parameter is the entity (Backbone.Model or Backbone.Collection)
-  // to bind the events from.
-  //
-  // The third parameter is a hash of { "event:name": "eventHandler" }
-  // configuration. Multiple handlers can be separated by a space. A
-  // function can be supplied instead of a string handler name.
-  
-  (function(Marionette) {
-    'use strict';
-  
-    // Bind the event to handlers specified as a string of
-    // handler names on the target object
-    function bindFromStrings(target, entity, evt, methods) {
-      var methodNames = methods.split(/\s+/);
-  
-      _.each(methodNames, function(methodName) {
-  
-        var method = target[methodName];
-        if (!method) {
-          throw new Marionette.Error('Method "' + methodName +
-            '" was configured as an event handler, but does not exist.');
-        }
-  
-        target.listenTo(entity, evt, method);
-      });
-    }
-  
-    // Bind the event to a supplied callback function
-    function bindToFunction(target, entity, evt, method) {
-      target.listenTo(entity, evt, method);
-    }
-  
-    // Bind the event to handlers specified as a string of
-    // handler names on the target object
-    function unbindFromStrings(target, entity, evt, methods) {
-      var methodNames = methods.split(/\s+/);
-  
-      _.each(methodNames, function(methodName) {
-        var method = target[methodName];
-        target.stopListening(entity, evt, method);
-      });
-    }
-  
-    // Bind the event to a supplied callback function
-    function unbindToFunction(target, entity, evt, method) {
-      target.stopListening(entity, evt, method);
-    }
-  
-  
-    // generic looping function
-    function iterateEvents(target, entity, bindings, functionCallback, stringCallback) {
-      if (!entity || !bindings) { return; }
-  
-      // type-check bindings
-      if (!_.isFunction(bindings) && !_.isObject(bindings)) {
-        throw new Marionette.Error({
-          message: 'Bindings must be an object or function.',
-          url: 'marionette.functions.html#marionettebindentityevents'
-        });
-      }
-  
-      // allow the bindings to be a function
-      if (_.isFunction(bindings)) {
-        bindings = bindings.call(target);
-      }
-  
-      // iterate the bindings and bind them
-      _.each(bindings, function(methods, evt) {
-  
-        // allow for a function as the handler,
-        // or a list of event names as a string
-        if (_.isFunction(methods)) {
-          functionCallback(target, entity, evt, methods);
-        } else {
-          stringCallback(target, entity, evt, methods);
-        }
-  
-      });
-    }
-  
-    // Export Public API
-    Marionette.bindEntityEvents = function(target, entity, bindings) {
-      iterateEvents(target, entity, bindings, bindToFunction, bindFromStrings);
-    };
-  
-    Marionette.unbindEntityEvents = function(target, entity, bindings) {
-      iterateEvents(target, entity, bindings, unbindToFunction, unbindFromStrings);
-    };
-  
-    // Proxy `bindEntityEvents`
-    Marionette.proxyBindEntityEvents = function(entity, bindings) {
-      return Marionette.bindEntityEvents(this, entity, bindings);
-    };
-  
-    // Proxy `unbindEntityEvents`
-    Marionette.proxyUnbindEntityEvents = function(entity, bindings) {
-      return Marionette.unbindEntityEvents(this, entity, bindings);
-    };
-  })(Marionette);
-  
-
-  var errorProps = ['description', 'fileName', 'lineNumber', 'name', 'message', 'number'];
-  
-  Marionette.Error = Marionette.extend.call(Error, {
-    urlRoot: 'http://marionettejs.com/docs/v' + Marionette.VERSION + '/',
-  
-    constructor: function(message, options) {
-      if (_.isObject(message)) {
-        options = message;
-        message = options.message;
-      } else if (!options) {
-        options = {};
-      }
-  
-      var error = Error.call(this, message);
-      _.extend(this, _.pick(error, errorProps), _.pick(options, errorProps));
-  
-      this.captureStackTrace();
-  
-      if (options.url) {
-        this.url = this.urlRoot + options.url;
-      }
-    },
-  
-    captureStackTrace: function() {
-      if (Error.captureStackTrace) {
-        Error.captureStackTrace(this, Marionette.Error);
-      }
-    },
-  
-    toString: function() {
-      return this.name + ': ' + this.message + (this.url ? ' See: ' + this.url : '');
-    }
-  });
-  
-  Marionette.Error.extend = Marionette.extend;
-  
-  // Callbacks
-  // ---------
-  
-  // A simple way of managing a collection of callbacks
-  // and executing them at a later point in time, using jQuery's
-  // `Deferred` object.
-  Marionette.Callbacks = function() {
-    this._deferred = Marionette.Deferred();
-    this._callbacks = [];
-  };
-  
-  _.extend(Marionette.Callbacks.prototype, {
-  
-    // Add a callback to be executed. Callbacks added here are
-    // guaranteed to execute, even if they are added after the
-    // `run` method is called.
-    add: function(callback, contextOverride) {
-      var promise = _.result(this._deferred, 'promise');
-  
-      this._callbacks.push({cb: callback, ctx: contextOverride});
-  
-      promise.then(function(args) {
-        if (contextOverride){ args.context = contextOverride; }
-        callback.call(args.context, args.options);
-      });
-    },
-  
-    // Run all registered callbacks with the context specified.
-    // Additional callbacks can be added after this has been run
-    // and they will still be executed.
-    run: function(options, context) {
-      this._deferred.resolve({
-        options: options,
-        context: context
-      });
-    },
-  
-    // Resets the list of callbacks to be run, allowing the same list
-    // to be run multiple times - whenever the `run` method is called.
-    reset: function() {
-      var callbacks = this._callbacks;
-      this._deferred = Marionette.Deferred();
-      this._callbacks = [];
-  
-      _.each(callbacks, function(cb) {
-        this.add(cb.cb, cb.ctx);
-      }, this);
-    }
-  });
-  
-  // Marionette Controller
-  // ---------------------
-  //
-  // A multi-purpose object to use as a controller for
-  // modules and routers, and as a mediator for workflow
-  // and coordination of other objects, views, and more.
-  Marionette.Controller = function(options) {
-    this.options = options || {};
-  
-    if (_.isFunction(this.initialize)) {
-      this.initialize(this.options);
-    }
-  };
-  
-  Marionette.Controller.extend = Marionette.extend;
-  
-  // Controller Methods
-  // --------------
-  
-  // Ensure it can trigger events with Backbone.Events
-  _.extend(Marionette.Controller.prototype, Backbone.Events, {
-    destroy: function() {
-      var args = slice.call(arguments);
-      this.triggerMethod.apply(this, ['before:destroy'].concat(args));
-      this.triggerMethod.apply(this, ['destroy'].concat(args));
-  
-      this.stopListening();
-      this.off();
-      return this;
-    },
-  
-    // import the `triggerMethod` to trigger events with corresponding
-    // methods if the method exists
-    triggerMethod: Marionette.triggerMethod,
-  
-    // Proxy `getOption` to enable getting options from this or this.options by name.
-    getOption: Marionette.proxyGetOption
-  
-  });
-  
-  // Marionette Object
-  // ---------------------
-  //
-  // A Base Class that other Classes should descend from.
-  // Object borrows many conventions and utilities from Backbone.
-  Marionette.Object = function(options) {
-    this.options = _.extend({}, _.result(this, 'options'), options);
-  
-    this.initialize.apply(this, arguments);
-  };
-  
-  Marionette.Object.extend = Marionette.extend;
-  
-  // Object Methods
-  // --------------
-  
-  _.extend(Marionette.Object.prototype, {
-  
-    //this is a noop method intended to be overridden by classes that extend from this base
-    initialize: function() {},
-  
-    destroy: function() {
-      this.triggerMethod('before:destroy');
-      this.triggerMethod('destroy');
-      this.stopListening();
-    },
-  
-    // Import the `triggerMethod` to trigger events with corresponding
-    // methods if the method exists
-    triggerMethod: Marionette.triggerMethod,
-  
-    // Proxy `getOption` to enable getting options from this or this.options by name.
-    getOption: Marionette.proxyGetOption,
-  
-    // Proxy `unbindEntityEvents` to enable binding view's events from another entity.
-    bindEntityEvents: Marionette.proxyBindEntityEvents,
-  
-    // Proxy `unbindEntityEvents` to enable unbinding view's events from another entity.
-    unbindEntityEvents: Marionette.proxyUnbindEntityEvents
-  });
-  
-  // Ensure it can trigger events with Backbone.Events
-  _.extend(Marionette.Object.prototype, Backbone.Events);
-  
-  /* jshint maxcomplexity: 10, maxstatements: 29 */
-  
-  // Region
-  // ------
-  //
-  // Manage the visual regions of your composite application. See
-  // http://lostechies.com/derickbailey/2011/12/12/composite-js-apps-regions-and-region-managers/
-  
-  Marionette.Region = function(options) {
-    this.options = options || {};
-    this.el = this.getOption('el');
-  
-    // Handle when this.el is passed in as a $ wrapped element.
-    this.el = this.el instanceof Backbone.$ ? this.el[0] : this.el;
-  
-    if (!this.el) {
-      throw new Marionette.Error({
-        name: 'NoElError',
-        message: 'An "el" must be specified for a region.'
-      });
-    }
-  
-    this.$el = this.getEl(this.el);
-  
-    if (this.initialize) {
-      var args = slice.apply(arguments);
-      this.initialize.apply(this, args);
-    }
-  };
-  
-  
-  // Region Class methods
-  // -------------------
-  
-  _.extend(Marionette.Region, {
-  
-    // Build an instance of a region by passing in a configuration object
-    // and a default region class to use if none is specified in the config.
-    //
-    // The config object should either be a string as a jQuery DOM selector,
-    // a Region class directly, or an object literal that specifies both
-    // a selector and regionClass:
-    //
-    // ```js
-    // {
-    //   selector: "#foo",
-    //   regionClass: MyCustomRegion
-    // }
-    // ```
-    //
-    buildRegion: function(regionConfig, DefaultRegionClass) {
-      if (_.isString(regionConfig)) {
-        return this._buildRegionFromSelector(regionConfig, DefaultRegionClass);
-      }
-  
-      if (regionConfig.selector || regionConfig.el || regionConfig.regionClass) {
-        return this._buildRegionFromObject(regionConfig, DefaultRegionClass);
-      }
-  
-      if (_.isFunction(regionConfig)) {
-        return this._buildRegionFromRegionClass(regionConfig);
-      }
-  
-      throw new Marionette.Error({
-        message: 'Improper region configuration type.',
-        url: 'marionette.region.html#region-configuration-types'
-      });
-    },
-  
-    // Build the region from a string selector like '#foo-region'
-    _buildRegionFromSelector: function(selector, DefaultRegionClass) {
-      return new DefaultRegionClass({ el: selector });
-    },
-  
-    // Build the region from a configuration object
-    // ```js
-    // { selector: '#foo', regionClass: FooRegion }
-    // ```
-    _buildRegionFromObject: function(regionConfig, DefaultRegionClass) {
-      var RegionClass = regionConfig.regionClass || DefaultRegionClass;
-      var options = _.omit(regionConfig, 'selector', 'regionClass');
-  
-      if (regionConfig.selector && !options.el) {
-        options.el = regionConfig.selector;
-      }
-  
-      var region = new RegionClass(options);
-  
-      // override the `getEl` function if we have a parentEl
-      // this must be overridden to ensure the selector is found
-      // on the first use of the region. if we try to assign the
-      // region's `el` to `parentEl.find(selector)` in the object
-      // literal to build the region, the element will not be
-      // guaranteed to be in the DOM already, and will cause problems
-      if (regionConfig.parentEl) {
-        region.getEl = function(el) {
-          if (_.isObject(el)) {
-            return Backbone.$(el);
-          }
-          var parentEl = regionConfig.parentEl;
-          if (_.isFunction(parentEl)) {
-            parentEl = parentEl();
-          }
-          return parentEl.find(el);
-        };
-      }
-  
-      return region;
-    },
-  
-    // Build the region directly from a given `RegionClass`
-    _buildRegionFromRegionClass: function(RegionClass) {
-      return new RegionClass();
-    }
-  
-  });
-  
-  // Region Instance Methods
-  // -----------------------
-  
-  _.extend(Marionette.Region.prototype, Backbone.Events, {
-  
-    // Displays a backbone view instance inside of the region.
-    // Handles calling the `render` method for you. Reads content
-    // directly from the `el` attribute. Also calls an optional
-    // `onShow` and `onDestroy` method on your view, just after showing
-    // or just before destroying the view, respectively.
-    // The `preventDestroy` option can be used to prevent a view from
-    // the old view being destroyed on show.
-    // The `forceShow` option can be used to force a view to be
-    // re-rendered if it's already shown in the region.
-  
-    show: function(view, options){
-      this._ensureElement();
-  
-      var showOptions     = options || {};
-      var isDifferentView = view !== this.currentView;
-      var preventDestroy  = !!showOptions.preventDestroy;
-      var forceShow       = !!showOptions.forceShow;
-  
-      // We are only changing the view if there is a current view to change to begin with
-      var isChangingView = !!this.currentView;
-  
-      // Only destroy the current view if we don't want to `preventDestroy` and if
-      // the view given in the first argument is different than `currentView`
-      var _shouldDestroyView = isDifferentView && !preventDestroy;
-  
-      // Only show the view given in the first argument if it is different than
-      // the current view or if we want to re-show the view. Note that if
-      // `_shouldDestroyView` is true, then `_shouldShowView` is also necessarily true.
-      var _shouldShowView = isDifferentView || forceShow;
-  
-      if (isChangingView) {
-        this.triggerMethod('before:swapOut', this.currentView);
-      }
-  
-      if (_shouldDestroyView) {
-        this.empty();
-      }
-  
-      if (_shouldShowView) {
-  
-        // We need to listen for if a view is destroyed
-        // in a way other than through the region.
-        // If this happens we need to remove the reference
-        // to the currentView since once a view has been destroyed
-        // we can not reuse it.
-        view.once('destroy', this.empty, this);
-        view.render();
-  
-        if (isChangingView) {
-          this.triggerMethod('before:swap', view);
-        }
-  
-        this.triggerMethod('before:show', view);
-        Marionette.triggerMethodOn(view, 'before:show');
-  
-        this.attachHtml(view);
-  
-        if (isChangingView) {
-          this.triggerMethod('swapOut', this.currentView);
-        }
-  
-        this.currentView = view;
-  
-        if (isChangingView) {
-          this.triggerMethod('swap', view);
-        }
-  
-        this.triggerMethod('show', view);
-        Marionette.triggerMethodOn(view, 'show');
-  
-        return this;
-      }
-  
-      return this;
-    },
-  
-    _ensureElement: function(){
-      if (!_.isObject(this.el)) {
-        this.$el = this.getEl(this.el);
-        this.el = this.$el[0];
-      }
-  
-      if (!this.$el || this.$el.length === 0) {
-        throw new Marionette.Error('An "el" ' + this.$el.selector + ' must exist in DOM');
-      }
-    },
-  
-    // Override this method to change how the region finds the
-    // DOM element that it manages. Return a jQuery selector object.
-    getEl: function(el) {
-      return Backbone.$(el);
-    },
-  
-    // Override this method to change how the new view is
-    // appended to the `$el` that the region is managing
-    attachHtml: function(view) {
-      // empty the node and append new view
-      this.el.innerHTML='';
-      this.el.appendChild(view.el);
-    },
-  
-    // Destroy the current view, if there is one. If there is no
-    // current view, it does nothing and returns immediately.
-    empty: function() {
-      var view = this.currentView;
-  
-      // If there is no view in the region
-      // we should not remove anything
-      if (!view) { return; }
-  
-      view.off('destroy', this.empty, this);
-      this.triggerMethod('before:empty', view);
-      this._destroyView();
-      this.triggerMethod('empty', view);
-  
-      // Remove region pointer to the currentView
-      delete this.currentView;
-      return this;
-    },
-  
-    // call 'destroy' or 'remove', depending on which is found
-    // on the view (if showing a raw Backbone view or a Marionette View)
-    _destroyView: function() {
-      var view = this.currentView;
-  
-      if (view.destroy && !view.isDestroyed) {
-        view.destroy();
-      } else if (view.remove) {
-        view.remove();
-      }
-    },
-  
-    // Attach an existing view to the region. This
-    // will not call `render` or `onShow` for the new view,
-    // and will not replace the current HTML for the `el`
-    // of the region.
-    attachView: function(view) {
-      this.currentView = view;
-      return this;
-    },
-  
-    // Checks whether a view is currently present within
-    // the region. Returns `true` if there is and `false` if
-    // no view is present.
-    hasView: function() {
-      return !!this.currentView;
-    },
-  
-    // Reset the region by destroying any existing view and
-    // clearing out the cached `$el`. The next time a view
-    // is shown via this region, the region will re-query the
-    // DOM for the region's `el`.
-    reset: function() {
-      this.empty();
-  
-      if (this.$el) {
-        this.el = this.$el.selector;
-      }
-  
-      delete this.$el;
-      return this;
-    },
-  
-    // Proxy `getOption` to enable getting options from this or this.options by name.
-    getOption: Marionette.proxyGetOption,
-  
-    // import the `triggerMethod` to trigger events with corresponding
-    // methods if the method exists
-    triggerMethod: Marionette.triggerMethod
-  });
-  
-  // Copy the `extend` function used by Backbone's classes
-  Marionette.Region.extend = Marionette.extend;
-  
-  // Marionette.RegionManager
-  // ------------------------
-  //
-  // Manage one or more related `Marionette.Region` objects.
-  Marionette.RegionManager = (function(Marionette) {
-  
-    var RegionManager = Marionette.Controller.extend({
-      constructor: function(options) {
-        this._regions = {};
-        Marionette.Controller.call(this, options);
-      },
-  
-      // Add multiple regions using an object literal or a
-      // function that returns an object literal, where
-      // each key becomes the region name, and each value is
-      // the region definition.
-      addRegions: function(regionDefinitions, defaults) {
-        if (_.isFunction(regionDefinitions)) {
-          regionDefinitions = regionDefinitions.apply(this, arguments);
-        }
-  
-        var regions = {};
-  
-        _.each(regionDefinitions, function(definition, name) {
-          if (_.isString(definition)) {
-            definition = {selector: definition};
-          }
-  
-          if (definition.selector) {
-            definition = _.defaults({}, definition, defaults);
-          }
-  
-          var region = this.addRegion(name, definition);
-          regions[name] = region;
-        }, this);
-  
-        return regions;
-      },
-  
-      // Add an individual region to the region manager,
-      // and return the region instance
-      addRegion: function(name, definition) {
-        var region;
-  
-        if (definition instanceof Marionette.Region) {
-          region = definition;
-        } else {
-          region = Marionette.Region.buildRegion(definition, Marionette.Region);
-        }
-  
-        this.triggerMethod('before:add:region', name, region);
-  
-        this._store(name, region);
-  
-        this.triggerMethod('add:region', name, region);
-        return region;
-      },
-  
-      // Get a region by name
-      get: function(name) {
-        return this._regions[name];
-      },
-  
-      // Gets all the regions contained within
-      // the `regionManager` instance.
-      getRegions: function(){
-        return _.clone(this._regions);
-      },
-  
-      // Remove a region by name
-      removeRegion: function(name) {
-        var region = this._regions[name];
-        this._remove(name, region);
-  
-        return region;
-      },
-  
-      // Empty all regions in the region manager, and
-      // remove them
-      removeRegions: function() {
-        var regions = this.getRegions();
-        _.each(this._regions, function(region, name) {
-          this._remove(name, region);
-        }, this);
-  
-        return regions;
-      },
-  
-      // Empty all regions in the region manager, but
-      // leave them attached
-      emptyRegions: function() {
-        var regions = this.getRegions();
-        _.each(regions, function(region) {
-          region.empty();
-        }, this);
-  
-        return regions;
-      },
-  
-      // Destroy all regions and shut down the region
-      // manager entirely
-      destroy: function() {
-        this.removeRegions();
-        return Marionette.Controller.prototype.destroy.apply(this, arguments);
-      },
-  
-      // internal method to store regions
-      _store: function(name, region) {
-        this._regions[name] = region;
-        this._setLength();
-      },
-  
-      // internal method to remove a region
-      _remove: function(name, region) {
-        this.triggerMethod('before:remove:region', name, region);
-        region.empty();
-        region.stopListening();
-        delete this._regions[name];
-        this._setLength();
-        this.triggerMethod('remove:region', name, region);
-      },
-  
-      // set the number of regions current held
-      _setLength: function() {
-        this.length = _.size(this._regions);
-      }
-  
-    });
-  
-    Marionette.actAsCollection(RegionManager.prototype, '_regions');
-  
-    return RegionManager;
-  })(Marionette);
-  
-
-  // Template Cache
-  // --------------
-  
-  // Manage templates stored in `<script>` blocks,
-  // caching them for faster access.
-  Marionette.TemplateCache = function(templateId) {
-    this.templateId = templateId;
-  };
-  
-  // TemplateCache object-level methods. Manage the template
-  // caches from these method calls instead of creating
-  // your own TemplateCache instances
-  _.extend(Marionette.TemplateCache, {
-    templateCaches: {},
-  
-    // Get the specified template by id. Either
-    // retrieves the cached version, or loads it
-    // from the DOM.
-    get: function(templateId) {
-      var cachedTemplate = this.templateCaches[templateId];
-  
-      if (!cachedTemplate) {
-        cachedTemplate = new Marionette.TemplateCache(templateId);
-        this.templateCaches[templateId] = cachedTemplate;
-      }
-  
-      return cachedTemplate.load();
-    },
-  
-    // Clear templates from the cache. If no arguments
-    // are specified, clears all templates:
-    // `clear()`
-    //
-    // If arguments are specified, clears each of the
-    // specified templates from the cache:
-    // `clear("#t1", "#t2", "...")`
-    clear: function() {
-      var i;
-      var args = slice.call(arguments);
-      var length = args.length;
-  
-      if (length > 0) {
-        for (i = 0; i < length; i++) {
-          delete this.templateCaches[args[i]];
-        }
-      } else {
-        this.templateCaches = {};
-      }
-    }
-  });
-  
-  // TemplateCache instance methods, allowing each
-  // template cache object to manage its own state
-  // and know whether or not it has been loaded
-  _.extend(Marionette.TemplateCache.prototype, {
-  
-    // Internal method to load the template
-    load: function() {
-      // Guard clause to prevent loading this template more than once
-      if (this.compiledTemplate) {
-        return this.compiledTemplate;
-      }
-  
-      // Load the template and compile it
-      var template = this.loadTemplate(this.templateId);
-      this.compiledTemplate = this.compileTemplate(template);
-  
-      return this.compiledTemplate;
-    },
-  
-    // Load a template from the DOM, by default. Override
-    // this method to provide your own template retrieval
-    // For asynchronous loading with AMD/RequireJS, consider
-    // using a template-loader plugin as described here:
-    // https://github.com/marionettejs/backbone.marionette/wiki/Using-marionette-with-requirejs
-    loadTemplate: function(templateId) {
-      var template = Backbone.$(templateId).html();
-  
-      if (!template || template.length === 0) {
-        throw new Marionette.Error({
-          name: 'NoTemplateError',
-          message: 'Could not find template: "' + templateId + '"'
-        });
-      }
-  
-      return template;
-    },
-  
-    // Pre-compile the template before caching it. Override
-    // this method if you do not need to pre-compile a template
-    // (JST / RequireJS for example) or if you want to change
-    // the template engine used (Handebars, etc).
-    compileTemplate: function(rawTemplate) {
-      return _.template(rawTemplate);
-    }
-  });
-  
-  // Renderer
-  // --------
-  
-  // Render a template with data by passing in the template
-  // selector and the data to render.
-  Marionette.Renderer = {
-  
-    // Render a template with data. The `template` parameter is
-    // passed to the `TemplateCache` object to retrieve the
-    // template function. Override this method to provide your own
-    // custom rendering and template handling for all of Marionette.
-    render: function(template, data) {
-      if (!template) {
-        throw new Marionette.Error({
-          name: 'TemplateNotFoundError',
-          message: 'Cannot render the template since its false, null or undefined.'
-        });
-      }
-  
-      var templateFunc;
-      if (typeof template === 'function') {
-        templateFunc = template;
-      } else {
-        templateFunc = Marionette.TemplateCache.get(template);
-      }
-  
-      return templateFunc(data);
-    }
-  };
-  
-
-  /* jshint maxlen: 114, nonew: false */
-  // Marionette.View
-  // ---------------
-  
-  // The core view class that other Marionette views extend from.
-  Marionette.View = Backbone.View.extend({
-  
-    constructor: function(options) {
-      _.bindAll(this, 'render');
-  
-      // this exposes view options to the view initializer
-      // this is a backfill since backbone removed the assignment
-      // of this.options
-      // at some point however this may be removed
-      this.options = _.extend({}, _.result(this, 'options'), _.isFunction(options) ? options.call(this) : options);
-  
-      this._behaviors = Marionette.Behaviors(this);
-  
-      Backbone.View.apply(this, arguments);
-  
-      Marionette.MonitorDOMRefresh(this);
-      this.listenTo(this, 'show', this.onShowCalled);
-    },
-  
-    // Get the template for this view
-    // instance. You can set a `template` attribute in the view
-    // definition or pass a `template: "whatever"` parameter in
-    // to the constructor options.
-    getTemplate: function() {
-      return this.getOption('template');
-    },
-  
-    // Serialize a model by returning its attributes. Clones
-    // the attributes to allow modification.
-    serializeModel: function(model){
-      return model.toJSON.apply(model, slice.call(arguments, 1));
-    },
-  
-    // Mix in template helper methods. Looks for a
-    // `templateHelpers` attribute, which can either be an
-    // object literal, or a function that returns an object
-    // literal. All methods and attributes from this object
-    // are copies to the object passed in.
-    mixinTemplateHelpers: function(target) {
-      target = target || {};
-      var templateHelpers = this.getOption('templateHelpers');
-      if (_.isFunction(templateHelpers)) {
-        templateHelpers = templateHelpers.call(this);
-      }
-      return _.extend(target, templateHelpers);
-    },
-  
-    // normalize the keys of passed hash with the views `ui` selectors.
-    // `{"@ui.foo": "bar"}`
-    normalizeUIKeys: function(hash) {
-      var ui = _.result(this, 'ui');
-      var uiBindings = _.result(this, '_uiBindings');
-      return Marionette.normalizeUIKeys(hash, uiBindings || ui);
-    },
-  
-    // normalize the values of passed hash with the views `ui` selectors.
-    // `{foo: "@ui.bar"}`
-    normalizeUIValues: function(hash) {
-      var ui = _.result(this, 'ui');
-      var uiBindings = _.result(this, '_uiBindings');
-      return Marionette.normalizeUIValues(hash, uiBindings || ui);
-    },
-  
-    // Configure `triggers` to forward DOM events to view
-    // events. `triggers: {"click .foo": "do:foo"}`
-    configureTriggers: function() {
-      if (!this.triggers) { return; }
-  
-      var triggerEvents = {};
-  
-      // Allow `triggers` to be configured as a function
-      var triggers = this.normalizeUIKeys(_.result(this, 'triggers'));
-  
-      // Configure the triggers, prevent default
-      // action and stop propagation of DOM events
-      _.each(triggers, function(value, key) {
-        triggerEvents[key] = this._buildViewTrigger(value);
-      }, this);
-  
-      return triggerEvents;
-    },
-  
-    // Overriding Backbone.View's delegateEvents to handle
-    // the `triggers`, `modelEvents`, and `collectionEvents` configuration
-    delegateEvents: function(events) {
-      this._delegateDOMEvents(events);
-      this.bindEntityEvents(this.model, this.getOption('modelEvents'));
-      this.bindEntityEvents(this.collection, this.getOption('collectionEvents'));
-  
-      _.each(this._behaviors, function(behavior) {
-        behavior.bindEntityEvents(this.model, behavior.getOption('modelEvents'));
-        behavior.bindEntityEvents(this.collection, behavior.getOption('collectionEvents'));
-      }, this);
-  
-      return this;
-    },
-  
-    // internal method to delegate DOM events and triggers
-    _delegateDOMEvents: function(eventsArg) {
-      var events = eventsArg || this.events;
-      if (_.isFunction(events)) { events = events.call(this); }
-  
-      // normalize ui keys
-      events = this.normalizeUIKeys(events);
-      if(_.isUndefined(eventsArg)) {this.events = events;}
-  
-      var combinedEvents = {};
-  
-      // look up if this view has behavior events
-      var behaviorEvents = _.result(this, 'behaviorEvents') || {};
-      var triggers = this.configureTriggers();
-      var behaviorTriggers = _.result(this, 'behaviorTriggers') || {};
-  
-      // behavior events will be overriden by view events and or triggers
-      _.extend(combinedEvents, behaviorEvents, events, triggers, behaviorTriggers);
-  
-      Backbone.View.prototype.delegateEvents.call(this, combinedEvents);
-    },
-  
-    // Overriding Backbone.View's undelegateEvents to handle unbinding
-    // the `triggers`, `modelEvents`, and `collectionEvents` config
-    undelegateEvents: function() {
-      var args = slice.call(arguments);
-      Backbone.View.prototype.undelegateEvents.apply(this, args);
-  
-      this.unbindEntityEvents(this.model, this.getOption('modelEvents'));
-      this.unbindEntityEvents(this.collection, this.getOption('collectionEvents'));
-  
-      _.each(this._behaviors, function(behavior) {
-        behavior.unbindEntityEvents(this.model, behavior.getOption('modelEvents'));
-        behavior.unbindEntityEvents(this.collection, behavior.getOption('collectionEvents'));
-      }, this);
-  
-      return this;
-    },
-  
-    // Internal method, handles the `show` event.
-    onShowCalled: function() {},
-  
-    // Internal helper method to verify whether the view hasn't been destroyed
-    _ensureViewIsIntact: function() {
-      if (this.isDestroyed) {
-        throw new Marionette.Error({
-          name: 'ViewDestroyedError',
-          message: 'View (cid: "' + this.cid + '") has already been destroyed and cannot be used.'
-        });
-      }
-    },
-  
-    // Default `destroy` implementation, for removing a view from the
-    // DOM and unbinding it. Regions will call this method
-    // for you. You can specify an `onDestroy` method in your view to
-    // add custom code that is called after the view is destroyed.
-    destroy: function() {
-      if (this.isDestroyed) { return; }
-  
-      var args = slice.call(arguments);
-  
-      this.triggerMethod.apply(this, ['before:destroy'].concat(args));
-  
-      // mark as destroyed before doing the actual destroy, to
-      // prevent infinite loops within "destroy" event handlers
-      // that are trying to destroy other views
-      this.isDestroyed = true;
-      this.triggerMethod.apply(this, ['destroy'].concat(args));
-  
-      // unbind UI elements
-      this.unbindUIElements();
-  
-      // remove the view from the DOM
-      this.remove();
-  
-      // Call destroy on each behavior after
-      // destroying the view.
-      // This unbinds event listeners
-      // that behaviors have registered for.
-      _.invoke(this._behaviors, 'destroy', args);
-  
-      return this;
-    },
-  
-    bindUIElements: function() {
-      this._bindUIElements();
-      _.invoke(this._behaviors, this._bindUIElements);
-    },
-  
-    // This method binds the elements specified in the "ui" hash inside the view's code with
-    // the associated jQuery selectors.
-    _bindUIElements: function() {
-      if (!this.ui) { return; }
-  
-      // store the ui hash in _uiBindings so they can be reset later
-      // and so re-rendering the view will be able to find the bindings
-      if (!this._uiBindings) {
-        this._uiBindings = this.ui;
-      }
-  
-      // get the bindings result, as a function or otherwise
-      var bindings = _.result(this, '_uiBindings');
-  
-      // empty the ui so we don't have anything to start with
-      this.ui = {};
-  
-      // bind each of the selectors
-      _.each(_.keys(bindings), function(key) {
-        var selector = bindings[key];
-        this.ui[key] = this.$(selector);
-      }, this);
-    },
-  
-    // This method unbinds the elements specified in the "ui" hash
-    unbindUIElements: function() {
-      this._unbindUIElements();
-      _.invoke(this._behaviors, this._unbindUIElements);
-    },
-  
-    _unbindUIElements: function() {
-      if (!this.ui || !this._uiBindings) { return; }
-  
-      // delete all of the existing ui bindings
-      _.each(this.ui, function($el, name) {
-        delete this.ui[name];
-      }, this);
-  
-      // reset the ui element to the original bindings configuration
-      this.ui = this._uiBindings;
-      delete this._uiBindings;
-    },
-  
-    // Internal method to create an event handler for a given `triggerDef` like
-    // 'click:foo'
-    _buildViewTrigger: function(triggerDef) {
-      var hasOptions = _.isObject(triggerDef);
-  
-      var options = _.defaults({}, (hasOptions ? triggerDef : {}), {
-        preventDefault: true,
-        stopPropagation: true
-      });
-  
-      var eventName = hasOptions ? options.event : triggerDef;
-  
-      return function(e) {
-        if (e) {
-          if (e.preventDefault && options.preventDefault) {
-            e.preventDefault();
-          }
-  
-          if (e.stopPropagation && options.stopPropagation) {
-            e.stopPropagation();
-          }
-        }
-  
-        var args = {
-          view: this,
-          model: this.model,
-          collection: this.collection
-        };
-  
-        this.triggerMethod(eventName, args);
-      };
-    },
-  
-    setElement: function() {
-      var ret = Backbone.View.prototype.setElement.apply(this, arguments);
-  
-      // proxy behavior $el to the view's $el.
-      // This is needed because a view's $el proxy
-      // is not set until after setElement is called.
-      _.invoke(this._behaviors, 'proxyViewProperties', this);
-  
-      return ret;
-    },
-  
-    // import the `triggerMethod` to trigger events with corresponding
-    // methods if the method exists
-    triggerMethod: function() {
-      var args = arguments;
-      var triggerMethod = Marionette.triggerMethod;
-  
-      var ret = triggerMethod.apply(this, args);
-      _.each(this._behaviors, function(b) {
-        triggerMethod.apply(b, args);
-      });
-  
-      return ret;
-    },
-  
-    // Imports the "normalizeMethods" to transform hashes of
-    // events=>function references/names to a hash of events=>function references
-    normalizeMethods: Marionette.normalizeMethods,
-  
-    // Proxy `getOption` to enable getting options from this or this.options by name.
-    getOption: Marionette.proxyGetOption,
-  
-    // Proxy `unbindEntityEvents` to enable binding view's events from another entity.
-    bindEntityEvents: Marionette.proxyBindEntityEvents,
-  
-    // Proxy `unbindEntityEvents` to enable unbinding view's events from another entity.
-    unbindEntityEvents: Marionette.proxyUnbindEntityEvents
-  });
-  
-  // Item View
-  // ---------
-  
-  // A single item view implementation that contains code for rendering
-  // with underscore.js templates, serializing the view's model or collection,
-  // and calling several methods on extended views, such as `onRender`.
-  Marionette.ItemView = Marionette.View.extend({
-  
-    // Setting up the inheritance chain which allows changes to
-    // Marionette.View.prototype.constructor which allows overriding
-    constructor: function() {
-      Marionette.View.apply(this, arguments);
-    },
-  
-    // Serialize the model or collection for the view. If a model is
-    // found, the view's `serializeModel` is called. If a collection is found,
-    // each model in the collection is serialized by calling
-    // the view's `serializeCollection` and put into an `items` array in
-    // the resulting data. If both are found, defaults to the model.
-    // You can override the `serializeData` method in your own view definition,
-    // to provide custom serialization for your view's data.
-    serializeData: function(){
-      var data = {};
-  
-      if (this.model) {
-        data = _.partial(this.serializeModel, this.model).apply(this, arguments);
-      }
-      else if (this.collection) {
-        data = { items: _.partial(this.serializeCollection, this.collection).apply(this, arguments) };
-      }
-  
-      return data;
-    },
-  
-    // Serialize a collection by serializing each of its models.
-    serializeCollection: function(collection){
-      return collection.toJSON.apply(collection, slice.call(arguments, 1));
-    },
-  
-    // Render the view, defaulting to underscore.js templates.
-    // You can override this in your view definition to provide
-    // a very specific rendering for your view. In general, though,
-    // you should override the `Marionette.Renderer` object to
-    // change how Marionette renders views.
-    render: function() {
-      this._ensureViewIsIntact();
-  
-      this.triggerMethod('before:render', this);
-  
-      this._renderTemplate();
-      this.bindUIElements();
-  
-      this.triggerMethod('render', this);
-  
-      return this;
-    },
-  
-    // Internal method to render the template with the serialized data
-    // and template helpers via the `Marionette.Renderer` object.
-    // Throws an `UndefinedTemplateError` error if the template is
-    // any falsely value but literal `false`.
-    _renderTemplate: function() {
-      var template = this.getTemplate();
-  
-      // Allow template-less item views
-      if (template === false) {
-        return;
-      }
-  
-      if (!template) {
-        throw new Marionette.Error({
-          name: 'UndefinedTemplateError',
-          message: 'Cannot render the template since it is null or undefined.'
-        });
-      }
-  
-      // Add in entity data and template helpers
-      var data = this.serializeData();
-      data = this.mixinTemplateHelpers(data);
-  
-      // Render and add to el
-      var html = Marionette.Renderer.render(template, data, this);
-      this.attachElContent(html);
-  
-      return this;
-    },
-  
-    // Attaches the content of a given view.
-    // This method can be overridden to optimize rendering,
-    // or to render in a non standard way.
-    //
-    // For example, using `innerHTML` instead of `$el.html`
-    //
-    // ```js
-    // attachElContent: function(html) {
-    //   this.el.innerHTML = html;
-    //   return this;
-    // }
-    // ```
-    attachElContent: function(html) {
-      this.$el.html(html);
-  
-      return this;
-    },
-  
-    // Override the default destroy event to add a few
-    // more events that are triggered.
-    destroy: function() {
-      if (this.isDestroyed) { return; }
-  
-      return Marionette.View.prototype.destroy.apply(this, arguments);
-    }
-  });
-  
-  /* jshint maxstatements: 14 */
-  
-  // Collection View
-  // ---------------
-  
-  // A view that iterates over a Backbone.Collection
-  // and renders an individual child view for each model.
-  Marionette.CollectionView = Marionette.View.extend({
-  
-    // used as the prefix for child view events
-    // that are forwarded through the collectionview
-    childViewEventPrefix: 'childview',
-  
-    // constructor
-    // option to pass `{sort: false}` to prevent the `CollectionView` from
-    // maintaining the sorted order of the collection.
-    // This will fallback onto appending childView's to the end.
-    constructor: function(options){
-      var initOptions = options || {};
-      this.sort = _.isUndefined(initOptions.sort) ? true : initOptions.sort;
-  
-      this.once('render', this._initialEvents);
-      this._initChildViewStorage();
-  
-      Marionette.View.apply(this, arguments);
-  
-      this.initRenderBuffer();
-    },
-  
-    // Instead of inserting elements one by one into the page,
-    // it's much more performant to insert elements into a document
-    // fragment and then insert that document fragment into the page
-    initRenderBuffer: function() {
-      this.elBuffer = document.createDocumentFragment();
-      this._bufferedChildren = [];
-    },
-  
-    startBuffering: function() {
-      this.initRenderBuffer();
-      this.isBuffering = true;
-    },
-  
-    endBuffering: function() {
-      this.isBuffering = false;
-      this._triggerBeforeShowBufferedChildren();
-      this.attachBuffer(this, this.elBuffer);
-      this._triggerShowBufferedChildren();
-      this.initRenderBuffer();
-    },
-  
-    _triggerBeforeShowBufferedChildren: function() {
-      if (this._isShown) {
-        _.each(this._bufferedChildren, _.partial(this._triggerMethodOnChild, 'before:show'));
-      }
-    },
-  
-    _triggerShowBufferedChildren: function() {
-      if (this._isShown) {
-        _.each(this._bufferedChildren, _.partial(this._triggerMethodOnChild, 'show'));
-  
-        this._bufferedChildren = [];
-      }
-    },
-  
-    // Internal method for _.each loops to call `Marionette.triggerMethodOn` on
-    // a child view
-    _triggerMethodOnChild: function(event, childView) {
-      Marionette.triggerMethodOn(childView, event);
-    },
-  
-    // Configured the initial events that the collection view
-    // binds to.
-    _initialEvents: function() {
-      if (this.collection) {
-        this.listenTo(this.collection, 'add', this._onCollectionAdd);
-        this.listenTo(this.collection, 'remove', this._onCollectionRemove);
-        this.listenTo(this.collection, 'reset', this.render);
-  
-        if (this.sort) {
-          this.listenTo(this.collection, 'sort', this._sortViews);
-        }
-      }
-    },
-  
-    // Handle a child added to the collection
-    _onCollectionAdd: function(child) {
-      this.destroyEmptyView();
-      var ChildView = this.getChildView(child);
-      var index = this.collection.indexOf(child);
-      this.addChild(child, ChildView, index);
-    },
-  
-    // get the child view by model it holds, and remove it
-    _onCollectionRemove: function(model) {
-      var view = this.children.findByModel(model);
-      this.removeChildView(view);
-      this.checkEmpty();
-    },
-  
-    // Override from `Marionette.View` to trigger show on child views
-    onShowCalled: function() {
-      this.children.each(_.partial(this._triggerMethodOnChild, 'show'));
-    },
-  
-    // Render children views. Override this method to
-    // provide your own implementation of a render function for
-    // the collection view.
-    render: function() {
-      this._ensureViewIsIntact();
-      this.triggerMethod('before:render', this);
-      this._renderChildren();
-      this.triggerMethod('render', this);
-      return this;
-    },
-  
-    // Render view after sorting. Override this method to
-    // change how the view renders after a `sort` on the collection.
-    // An example of this would be to only `renderChildren` in a `CompositeView`
-    // rather than the full view.
-    resortView: function() {
-      this.render();
-    },
-  
-    // Internal method. This checks for any changes in the order of the collection.
-    // If the index of any view doesn't match, it will render.
-    _sortViews: function() {
-      // check for any changes in sort order of views
-      var orderChanged = this.collection.find(function(item, index){
-        var view = this.children.findByModel(item);
-        return !view || view._index !== index;
-      }, this);
-  
-      if (orderChanged) {
-        this.resortView();
-      }
-    },
-  
-    // Internal method. Separated so that CompositeView can have
-    // more control over events being triggered, around the rendering
-    // process
-    _renderChildren: function() {
-      this.destroyEmptyView();
-      this.destroyChildren();
-  
-      if (this.isEmpty(this.collection)) {
-        this.showEmptyView();
-      } else {
-        this.triggerMethod('before:render:collection', this);
-        this.startBuffering();
-        this.showCollection();
-        this.endBuffering();
-        this.triggerMethod('render:collection', this);
-      }
-    },
-  
-    // Internal method to loop through collection and show each child view.
-    showCollection: function() {
-      var ChildView;
-      this.collection.each(function(child, index) {
-        ChildView = this.getChildView(child);
-        this.addChild(child, ChildView, index);
-      }, this);
-    },
-  
-    // Internal method to show an empty view in place of
-    // a collection of child views, when the collection is empty
-    showEmptyView: function() {
-      var EmptyView = this.getEmptyView();
-  
-      if (EmptyView && !this._showingEmptyView) {
-        this.triggerMethod('before:render:empty');
-  
-        this._showingEmptyView = true;
-        var model = new Backbone.Model();
-        this.addEmptyView(model, EmptyView);
-  
-        this.triggerMethod('render:empty');
-      }
-    },
-  
-    // Internal method to destroy an existing emptyView instance
-    // if one exists. Called when a collection view has been
-    // rendered empty, and then a child is added to the collection.
-    destroyEmptyView: function() {
-      if (this._showingEmptyView) {
-        this.triggerMethod('before:remove:empty');
-  
-        this.destroyChildren();
-        delete this._showingEmptyView;
-  
-        this.triggerMethod('remove:empty');
-      }
-    },
-  
-    // Retrieve the empty view class
-    getEmptyView: function() {
-      return this.getOption('emptyView');
-    },
-  
-    // Render and show the emptyView. Similar to addChild method
-    // but "child:added" events are not fired, and the event from
-    // emptyView are not forwarded
-    addEmptyView: function(child, EmptyView) {
-  
-      // get the emptyViewOptions, falling back to childViewOptions
-      var emptyViewOptions = this.getOption('emptyViewOptions') ||
-                            this.getOption('childViewOptions');
-  
-      if (_.isFunction(emptyViewOptions)){
-        emptyViewOptions = emptyViewOptions.call(this);
-      }
-  
-      // build the empty view
-      var view = this.buildChildView(child, EmptyView, emptyViewOptions);
-  
-      // Proxy emptyView events
-      this.proxyChildEvents(view);
-  
-      // trigger the 'before:show' event on `view` if the collection view
-      // has already been shown
-      if (this._isShown) {
-        Marionette.triggerMethodOn(view, 'before:show');
-      }
-  
-      // Store the `emptyView` like a `childView` so we can properly
-      // remove and/or close it later
-      this.children.add(view);
-  
-      // Render it and show it
-      this.renderChildView(view, -1);
-  
-      // call the 'show' method if the collection view
-      // has already been shown
-      if (this._isShown) {
-        Marionette.triggerMethodOn(view, 'show');
-      }
-    },
-  
-    // Retrieve the `childView` class, either from `this.options.childView`
-    // or from the `childView` in the object definition. The "options"
-    // takes precedence.
-    // This method receives the model that will be passed to the instance
-    // created from this `childView`. Overriding methods may use the child
-    // to determine what `childView` class to return.
-    getChildView: function(child) {
-      var childView = this.getOption('childView');
-  
-      if (!childView) {
-        throw new Marionette.Error({
-          name: 'NoChildViewError',
-          message: 'A "childView" must be specified'
-        });
-      }
-  
-      return childView;
-    },
-  
-    // Render the child's view and add it to the
-    // HTML for the collection view at a given index.
-    // This will also update the indices of later views in the collection
-    // in order to keep the children in sync with the collection.
-    addChild: function(child, ChildView, index) {
-      var childViewOptions = this.getOption('childViewOptions');
-      if (_.isFunction(childViewOptions)) {
-        childViewOptions = childViewOptions.call(this, child, index);
-      }
-  
-      var view = this.buildChildView(child, ChildView, childViewOptions);
-  
-      // increment indices of views after this one
-      this._updateIndices(view, true, index);
-  
-      this._addChildView(view, index);
-  
-      return view;
-    },
-  
-    // Internal method. This decrements or increments the indices of views after the
-    // added/removed view to keep in sync with the collection.
-    _updateIndices: function(view, increment, index) {
-      if (!this.sort) {
-        return;
-      }
-  
-      if (increment) {
-        // assign the index to the view
-        view._index = index;
-  
-        // increment the index of views after this one
-        this.children.each(function (laterView) {
-          if (laterView._index >= view._index) {
-            laterView._index++;
-          }
-        });
-      }
-      else {
-        // decrement the index of views after this one
-        this.children.each(function (laterView) {
-          if (laterView._index >= view._index) {
-            laterView._index--;
-          }
-        });
-      }
-    },
-  
-  
-    // Internal Method. Add the view to children and render it at
-    // the given index.
-    _addChildView: function(view, index) {
-      // set up the child view event forwarding
-      this.proxyChildEvents(view);
-  
-      this.triggerMethod('before:add:child', view);
-  
-      // Store the child view itself so we can properly
-      // remove and/or destroy it later
-      this.children.add(view);
-      this.renderChildView(view, index);
-  
-      if (this._isShown && !this.isBuffering) {
-        Marionette.triggerMethodOn(view, 'show');
-      }
-  
-      this.triggerMethod('add:child', view);
-    },
-  
-    // render the child view
-    renderChildView: function(view, index) {
-      view.render();
-      this.attachHtml(this, view, index);
-      return view;
-    },
-  
-    // Build a `childView` for a model in the collection.
-    buildChildView: function(child, ChildViewClass, childViewOptions) {
-      var options = _.extend({model: child}, childViewOptions);
-      return new ChildViewClass(options);
-    },
-  
-    // Remove the child view and destroy it.
-    // This function also updates the indices of
-    // later views in the collection in order to keep
-    // the children in sync with the collection.
-    removeChildView: function(view) {
-  
-      if (view) {
-        this.triggerMethod('before:remove:child', view);
-        // call 'destroy' or 'remove', depending on which is found
-        if (view.destroy) { view.destroy(); }
-        else if (view.remove) { view.remove(); }
-  
-        this.stopListening(view);
-        this.children.remove(view);
-        this.triggerMethod('remove:child', view);
-  
-        // decrement the index of views after this one
-        this._updateIndices(view, false);
-      }
-  
-      return view;
-    },
-  
-    // check if the collection is empty
-    isEmpty: function() {
-      return !this.collection || this.collection.length === 0;
-    },
-  
-    // If empty, show the empty view
-    checkEmpty: function() {
-      if (this.isEmpty(this.collection)) {
-        this.showEmptyView();
-      }
-    },
-  
-    // You might need to override this if you've overridden attachHtml
-    attachBuffer: function(collectionView, buffer) {
-      collectionView.$el.append(buffer);
-    },
-  
-    // Append the HTML to the collection's `el`.
-    // Override this method to do something other
-    // than `.append`.
-    attachHtml: function(collectionView, childView, index) {
-      if (collectionView.isBuffering) {
-        // buffering happens on reset events and initial renders
-        // in order to reduce the number of inserts into the
-        // document, which are expensive.
-        collectionView.elBuffer.appendChild(childView.el);
-        collectionView._bufferedChildren.push(childView);
-      }
-      else {
-        // If we've already rendered the main collection, append
-        // the new child into the correct order if we need to. Otherwise
-        // append to the end.
-        if (!collectionView._insertBefore(childView, index)){
-          collectionView._insertAfter(childView);
-        }
-      }
-    },
-  
-    // Internal method. Check whether we need to insert the view into
-    // the correct position.
-    _insertBefore: function(childView, index) {
-      var currentView;
-      var findPosition = this.sort && (index < this.children.length - 1);
-      if (findPosition) {
-        // Find the view after this one
-        currentView = this.children.find(function (view) {
-          return view._index === index + 1;
-        });
-      }
-  
-      if (currentView) {
-        currentView.$el.before(childView.el);
-        return true;
-      }
-  
-      return false;
-    },
-  
-    // Internal method. Append a view to the end of the $el
-    _insertAfter: function(childView) {
-      this.$el.append(childView.el);
-    },
-  
-    // Internal method to set up the `children` object for
-    // storing all of the child views
-    _initChildViewStorage: function() {
-      this.children = new Backbone.ChildViewContainer();
-    },
-  
-    // Handle cleanup and other destroying needs for the collection of views
-    destroy: function() {
-      if (this.isDestroyed) { return; }
-  
-      this.triggerMethod('before:destroy:collection');
-      this.destroyChildren();
-      this.triggerMethod('destroy:collection');
-  
-      return Marionette.View.prototype.destroy.apply(this, arguments);
-    },
-  
-    // Destroy the child views that this collection view
-    // is holding on to, if any
-    destroyChildren: function() {
-      var childViews = this.children.map(_.identity);
-      this.children.each(this.removeChildView, this);
-      this.checkEmpty();
-      return childViews;
-    },
-  
-    // Set up the child view event forwarding. Uses a "childview:"
-    // prefix in front of all forwarded events.
-    proxyChildEvents: function(view) {
-      var prefix = this.getOption('childViewEventPrefix');
-  
-      // Forward all child view events through the parent,
-      // prepending "childview:" to the event name
-      this.listenTo(view, 'all', function() {
-        var args = slice.call(arguments);
-        var rootEvent = args[0];
-        var childEvents = this.normalizeMethods(_.result(this, 'childEvents'));
-  
-        args[0] = prefix + ':' + rootEvent;
-        args.splice(1, 0, view);
-  
-        // call collectionView childEvent if defined
-        if (typeof childEvents !== 'undefined' && _.isFunction(childEvents[rootEvent])) {
-          childEvents[rootEvent].apply(this, args.slice(1));
-        }
-  
-        this.triggerMethod.apply(this, args);
-      }, this);
-    }
-  });
-  
-  /* jshint maxstatements: 17, maxlen: 117 */
-  
-  // Composite View
-  // --------------
-  
-  // Used for rendering a branch-leaf, hierarchical structure.
-  // Extends directly from CollectionView and also renders an
-  // a child view as `modelView`, for the top leaf
-  Marionette.CompositeView = Marionette.CollectionView.extend({
-  
-    // Setting up the inheritance chain which allows changes to
-    // Marionette.CollectionView.prototype.constructor which allows overriding
-    // option to pass '{sort: false}' to prevent the CompositeView from
-    // maintaining the sorted order of the collection.
-    // This will fallback onto appending childView's to the end.
-    constructor: function() {
-      Marionette.CollectionView.apply(this, arguments);
-    },
-  
-    // Configured the initial events that the composite view
-    // binds to. Override this method to prevent the initial
-    // events, or to add your own initial events.
-    _initialEvents: function() {
-  
-      // Bind only after composite view is rendered to avoid adding child views
-      // to nonexistent childViewContainer
-  
-      if (this.collection) {
-        this.listenTo(this.collection, 'add', this._onCollectionAdd);
-        this.listenTo(this.collection, 'remove', this._onCollectionRemove);
-        this.listenTo(this.collection, 'reset', this._renderChildren);
-  
-        if (this.sort) {
-          this.listenTo(this.collection, 'sort', this._sortViews);
-        }
-      }
-    },
-  
-    // Retrieve the `childView` to be used when rendering each of
-    // the items in the collection. The default is to return
-    // `this.childView` or Marionette.CompositeView if no `childView`
-    // has been defined
-    getChildView: function(child) {
-      var childView = this.getOption('childView') || this.constructor;
-  
-      if (!childView) {
-        throw new Marionette.Error({
-          name: 'NoChildViewError',
-          message: 'A "childView" must be specified'
-        });
-      }
-  
-      return childView;
-    },
-  
-    // Serialize the collection for the view.
-    // You can override the `serializeData` method in your own view
-    // definition, to provide custom serialization for your view's data.
-    serializeData: function() {
-      var data = {};
-  
-      if (this.model){
-        data = _.partial(this.serializeModel, this.model).apply(this, arguments);
-      }
-  
-      return data;
-    },
-  
-    // Renders the model once, and the collection once. Calling
-    // this again will tell the model's view to re-render itself
-    // but the collection will not re-render.
-    render: function() {
-      this._ensureViewIsIntact();
-      this.isRendered = true;
-      this.resetChildViewContainer();
-  
-      this.triggerMethod('before:render', this);
-  
-      this._renderTemplate();
-      this._renderChildren();
-  
-      this.triggerMethod('render', this);
-      return this;
-    },
-  
-    _renderChildren: function() {
-      if (this.isRendered) {
-        Marionette.CollectionView.prototype._renderChildren.call(this);
-      }
-    },
-  
-    // Render the root template that the children
-    // views are appended to
-    _renderTemplate: function() {
-      var data = {};
-      data = this.serializeData();
-      data = this.mixinTemplateHelpers(data);
-  
-      this.triggerMethod('before:render:template');
-  
-      var template = this.getTemplate();
-      var html = Marionette.Renderer.render(template, data, this);
-      this.attachElContent(html);
-  
-      // the ui bindings is done here and not at the end of render since they
-      // will not be available until after the model is rendered, but should be
-      // available before the collection is rendered.
-      this.bindUIElements();
-      this.triggerMethod('render:template');
-    },
-  
-    // Attaches the content of the root.
-    // This method can be overridden to optimize rendering,
-    // or to render in a non standard way.
-    //
-    // For example, using `innerHTML` instead of `$el.html`
-    //
-    // ```js
-    // attachElContent: function(html) {
-    //   this.el.innerHTML = html;
-    //   return this;
-    // }
-    // ```
-    attachElContent: function(html) {
-      this.$el.html(html);
-  
-      return this;
-    },
-  
-    // You might need to override this if you've overridden attachHtml
-    attachBuffer: function(compositeView, buffer) {
-      var $container = this.getChildViewContainer(compositeView);
-      $container.append(buffer);
-    },
-  
-    // Internal method. Append a view to the end of the $el.
-    // Overidden from CollectionView to ensure view is appended to
-    // childViewContainer
-    _insertAfter: function (childView) {
-      var $container = this.getChildViewContainer(this);
-      $container.append(childView.el);
-    },
-  
-    // Internal method to ensure an `$childViewContainer` exists, for the
-    // `attachHtml` method to use.
-    getChildViewContainer: function(containerView) {
-      if ('$childViewContainer' in containerView) {
-        return containerView.$childViewContainer;
-      }
-  
-      var container;
-      var childViewContainer = Marionette.getOption(containerView, 'childViewContainer');
-      if (childViewContainer) {
-  
-        var selector = _.isFunction(childViewContainer) ? childViewContainer.call(containerView) : childViewContainer;
-  
-        if (selector.charAt(0) === '@' && containerView.ui) {
-          container = containerView.ui[selector.substr(4)];
-        } else {
-          container = containerView.$(selector);
-        }
-  
-        if (container.length <= 0) {
-          throw new Marionette.Error({
-            name: 'ChildViewContainerMissingError',
-            message: 'The specified "childViewContainer" was not found: ' + containerView.childViewContainer
-          });
-        }
-  
-      } else {
-        container = containerView.$el;
-      }
-  
-      containerView.$childViewContainer = container;
-      return container;
-    },
-  
-    // Internal method to reset the `$childViewContainer` on render
-    resetChildViewContainer: function() {
-      if (this.$childViewContainer) {
-        delete this.$childViewContainer;
-      }
-    }
-  });
-  
-  // LayoutView
-  // ----------
-  
-  // Used for managing application layoutViews, nested layoutViews and
-  // multiple regions within an application or sub-application.
-  //
-  // A specialized view class that renders an area of HTML and then
-  // attaches `Region` instances to the specified `regions`.
-  // Used for composite view management and sub-application areas.
-  Marionette.LayoutView = Marionette.ItemView.extend({
-    regionClass: Marionette.Region,
-  
-    // Ensure the regions are available when the `initialize` method
-    // is called.
-    constructor: function(options) {
-      options = options || {};
-  
-      this._firstRender = true;
-      this._initializeRegions(options);
-  
-      Marionette.ItemView.call(this, options);
-    },
-  
-    // LayoutView's render will use the existing region objects the
-    // first time it is called. Subsequent calls will destroy the
-    // views that the regions are showing and then reset the `el`
-    // for the regions to the newly rendered DOM elements.
-    render: function() {
-      this._ensureViewIsIntact();
-  
-      if (this._firstRender) {
-        // if this is the first render, don't do anything to
-        // reset the regions
-        this._firstRender = false;
-      } else {
-        // If this is not the first render call, then we need to
-        // re-initialize the `el` for each region
-        this._reInitializeRegions();
-      }
-  
-      return Marionette.ItemView.prototype.render.apply(this, arguments);
-    },
-  
-    // Handle destroying regions, and then destroy the view itself.
-    destroy: function() {
-      if (this.isDestroyed) { return this; }
-  
-      this.regionManager.destroy();
-      return Marionette.ItemView.prototype.destroy.apply(this, arguments);
-    },
-  
-    // Add a single region, by name, to the layoutView
-    addRegion: function(name, definition) {
-      var regions = {};
-      regions[name] = definition;
-      return this._buildRegions(regions)[name];
-    },
-  
-    // Add multiple regions as a {name: definition, name2: def2} object literal
-    addRegions: function(regions) {
-      this.regions = _.extend({}, this.regions, regions);
-      return this._buildRegions(regions);
-    },
-  
-    // Remove a single region from the LayoutView, by name
-    removeRegion: function(name) {
-      delete this.regions[name];
-      return this.regionManager.removeRegion(name);
-    },
-  
-    // Provides alternative access to regions
-    // Accepts the region name
-    // getRegion('main')
-    getRegion: function(region) {
-      return this.regionManager.get(region);
-    },
-  
-    // Get all regions
-    getRegions: function(){
-      return this.regionManager.getRegions();
-    },
-  
-    // internal method to build regions
-    _buildRegions: function(regions) {
-      var that = this;
-  
-      var defaults = {
-        regionClass: this.getOption('regionClass'),
-        parentEl: function() { return that.$el; }
-      };
-  
-      return this.regionManager.addRegions(regions, defaults);
-    },
-  
-    // Internal method to initialize the regions that have been defined in a
-    // `regions` attribute on this layoutView.
-    _initializeRegions: function(options) {
-      var regions;
-      this._initRegionManager();
-  
-      if (_.isFunction(this.regions)) {
-        regions = this.regions(options);
-      } else {
-        regions = this.regions || {};
-      }
-  
-      // Enable users to define `regions` as instance options.
-      var regionOptions = this.getOption.call(options, 'regions');
-  
-      // enable region options to be a function
-      if (_.isFunction(regionOptions)) {
-        regionOptions = regionOptions.call(this, options);
-      }
-  
-      _.extend(regions, regionOptions);
-  
-      // Normalize region selectors hash to allow
-      // a user to use the @ui. syntax.
-      regions = this.normalizeUIValues(regions);
-  
-      this.addRegions(regions);
-    },
-  
-    // Internal method to re-initialize all of the regions by updating the `el` that
-    // they point to
-    _reInitializeRegions: function() {
-      this.regionManager.emptyRegions();
-      this.regionManager.each(function(region) {
-        region.reset();
-      });
-    },
-  
-    // Enable easy overriding of the default `RegionManager`
-    // for customized region interactions and business specific
-    // view logic for better control over single regions.
-    getRegionManager: function() {
-      return new Marionette.RegionManager();
-    },
-  
-    // Internal method to initialize the region manager
-    // and all regions in it
-    _initRegionManager: function() {
-      this.regionManager = this.getRegionManager();
-  
-      this.listenTo(this.regionManager, 'before:add:region', function(name) {
-        this.triggerMethod('before:add:region', name);
-      });
-  
-      this.listenTo(this.regionManager, 'add:region', function(name, region) {
-        this[name] = region;
-        this.triggerMethod('add:region', name, region);
-      });
-  
-      this.listenTo(this.regionManager, 'before:remove:region', function(name) {
-        this.triggerMethod('before:remove:region', name);
-      });
-  
-      this.listenTo(this.regionManager, 'remove:region', function(name, region) {
-        delete this[name];
-        this.triggerMethod('remove:region', name, region);
-      });
-    }
-  });
-  
-
-  // Behavior
-  // -----------
-  
-  // A Behavior is an isolated set of DOM /
-  // user interactions that can be mixed into any View.
-  // Behaviors allow you to blackbox View specific interactions
-  // into portable logical chunks, keeping your views simple and your code DRY.
-  
-  Marionette.Behavior = (function(_, Backbone) {
-    function Behavior(options, view) {
-      // Setup reference to the view.
-      // this comes in handle when a behavior
-      // wants to directly talk up the chain
-      // to the view.
-      this.view = view;
-      this.defaults = _.result(this, 'defaults') || {};
-      this.options  = _.extend({}, this.defaults, options);
-  
-      // proxy behavior $ method to the view
-      // this is useful for doing jquery DOM lookups
-      // scoped to behaviors view.
-      this.$ = function() {
-        return this.view.$.apply(this.view, arguments);
-      };
-  
-      // Call the initialize method passing
-      // the arguments from the instance constructor
-      this.initialize.apply(this, arguments);
-    }
-  
-    _.extend(Behavior.prototype, Backbone.Events, {
-      initialize: function() {},
-  
-      // stopListening to behavior `onListen` events.
-      destroy: function() {
-        this.stopListening();
-      },
-  
-      proxyViewProperties: function (view) {
-        this.$el = view.$el;
-        this.el = view.el;
-      },
-  
-      // import the `triggerMethod` to trigger events with corresponding
-      // methods if the method exists
-      triggerMethod: Marionette.triggerMethod,
-  
-      // Proxy `getOption` to enable getting options from this or this.options by name.
-      getOption: Marionette.proxyGetOption,
-  
-      // Proxy `unbindEntityEvents` to enable binding view's events from another entity.
-      bindEntityEvents: Marionette.proxyBindEntityEvents,
-  
-      // Proxy `unbindEntityEvents` to enable unbinding view's events from another entity.
-      unbindEntityEvents: Marionette.proxyUnbindEntityEvents
-    });
-  
-    // Borrow Backbones extend implementation
-    // this allows us to setup a proper
-    // inheritance pattern that follows suit
-    // with the rest of Marionette views.
-    Behavior.extend = Marionette.extend;
-  
-    return Behavior;
-  })(_, Backbone);
-  
-  /* jshint maxlen: 143 */
-  // Marionette.Behaviors
-  // --------
-  
-  // Behaviors is a utility class that takes care of
-  // gluing your behavior instances to their given View.
-  // The most important part of this class is that you
-  // **MUST** override the class level behaviorsLookup
-  // method for things to work properly.
-  
-  Marionette.Behaviors = (function(Marionette, _) {
-  
-    function Behaviors(view, behaviors) {
-  
-      if (!_.isObject(view.behaviors)) {
-        return {};
-      }
-  
-      // Behaviors defined on a view can be a flat object literal
-      // or it can be a function that returns an object.
-      behaviors = Behaviors.parseBehaviors(view, behaviors || _.result(view, 'behaviors'));
-  
-      // Wraps several of the view's methods
-      // calling the methods first on each behavior
-      // and then eventually calling the method on the view.
-      Behaviors.wrap(view, behaviors, _.keys(methods));
-      return behaviors;
-    }
-  
-    var methods = {
-      behaviorTriggers: function(behaviorTriggers, behaviors) {
-        var triggerBuilder = new BehaviorTriggersBuilder(this, behaviors);
-        return triggerBuilder.buildBehaviorTriggers();
-      },
-  
-      behaviorEvents: function(behaviorEvents, behaviors) {
-        var _behaviorsEvents = {};
-        var viewUI = _.result(this, 'ui');
-  
-        _.each(behaviors, function(b, i) {
-          var _events = {};
-          var behaviorEvents = _.clone(_.result(b, 'events')) || {};
-          var behaviorUI = _.result(b, 'ui');
-  
-          // Construct an internal UI hash first using
-          // the views UI hash and then the behaviors UI hash.
-          // This allows the user to use UI hash elements
-          // defined in the parent view as well as those
-          // defined in the given behavior.
-          var ui = _.extend({}, viewUI, behaviorUI);
-  
-          // Normalize behavior events hash to allow
-          // a user to use the @ui. syntax.
-          behaviorEvents = Marionette.normalizeUIKeys(behaviorEvents, ui);
-  
-          _.each(_.keys(behaviorEvents), function(key) {
-            // Append white-space at the end of each key to prevent behavior key collisions.
-            // This is relying on the fact that backbone events considers "click .foo" the same as
-            // "click .foo ".
-  
-            // +2 is used because new Array(1) or 0 is "" and not " "
-            var whitespace = (new Array(i + 2)).join(' ');
-            var eventKey   = key + whitespace;
-            var handler    = _.isFunction(behaviorEvents[key]) ? behaviorEvents[key] : b[behaviorEvents[key]];
-  
-            _events[eventKey] = _.bind(handler, b);
-          });
-  
-          _behaviorsEvents = _.extend(_behaviorsEvents, _events);
-        });
-  
-        return _behaviorsEvents;
-      }
-    };
-  
-    _.extend(Behaviors, {
-  
-      // Placeholder method to be extended by the user.
-      // The method should define the object that stores the behaviors.
-      // i.e.
-      //
-      // ```js
-      // Marionette.Behaviors.behaviorsLookup: function() {
-      //   return App.Behaviors
-      // }
-      // ```
-      behaviorsLookup: function() {
-        throw new Marionette.Error({
-          message: 'You must define where your behaviors are stored.',
-          url: 'marionette.behaviors.html#behaviorslookup'
-        });
-      },
-  
-      // Takes care of getting the behavior class
-      // given options and a key.
-      // If a user passes in options.behaviorClass
-      // default to using that. Otherwise delegate
-      // the lookup to the users `behaviorsLookup` implementation.
-      getBehaviorClass: function(options, key) {
-        if (options.behaviorClass) {
-          return options.behaviorClass;
-        }
-  
-        // Get behavior class can be either a flat object or a method
-        return _.isFunction(Behaviors.behaviorsLookup) ? Behaviors.behaviorsLookup.apply(this, arguments)[key] : Behaviors.behaviorsLookup[key];
-      },
-  
-      // Iterate over the behaviors object, for each behavior
-      // instantiate it and get its grouped behaviors.
-      parseBehaviors: function(view, behaviors) {
-        return _.chain(behaviors).map(function(options, key) {
-          var BehaviorClass = Behaviors.getBehaviorClass(options, key);
-  
-          var behavior = new BehaviorClass(options, view);
-          var nestedBehaviors = Behaviors.parseBehaviors(view, _.result(behavior, 'behaviors'));
-  
-          return [behavior].concat(nestedBehaviors);
-        }).flatten().value();
-      },
-  
-      // Wrap view internal methods so that they delegate to behaviors. For example,
-      // `onDestroy` should trigger destroy on all of the behaviors and then destroy itself.
-      // i.e.
-      //
-      // `view.delegateEvents = _.partial(methods.delegateEvents, view.delegateEvents, behaviors);`
-      wrap: function(view, behaviors, methodNames) {
-        _.each(methodNames, function(methodName) {
-          view[methodName] = _.partial(methods[methodName], view[methodName], behaviors);
-        });
-      }
-    });
-  
-    // Class to build handlers for `triggers` on behaviors
-    // for views
-    function BehaviorTriggersBuilder(view, behaviors) {
-      this._view      = view;
-      this._viewUI    = _.result(view, 'ui');
-      this._behaviors = behaviors;
-      this._triggers  = {};
-    }
-  
-    _.extend(BehaviorTriggersBuilder.prototype, {
-      // Main method to build the triggers hash with event keys and handlers
-      buildBehaviorTriggers: function() {
-        _.each(this._behaviors, this._buildTriggerHandlersForBehavior, this);
-        return this._triggers;
-      },
-  
-      // Internal method to build all trigger handlers for a given behavior
-      _buildTriggerHandlersForBehavior: function(behavior, i) {
-        var ui = _.extend({}, this._viewUI, _.result(behavior, 'ui'));
-        var triggersHash = _.clone(_.result(behavior, 'triggers')) || {};
-  
-        triggersHash = Marionette.normalizeUIKeys(triggersHash, ui);
-  
-        _.each(triggersHash, _.partial(this._setHandlerForBehavior, behavior, i), this);
-      },
-  
-      // Internal method to create and assign the trigger handler for a given
-      // behavior
-      _setHandlerForBehavior: function(behavior, i, eventName, trigger) {
-        // Unique identifier for the `this._triggers` hash
-        var triggerKey = trigger.replace(/^\S+/, function(triggerName) {
-          return triggerName + '.' + 'behaviortriggers' + i;
-        });
-  
-        this._triggers[triggerKey] = this._view._buildViewTrigger(eventName);
-      }
-    });
-  
-    return Behaviors;
-  
-  })(Marionette, _);
-  
-
-  // AppRouter
-  // ---------
-  
-  // Reduce the boilerplate code of handling route events
-  // and then calling a single method on another object.
-  // Have your routers configured to call the method on
-  // your object, directly.
-  //
-  // Configure an AppRouter with `appRoutes`.
-  //
-  // App routers can only take one `controller` object.
-  // It is recommended that you divide your controller
-  // objects in to smaller pieces of related functionality
-  // and have multiple routers / controllers, instead of
-  // just one giant router and controller.
-  //
-  // You can also add standard routes to an AppRouter.
-  
-  Marionette.AppRouter = Backbone.Router.extend({
-  
-    constructor: function(options) {
-      Backbone.Router.apply(this, arguments);
-  
-      this.options = options || {};
-  
-      var appRoutes = this.getOption('appRoutes');
-      var controller = this._getController();
-      this.processAppRoutes(controller, appRoutes);
-      this.on('route', this._processOnRoute, this);
-    },
-  
-    // Similar to route method on a Backbone Router but
-    // method is called on the controller
-    appRoute: function(route, methodName) {
-      var controller = this._getController();
-      this._addAppRoute(controller, route, methodName);
-    },
-  
-    // process the route event and trigger the onRoute
-    // method call, if it exists
-    _processOnRoute: function(routeName, routeArgs) {
-      // find the path that matched
-      var routePath = _.invert(this.getOption('appRoutes'))[routeName];
-  
-      // make sure an onRoute is there, and call it
-      if (_.isFunction(this.onRoute)) {
-        this.onRoute(routeName, routePath, routeArgs);
-      }
-    },
-  
-    // Internal method to process the `appRoutes` for the
-    // router, and turn them in to routes that trigger the
-    // specified method on the specified `controller`.
-    processAppRoutes: function(controller, appRoutes) {
-      if (!appRoutes) { return; }
-  
-      var routeNames = _.keys(appRoutes).reverse(); // Backbone requires reverted order of routes
-  
-      _.each(routeNames, function(route) {
-        this._addAppRoute(controller, route, appRoutes[route]);
-      }, this);
-    },
-  
-    _getController: function() {
-      return this.getOption('controller');
-    },
-  
-    _addAppRoute: function(controller, route, methodName) {
-      var method = controller[methodName];
-  
-      if (!method) {
-        throw new Marionette.Error('Method "' + methodName + '" was not found on the controller');
-      }
-  
-      this.route(route, methodName, _.bind(method, controller));
-    },
-  
-    // Proxy `getOption` to enable getting options from this or this.options by name.
-    getOption: Marionette.proxyGetOption
-  });
-  
-  // Application
-  // -----------
-  
-  // Contain and manage the composite application as a whole.
-  // Stores and starts up `Region` objects, includes an
-  // event aggregator as `app.vent`
-  Marionette.Application = function(options) {
-    this.options = options;
-    this._initializeRegions(options);
-    this._initCallbacks = new Marionette.Callbacks();
-    this.submodules = {};
-    _.extend(this, options);
-    this._initChannel();
-    this.initialize.apply(this, arguments);
-  };
-  
-  _.extend(Marionette.Application.prototype, Backbone.Events, {
-    // Initialize is an empty function by default. Override it with your own
-    // initialization logic.
-    initialize: function() {},
-  
-    // Command execution, facilitated by Backbone.Wreqr.Commands
-    execute: function() {
-      this.commands.execute.apply(this.commands, arguments);
-    },
-  
-    // Request/response, facilitated by Backbone.Wreqr.RequestResponse
-    request: function() {
-      return this.reqres.request.apply(this.reqres, arguments);
-    },
-  
-    // Add an initializer that is either run at when the `start`
-    // method is called, or run immediately if added after `start`
-    // has already been called.
-    addInitializer: function(initializer) {
-      this._initCallbacks.add(initializer);
-    },
-  
-    // kick off all of the application's processes.
-    // initializes all of the regions that have been added
-    // to the app, and runs all of the initializer functions
-    start: function(options) {
-      this.triggerMethod('before:start', options);
-      this._initCallbacks.run(options, this);
-      this.triggerMethod('start', options);
-    },
-  
-    // Add regions to your app.
-    // Accepts a hash of named strings or Region objects
-    // addRegions({something: "#someRegion"})
-    // addRegions({something: Region.extend({el: "#someRegion"}) });
-    addRegions: function(regions) {
-      return this._regionManager.addRegions(regions);
-    },
-  
-    // Empty all regions in the app, without removing them
-    emptyRegions: function() {
-      return this._regionManager.emptyRegions();
-    },
-  
-    // Removes a region from your app, by name
-    // Accepts the regions name
-    // removeRegion('myRegion')
-    removeRegion: function(region) {
-      return this._regionManager.removeRegion(region);
-    },
-  
-    // Provides alternative access to regions
-    // Accepts the region name
-    // getRegion('main')
-    getRegion: function(region) {
-      return this._regionManager.get(region);
-    },
-  
-    // Get all the regions from the region manager
-    getRegions: function(){
-      return this._regionManager.getRegions();
-    },
-  
-    // Create a module, attached to the application
-    module: function(moduleNames, moduleDefinition) {
-  
-      // Overwrite the module class if the user specifies one
-      var ModuleClass = Marionette.Module.getClass(moduleDefinition);
-  
-      // slice the args, and add this application object as the
-      // first argument of the array
-      var args = slice.call(arguments);
-      args.unshift(this);
-  
-      // see the Marionette.Module object for more information
-      return ModuleClass.create.apply(ModuleClass, args);
-    },
-  
-    // Enable easy overriding of the default `RegionManager`
-    // for customized region interactions and business-specific
-    // view logic for better control over single regions.
-    getRegionManager: function() {
-      return new Marionette.RegionManager();
-    },
-  
-    // Internal method to initialize the regions that have been defined in a
-    // `regions` attribute on the application instance
-    _initializeRegions: function(options) {
-      var regions = _.isFunction(this.regions) ? this.regions(options) : this.regions || {};
-  
-      this._initRegionManager();
-  
-      // Enable users to define `regions` in instance options.
-      var optionRegions = Marionette.getOption(options, 'regions');
-  
-      // Enable region options to be a function
-      if (_.isFunction(optionRegions)) {
-        optionRegions = optionRegions.call(this, options);
-      }
-  
-      // Overwrite current regions with those passed in options
-      _.extend(regions, optionRegions);
-  
-      this.addRegions(regions);
-  
-      return this;
-    },
-  
-    // Internal method to set up the region manager
-    _initRegionManager: function() {
-      this._regionManager = this.getRegionManager();
-  
-      this.listenTo(this._regionManager, 'before:add:region', function(name) {
-        this.triggerMethod('before:add:region', name);
-      });
-  
-      this.listenTo(this._regionManager, 'add:region', function(name, region) {
-        this[name] = region;
-        this.triggerMethod('add:region', name, region);
-      });
-  
-      this.listenTo(this._regionManager, 'before:remove:region', function(name) {
-        this.triggerMethod('before:remove:region', name);
-      });
-  
-      this.listenTo(this._regionManager, 'remove:region', function(name, region) {
-        delete this[name];
-        this.triggerMethod('remove:region', name, region);
-      });
-    },
-  
-    // Internal method to setup the Wreqr.radio channel
-    _initChannel: function() {
-      this.channelName = _.result(this, 'channelName') || 'global';
-      this.channel = _.result(this, 'channel') || Backbone.Wreqr.radio.channel(this.channelName);
-      this.vent = _.result(this, 'vent') || this.channel.vent;
-      this.commands = _.result(this, 'commands') || this.channel.commands;
-      this.reqres = _.result(this, 'reqres') || this.channel.reqres;
-    },
-  
-    // import the `triggerMethod` to trigger events with corresponding
-    // methods if the method exists
-    triggerMethod: Marionette.triggerMethod,
-  
-    // Proxy `getOption` to enable getting options from this or this.options by name.
-    getOption: Marionette.proxyGetOption
-  });
-  
-  // Copy the `extend` function used by Backbone's classes
-  Marionette.Application.extend = Marionette.extend;
-  
-  /* jshint maxparams: 9 */
-  
-  // Module
-  // ------
-  
-  // A simple module system, used to create privacy and encapsulation in
-  // Marionette applications
-  Marionette.Module = function(moduleName, app, options) {
-    this.moduleName = moduleName;
-    this.options = _.extend({}, this.options, options);
-    // Allow for a user to overide the initialize
-    // for a given module instance.
-    this.initialize = options.initialize || this.initialize;
-  
-    // Set up an internal store for sub-modules.
-    this.submodules = {};
-  
-    this._setupInitializersAndFinalizers();
-  
-    // Set an internal reference to the app
-    // within a module.
-    this.app = app;
-  
-    if (_.isFunction(this.initialize)) {
-      this.initialize(moduleName, app, this.options);
-    }
-  };
-  
-  Marionette.Module.extend = Marionette.extend;
-  
-  // Extend the Module prototype with events / listenTo, so that the module
-  // can be used as an event aggregator or pub/sub.
-  _.extend(Marionette.Module.prototype, Backbone.Events, {
-  
-    // By default modules start with their parents.
-    startWithParent: true,
-  
-    // Initialize is an empty function by default. Override it with your own
-    // initialization logic when extending Marionette.Module.
-    initialize: function() {},
-  
-    // Initializer for a specific module. Initializers are run when the
-    // module's `start` method is called.
-    addInitializer: function(callback) {
-      this._initializerCallbacks.add(callback);
-    },
-  
-    // Finalizers are run when a module is stopped. They are used to teardown
-    // and finalize any variables, references, events and other code that the
-    // module had set up.
-    addFinalizer: function(callback) {
-      this._finalizerCallbacks.add(callback);
-    },
-  
-    // Start the module, and run all of its initializers
-    start: function(options) {
-      // Prevent re-starting a module that is already started
-      if (this._isInitialized) { return; }
-  
-      // start the sub-modules (depth-first hierarchy)
-      _.each(this.submodules, function(mod) {
-        // check to see if we should start the sub-module with this parent
-        if (mod.startWithParent) {
-          mod.start(options);
-        }
-      });
-  
-      // run the callbacks to "start" the current module
-      this.triggerMethod('before:start', options);
-  
-      this._initializerCallbacks.run(options, this);
-      this._isInitialized = true;
-  
-      this.triggerMethod('start', options);
-    },
-  
-    // Stop this module by running its finalizers and then stop all of
-    // the sub-modules for this module
-    stop: function() {
-      // if we are not initialized, don't bother finalizing
-      if (!this._isInitialized) { return; }
-      this._isInitialized = false;
-  
-      this.triggerMethod('before:stop');
-  
-      // stop the sub-modules; depth-first, to make sure the
-      // sub-modules are stopped / finalized before parents
-      _.each(this.submodules, function(mod) { mod.stop(); });
-  
-      // run the finalizers
-      this._finalizerCallbacks.run(undefined, this);
-  
-      // reset the initializers and finalizers
-      this._initializerCallbacks.reset();
-      this._finalizerCallbacks.reset();
-  
-      this.triggerMethod('stop');
-    },
-  
-    // Configure the module with a definition function and any custom args
-    // that are to be passed in to the definition function
-    addDefinition: function(moduleDefinition, customArgs) {
-      this._runModuleDefinition(moduleDefinition, customArgs);
-    },
-  
-    // Internal method: run the module definition function with the correct
-    // arguments
-    _runModuleDefinition: function(definition, customArgs) {
-      // If there is no definition short circut the method.
-      if (!definition) { return; }
-  
-      // build the correct list of arguments for the module definition
-      var args = _.flatten([
-        this,
-        this.app,
-        Backbone,
-        Marionette,
-        Backbone.$, _,
-        customArgs
-      ]);
-  
-      definition.apply(this, args);
-    },
-  
-    // Internal method: set up new copies of initializers and finalizers.
-    // Calling this method will wipe out all existing initializers and
-    // finalizers.
-    _setupInitializersAndFinalizers: function() {
-      this._initializerCallbacks = new Marionette.Callbacks();
-      this._finalizerCallbacks = new Marionette.Callbacks();
-    },
-  
-    // import the `triggerMethod` to trigger events with corresponding
-    // methods if the method exists
-    triggerMethod: Marionette.triggerMethod
-  });
-  
-  // Class methods to create modules
-  _.extend(Marionette.Module, {
-  
-    // Create a module, hanging off the app parameter as the parent object.
-    create: function(app, moduleNames, moduleDefinition) {
-      var module = app;
-  
-      // get the custom args passed in after the module definition and
-      // get rid of the module name and definition function
-      var customArgs = slice.call(arguments);
-      customArgs.splice(0, 3);
-  
-      // Split the module names and get the number of submodules.
-      // i.e. an example module name of `Doge.Wow.Amaze` would
-      // then have the potential for 3 module definitions.
-      moduleNames = moduleNames.split('.');
-      var length = moduleNames.length;
-  
-      // store the module definition for the last module in the chain
-      var moduleDefinitions = [];
-      moduleDefinitions[length - 1] = moduleDefinition;
-  
-      // Loop through all the parts of the module definition
-      _.each(moduleNames, function(moduleName, i) {
-        var parentModule = module;
-        module = this._getModule(parentModule, moduleName, app, moduleDefinition);
-        this._addModuleDefinition(parentModule, module, moduleDefinitions[i], customArgs);
-      }, this);
-  
-      // Return the last module in the definition chain
-      return module;
-    },
-  
-    _getModule: function(parentModule, moduleName, app, def, args) {
-      var options = _.extend({}, def);
-      var ModuleClass = this.getClass(def);
-  
-      // Get an existing module of this name if we have one
-      var module = parentModule[moduleName];
-  
-      if (!module) {
-        // Create a new module if we don't have one
-        module = new ModuleClass(moduleName, app, options);
-        parentModule[moduleName] = module;
-        // store the module on the parent
-        parentModule.submodules[moduleName] = module;
-      }
-  
-      return module;
-    },
-  
-    // ## Module Classes
-    //
-    // Module classes can be used as an alternative to the define pattern.
-    // The extend function of a Module is identical to the extend functions
-    // on other Backbone and Marionette classes.
-    // This allows module lifecyle events like `onStart` and `onStop` to be called directly.
-    getClass: function(moduleDefinition) {
-      var ModuleClass = Marionette.Module;
-  
-      if (!moduleDefinition) {
-        return ModuleClass;
-      }
-  
-      // If all of the module's functionality is defined inside its class,
-      // then the class can be passed in directly. `MyApp.module("Foo", FooModule)`.
-      if (moduleDefinition.prototype instanceof ModuleClass) {
-        return moduleDefinition;
-      }
-  
-      return moduleDefinition.moduleClass || ModuleClass;
-    },
-  
-    // Add the module definition and add a startWithParent initializer function.
-    // This is complicated because module definitions are heavily overloaded
-    // and support an anonymous function, module class, or options object
-    _addModuleDefinition: function(parentModule, module, def, args) {
-      var fn = this._getDefine(def);
-      var startWithParent = this._getStartWithParent(def, module);
-  
-      if (fn) {
-        module.addDefinition(fn, args);
-      }
-  
-      this._addStartWithParent(parentModule, module, startWithParent);
-    },
-  
-    _getStartWithParent: function(def, module) {
-      var swp;
-  
-      if (_.isFunction(def) && (def.prototype instanceof Marionette.Module)) {
-        swp = module.constructor.prototype.startWithParent;
-        return _.isUndefined(swp) ? true : swp;
-      }
-  
-      if (_.isObject(def)) {
-        swp = def.startWithParent;
-        return _.isUndefined(swp) ? true : swp;
-      }
-  
-      return true;
-    },
-  
-    _getDefine: function(def) {
-      if (_.isFunction(def) && !(def.prototype instanceof Marionette.Module)) {
-        return def;
-      }
-  
-      if (_.isObject(def)) {
-        return def.define;
-      }
-  
-      return null;
-    },
-  
-    _addStartWithParent: function(parentModule, module, startWithParent) {
-      module.startWithParent = module.startWithParent && startWithParent;
-  
-      if (!module.startWithParent || !!module.startWithParentIsConfigured) {
-        return;
-      }
-  
-      module.startWithParentIsConfigured = true;
-  
-      parentModule.addInitializer(function(options) {
-        if (module.startWithParent) {
-          module.start(options);
-        }
-      });
-    }
-  });
-  
-
-  return Marionette;
-}));
-
-;/**
+/**
  * bluebird build version 2.3.11
  * Features enabled: core, race, call_get, generators, map, nodeify, promisify, props, reduce, settle, some, progress, cancel, using, filter, any, each, timers
 */
@@ -35127,7 +26698,8436 @@ module.exports = ret;
 (3)
 });
 ;            ;if (typeof window !== 'undefined' && window !== null) {                           window.P = window.Promise;                                                 } else if (typeof self !== 'undefined' && self !== null) {                         self.P = self.Promise;                                                     }
-;(function() {
+;/*!
+ * Bootstrap v3.0.2 by @fat and @mdo
+ * Copyright 2013 Twitter, Inc.
+ * Licensed under http://www.apache.org/licenses/LICENSE-2.0
+ *
+ * Designed and built with all the love in the world by @mdo and @fat.
+ */
+
+if (typeof jQuery === "undefined") { throw new Error("Bootstrap requires jQuery") }
+
+/* ========================================================================
+ * Bootstrap: transition.js v3.0.2
+ * http://getbootstrap.com/javascript/#transitions
+ * ========================================================================
+ * Copyright 2013 Twitter, Inc.
+ *
+ * Licensed under the Apache License, Version 2.0 (the "License");
+ * you may not use this file except in compliance with the License.
+ * You may obtain a copy of the License at
+ *
+ * http://www.apache.org/licenses/LICENSE-2.0
+ *
+ * Unless required by applicable law or agreed to in writing, software
+ * distributed under the License is distributed on an "AS IS" BASIS,
+ * WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+ * See the License for the specific language governing permissions and
+ * limitations under the License.
+ * ======================================================================== */
+
+
++function ($) { "use strict";
+
+  // CSS TRANSITION SUPPORT (Shoutout: http://www.modernizr.com/)
+  // ============================================================
+
+  function transitionEnd() {
+    var el = document.createElement('bootstrap')
+
+    var transEndEventNames = {
+      'WebkitTransition' : 'webkitTransitionEnd'
+    , 'MozTransition'    : 'transitionend'
+    , 'OTransition'      : 'oTransitionEnd otransitionend'
+    , 'transition'       : 'transitionend'
+    }
+
+    for (var name in transEndEventNames) {
+      if (el.style[name] !== undefined) {
+        return { end: transEndEventNames[name] }
+      }
+    }
+  }
+
+  // http://blog.alexmaccaw.com/css-transitions
+  $.fn.emulateTransitionEnd = function (duration) {
+    var called = false, $el = this
+    $(this).one($.support.transition.end, function () { called = true })
+    var callback = function () { if (!called) $($el).trigger($.support.transition.end) }
+    setTimeout(callback, duration)
+    return this
+  }
+
+  $(function () {
+    $.support.transition = transitionEnd()
+  })
+
+}(jQuery);
+
+/* ========================================================================
+ * Bootstrap: alert.js v3.0.2
+ * http://getbootstrap.com/javascript/#alerts
+ * ========================================================================
+ * Copyright 2013 Twitter, Inc.
+ *
+ * Licensed under the Apache License, Version 2.0 (the "License");
+ * you may not use this file except in compliance with the License.
+ * You may obtain a copy of the License at
+ *
+ * http://www.apache.org/licenses/LICENSE-2.0
+ *
+ * Unless required by applicable law or agreed to in writing, software
+ * distributed under the License is distributed on an "AS IS" BASIS,
+ * WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+ * See the License for the specific language governing permissions and
+ * limitations under the License.
+ * ======================================================================== */
+
+
++function ($) { "use strict";
+
+  // ALERT CLASS DEFINITION
+  // ======================
+
+  var dismiss = '[data-dismiss="alert"]'
+  var Alert   = function (el) {
+    $(el).on('click', dismiss, this.close)
+  }
+
+  Alert.prototype.close = function (e) {
+    var $this    = $(this)
+    var selector = $this.attr('data-target')
+
+    if (!selector) {
+      selector = $this.attr('href')
+      selector = selector && selector.replace(/.*(?=#[^\s]*$)/, '') // strip for ie7
+    }
+
+    var $parent = $(selector)
+
+    if (e) e.preventDefault()
+
+    if (!$parent.length) {
+      $parent = $this.hasClass('alert') ? $this : $this.parent()
+    }
+
+    $parent.trigger(e = $.Event('close.bs.alert'))
+
+    if (e.isDefaultPrevented()) return
+
+    $parent.removeClass('in')
+
+    function removeElement() {
+      $parent.trigger('closed.bs.alert').remove()
+    }
+
+    $.support.transition && $parent.hasClass('fade') ?
+      $parent
+        .one($.support.transition.end, removeElement)
+        .emulateTransitionEnd(150) :
+      removeElement()
+  }
+
+
+  // ALERT PLUGIN DEFINITION
+  // =======================
+
+  var old = $.fn.alert
+
+  $.fn.alert = function (option) {
+    return this.each(function () {
+      var $this = $(this)
+      var data  = $this.data('bs.alert')
+
+      if (!data) $this.data('bs.alert', (data = new Alert(this)))
+      if (typeof option == 'string') data[option].call($this)
+    })
+  }
+
+  $.fn.alert.Constructor = Alert
+
+
+  // ALERT NO CONFLICT
+  // =================
+
+  $.fn.alert.noConflict = function () {
+    $.fn.alert = old
+    return this
+  }
+
+
+  // ALERT DATA-API
+  // ==============
+
+  $(document).on('click.bs.alert.data-api', dismiss, Alert.prototype.close)
+
+}(jQuery);
+
+/* ========================================================================
+ * Bootstrap: button.js v3.0.2
+ * http://getbootstrap.com/javascript/#buttons
+ * ========================================================================
+ * Copyright 2013 Twitter, Inc.
+ *
+ * Licensed under the Apache License, Version 2.0 (the "License");
+ * you may not use this file except in compliance with the License.
+ * You may obtain a copy of the License at
+ *
+ * http://www.apache.org/licenses/LICENSE-2.0
+ *
+ * Unless required by applicable law or agreed to in writing, software
+ * distributed under the License is distributed on an "AS IS" BASIS,
+ * WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+ * See the License for the specific language governing permissions and
+ * limitations under the License.
+ * ======================================================================== */
+
+
++function ($) { "use strict";
+
+  // BUTTON PUBLIC CLASS DEFINITION
+  // ==============================
+
+  var Button = function (element, options) {
+    this.$element = $(element)
+    this.options  = $.extend({}, Button.DEFAULTS, options)
+  }
+
+  Button.DEFAULTS = {
+    loadingText: 'loading...'
+  }
+
+  Button.prototype.setState = function (state) {
+    var d    = 'disabled'
+    var $el  = this.$element
+    var val  = $el.is('input') ? 'val' : 'html'
+    var data = $el.data()
+
+    state = state + 'Text'
+
+    if (!data.resetText) $el.data('resetText', $el[val]())
+
+    $el[val](data[state] || this.options[state])
+
+    // push to event loop to allow forms to submit
+    setTimeout(function () {
+      state == 'loadingText' ?
+        $el.addClass(d).attr(d, d) :
+        $el.removeClass(d).removeAttr(d);
+    }, 0)
+  }
+
+  Button.prototype.toggle = function () {
+    var $parent = this.$element.closest('[data-toggle="buttons"]')
+
+    if ($parent.length) {
+      var $input = this.$element.find('input')
+        .prop('checked', !this.$element.hasClass('active'))
+        .trigger('change')
+      if ($input.prop('type') === 'radio') $parent.find('.active').removeClass('active')
+    }
+
+    this.$element.toggleClass('active')
+  }
+
+
+  // BUTTON PLUGIN DEFINITION
+  // ========================
+
+  var old = $.fn.button
+
+  $.fn.button = function (option) {
+    return this.each(function () {
+      var $this   = $(this)
+      var data    = $this.data('bs.button')
+      var options = typeof option == 'object' && option
+
+      if (!data) $this.data('bs.button', (data = new Button(this, options)))
+
+      if (option == 'toggle') data.toggle()
+      else if (option) data.setState(option)
+    })
+  }
+
+  $.fn.button.Constructor = Button
+
+
+  // BUTTON NO CONFLICT
+  // ==================
+
+  $.fn.button.noConflict = function () {
+    $.fn.button = old
+    return this
+  }
+
+
+  // BUTTON DATA-API
+  // ===============
+
+  $(document).on('click.bs.button.data-api', '[data-toggle^=button]', function (e) {
+    var $btn = $(e.target)
+    if (!$btn.hasClass('btn')) $btn = $btn.closest('.btn')
+    $btn.button('toggle')
+    e.preventDefault()
+  })
+
+}(jQuery);
+
+/* ========================================================================
+ * Bootstrap: carousel.js v3.0.2
+ * http://getbootstrap.com/javascript/#carousel
+ * ========================================================================
+ * Copyright 2013 Twitter, Inc.
+ *
+ * Licensed under the Apache License, Version 2.0 (the "License");
+ * you may not use this file except in compliance with the License.
+ * You may obtain a copy of the License at
+ *
+ * http://www.apache.org/licenses/LICENSE-2.0
+ *
+ * Unless required by applicable law or agreed to in writing, software
+ * distributed under the License is distributed on an "AS IS" BASIS,
+ * WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+ * See the License for the specific language governing permissions and
+ * limitations under the License.
+ * ======================================================================== */
+
+
++function ($) { "use strict";
+
+  // CAROUSEL CLASS DEFINITION
+  // =========================
+
+  var Carousel = function (element, options) {
+    this.$element    = $(element)
+    this.$indicators = this.$element.find('.carousel-indicators')
+    this.options     = options
+    this.paused      =
+    this.sliding     =
+    this.interval    =
+    this.$active     =
+    this.$items      = null
+
+    this.options.pause == 'hover' && this.$element
+      .on('mouseenter', $.proxy(this.pause, this))
+      .on('mouseleave', $.proxy(this.cycle, this))
+  }
+
+  Carousel.DEFAULTS = {
+    interval: 5000
+  , pause: 'hover'
+  , wrap: true
+  }
+
+  Carousel.prototype.cycle =  function (e) {
+    e || (this.paused = false)
+
+    this.interval && clearInterval(this.interval)
+
+    this.options.interval
+      && !this.paused
+      && (this.interval = setInterval($.proxy(this.next, this), this.options.interval))
+
+    return this
+  }
+
+  Carousel.prototype.getActiveIndex = function () {
+    this.$active = this.$element.find('.item.active')
+    this.$items  = this.$active.parent().children()
+
+    return this.$items.index(this.$active)
+  }
+
+  Carousel.prototype.to = function (pos) {
+    var that        = this
+    var activeIndex = this.getActiveIndex()
+
+    if (pos > (this.$items.length - 1) || pos < 0) return
+
+    if (this.sliding)       return this.$element.one('slid', function () { that.to(pos) })
+    if (activeIndex == pos) return this.pause().cycle()
+
+    return this.slide(pos > activeIndex ? 'next' : 'prev', $(this.$items[pos]))
+  }
+
+  Carousel.prototype.pause = function (e) {
+    e || (this.paused = true)
+
+    if (this.$element.find('.next, .prev').length && $.support.transition.end) {
+      this.$element.trigger($.support.transition.end)
+      this.cycle(true)
+    }
+
+    this.interval = clearInterval(this.interval)
+
+    return this
+  }
+
+  Carousel.prototype.next = function () {
+    if (this.sliding) return
+    return this.slide('next')
+  }
+
+  Carousel.prototype.prev = function () {
+    if (this.sliding) return
+    return this.slide('prev')
+  }
+
+  Carousel.prototype.slide = function (type, next) {
+    var $active   = this.$element.find('.item.active')
+    var $next     = next || $active[type]()
+    var isCycling = this.interval
+    var direction = type == 'next' ? 'left' : 'right'
+    var fallback  = type == 'next' ? 'first' : 'last'
+    var that      = this
+
+    if (!$next.length) {
+      if (!this.options.wrap) return
+      $next = this.$element.find('.item')[fallback]()
+    }
+
+    this.sliding = true
+
+    isCycling && this.pause()
+
+    var e = $.Event('slide.bs.carousel', { relatedTarget: $next[0], direction: direction })
+
+    if ($next.hasClass('active')) return
+
+    if (this.$indicators.length) {
+      this.$indicators.find('.active').removeClass('active')
+      this.$element.one('slid', function () {
+        var $nextIndicator = $(that.$indicators.children()[that.getActiveIndex()])
+        $nextIndicator && $nextIndicator.addClass('active')
+      })
+    }
+
+    if ($.support.transition && this.$element.hasClass('slide')) {
+      this.$element.trigger(e)
+      if (e.isDefaultPrevented()) return
+      $next.addClass(type)
+      $next[0].offsetWidth // force reflow
+      $active.addClass(direction)
+      $next.addClass(direction)
+      $active
+        .one($.support.transition.end, function () {
+          $next.removeClass([type, direction].join(' ')).addClass('active')
+          $active.removeClass(['active', direction].join(' '))
+          that.sliding = false
+          setTimeout(function () { that.$element.trigger('slid') }, 0)
+        })
+        .emulateTransitionEnd(600)
+    } else {
+      this.$element.trigger(e)
+      if (e.isDefaultPrevented()) return
+      $active.removeClass('active')
+      $next.addClass('active')
+      this.sliding = false
+      this.$element.trigger('slid')
+    }
+
+    isCycling && this.cycle()
+
+    return this
+  }
+
+
+  // CAROUSEL PLUGIN DEFINITION
+  // ==========================
+
+  var old = $.fn.carousel
+
+  $.fn.carousel = function (option) {
+    return this.each(function () {
+      var $this   = $(this)
+      var data    = $this.data('bs.carousel')
+      var options = $.extend({}, Carousel.DEFAULTS, $this.data(), typeof option == 'object' && option)
+      var action  = typeof option == 'string' ? option : options.slide
+
+      if (!data) $this.data('bs.carousel', (data = new Carousel(this, options)))
+      if (typeof option == 'number') data.to(option)
+      else if (action) data[action]()
+      else if (options.interval) data.pause().cycle()
+    })
+  }
+
+  $.fn.carousel.Constructor = Carousel
+
+
+  // CAROUSEL NO CONFLICT
+  // ====================
+
+  $.fn.carousel.noConflict = function () {
+    $.fn.carousel = old
+    return this
+  }
+
+
+  // CAROUSEL DATA-API
+  // =================
+
+  $(document).on('click.bs.carousel.data-api', '[data-slide], [data-slide-to]', function (e) {
+    var $this   = $(this), href
+    var $target = $($this.attr('data-target') || (href = $this.attr('href')) && href.replace(/.*(?=#[^\s]+$)/, '')) //strip for ie7
+    var options = $.extend({}, $target.data(), $this.data())
+    var slideIndex = $this.attr('data-slide-to')
+    if (slideIndex) options.interval = false
+
+    $target.carousel(options)
+
+    if (slideIndex = $this.attr('data-slide-to')) {
+      $target.data('bs.carousel').to(slideIndex)
+    }
+
+    e.preventDefault()
+  })
+
+  $(window).on('load', function () {
+    $('[data-ride="carousel"]').each(function () {
+      var $carousel = $(this)
+      $carousel.carousel($carousel.data())
+    })
+  })
+
+}(jQuery);
+
+/* ========================================================================
+ * Bootstrap: collapse.js v3.0.2
+ * http://getbootstrap.com/javascript/#collapse
+ * ========================================================================
+ * Copyright 2013 Twitter, Inc.
+ *
+ * Licensed under the Apache License, Version 2.0 (the "License");
+ * you may not use this file except in compliance with the License.
+ * You may obtain a copy of the License at
+ *
+ * http://www.apache.org/licenses/LICENSE-2.0
+ *
+ * Unless required by applicable law or agreed to in writing, software
+ * distributed under the License is distributed on an "AS IS" BASIS,
+ * WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+ * See the License for the specific language governing permissions and
+ * limitations under the License.
+ * ======================================================================== */
+
+
++function ($) { "use strict";
+
+  // COLLAPSE PUBLIC CLASS DEFINITION
+  // ================================
+
+  var Collapse = function (element, options) {
+    this.$element      = $(element)
+    this.options       = $.extend({}, Collapse.DEFAULTS, options)
+    this.transitioning = null
+
+    if (this.options.parent) this.$parent = $(this.options.parent)
+    if (this.options.toggle) this.toggle()
+  }
+
+  Collapse.DEFAULTS = {
+    toggle: true
+  }
+
+  Collapse.prototype.dimension = function () {
+    var hasWidth = this.$element.hasClass('width')
+    return hasWidth ? 'width' : 'height'
+  }
+
+  Collapse.prototype.show = function () {
+    if (this.transitioning || this.$element.hasClass('in')) return
+
+    var startEvent = $.Event('show.bs.collapse')
+    this.$element.trigger(startEvent)
+    if (startEvent.isDefaultPrevented()) return
+
+    var actives = this.$parent && this.$parent.find('> .panel > .in')
+
+    if (actives && actives.length) {
+      var hasData = actives.data('bs.collapse')
+      if (hasData && hasData.transitioning) return
+      actives.collapse('hide')
+      hasData || actives.data('bs.collapse', null)
+    }
+
+    var dimension = this.dimension()
+
+    this.$element
+      .removeClass('collapse')
+      .addClass('collapsing')
+      [dimension](0)
+
+    this.transitioning = 1
+
+    var complete = function () {
+      this.$element
+        .removeClass('collapsing')
+        .addClass('in')
+        [dimension]('auto')
+      this.transitioning = 0
+      this.$element.trigger('shown.bs.collapse')
+    }
+
+    if (!$.support.transition) return complete.call(this)
+
+    var scrollSize = $.camelCase(['scroll', dimension].join('-'))
+
+    this.$element
+      .one($.support.transition.end, $.proxy(complete, this))
+      .emulateTransitionEnd(350)
+      [dimension](this.$element[0][scrollSize])
+  }
+
+  Collapse.prototype.hide = function () {
+    if (this.transitioning || !this.$element.hasClass('in')) return
+
+    var startEvent = $.Event('hide.bs.collapse')
+    this.$element.trigger(startEvent)
+    if (startEvent.isDefaultPrevented()) return
+
+    var dimension = this.dimension()
+
+    this.$element
+      [dimension](this.$element[dimension]())
+      [0].offsetHeight
+
+    this.$element
+      .addClass('collapsing')
+      .removeClass('collapse')
+      .removeClass('in')
+
+    this.transitioning = 1
+
+    var complete = function () {
+      this.transitioning = 0
+      this.$element
+        .trigger('hidden.bs.collapse')
+        .removeClass('collapsing')
+        .addClass('collapse')
+    }
+
+    if (!$.support.transition) return complete.call(this)
+
+    this.$element
+      [dimension](0)
+      .one($.support.transition.end, $.proxy(complete, this))
+      .emulateTransitionEnd(350)
+  }
+
+  Collapse.prototype.toggle = function () {
+    this[this.$element.hasClass('in') ? 'hide' : 'show']()
+  }
+
+
+  // COLLAPSE PLUGIN DEFINITION
+  // ==========================
+
+  var old = $.fn.collapse
+
+  $.fn.collapse = function (option) {
+    return this.each(function () {
+      var $this   = $(this)
+      var data    = $this.data('bs.collapse')
+      var options = $.extend({}, Collapse.DEFAULTS, $this.data(), typeof option == 'object' && option)
+
+      if (!data) $this.data('bs.collapse', (data = new Collapse(this, options)))
+      if (typeof option == 'string') data[option]()
+    })
+  }
+
+  $.fn.collapse.Constructor = Collapse
+
+
+  // COLLAPSE NO CONFLICT
+  // ====================
+
+  $.fn.collapse.noConflict = function () {
+    $.fn.collapse = old
+    return this
+  }
+
+
+  // COLLAPSE DATA-API
+  // =================
+
+  $(document).on('click.bs.collapse.data-api', '[data-toggle=collapse]', function (e) {
+    var $this   = $(this), href
+    var target  = $this.attr('data-target')
+        || e.preventDefault()
+        || (href = $this.attr('href')) && href.replace(/.*(?=#[^\s]+$)/, '') //strip for ie7
+    var $target = $(target)
+    var data    = $target.data('bs.collapse')
+    var option  = data ? 'toggle' : $this.data()
+    var parent  = $this.attr('data-parent')
+    var $parent = parent && $(parent)
+
+    if (!data || !data.transitioning) {
+      if ($parent) $parent.find('[data-toggle=collapse][data-parent="' + parent + '"]').not($this).addClass('collapsed')
+      $this[$target.hasClass('in') ? 'addClass' : 'removeClass']('collapsed')
+    }
+
+    $target.collapse(option)
+  })
+
+}(jQuery);
+
+/* ========================================================================
+ * Bootstrap: dropdown.js v3.0.2
+ * http://getbootstrap.com/javascript/#dropdowns
+ * ========================================================================
+ * Copyright 2013 Twitter, Inc.
+ *
+ * Licensed under the Apache License, Version 2.0 (the "License");
+ * you may not use this file except in compliance with the License.
+ * You may obtain a copy of the License at
+ *
+ * http://www.apache.org/licenses/LICENSE-2.0
+ *
+ * Unless required by applicable law or agreed to in writing, software
+ * distributed under the License is distributed on an "AS IS" BASIS,
+ * WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+ * See the License for the specific language governing permissions and
+ * limitations under the License.
+ * ======================================================================== */
+
+
++function ($) { "use strict";
+
+  // DROPDOWN CLASS DEFINITION
+  // =========================
+
+  var backdrop = '.dropdown-backdrop'
+  var toggle   = '[data-toggle=dropdown]'
+  var Dropdown = function (element) {
+    var $el = $(element).on('click.bs.dropdown', this.toggle)
+  }
+
+  Dropdown.prototype.toggle = function (e) {
+    var $this = $(this)
+
+    if ($this.is('.disabled, :disabled')) return
+
+    var $parent  = getParent($this)
+    var isActive = $parent.hasClass('open')
+
+    clearMenus()
+
+    if (!isActive) {
+      if ('ontouchstart' in document.documentElement && !$parent.closest('.navbar-nav').length) {
+        // if mobile we we use a backdrop because click events don't delegate
+        $('<div class="dropdown-backdrop"/>').insertAfter($(this)).on('click', clearMenus)
+      }
+
+      $parent.trigger(e = $.Event('show.bs.dropdown'))
+
+      if (e.isDefaultPrevented()) return
+
+      $parent
+        .toggleClass('open')
+        .trigger('shown.bs.dropdown')
+
+      $this.focus()
+    }
+
+    return false
+  }
+
+  Dropdown.prototype.keydown = function (e) {
+    if (!/(38|40|27)/.test(e.keyCode)) return
+
+    var $this = $(this)
+
+    e.preventDefault()
+    e.stopPropagation()
+
+    if ($this.is('.disabled, :disabled')) return
+
+    var $parent  = getParent($this)
+    var isActive = $parent.hasClass('open')
+
+    if (!isActive || (isActive && e.keyCode == 27)) {
+      if (e.which == 27) $parent.find(toggle).focus()
+      return $this.click()
+    }
+
+    var $items = $('[role=menu] li:not(.divider):visible a', $parent)
+
+    if (!$items.length) return
+
+    var index = $items.index($items.filter(':focus'))
+
+    if (e.keyCode == 38 && index > 0)                 index--                        // up
+    if (e.keyCode == 40 && index < $items.length - 1) index++                        // down
+    if (!~index)                                      index=0
+
+    $items.eq(index).focus()
+  }
+
+  function clearMenus() {
+    $(backdrop).remove()
+    $(toggle).each(function (e) {
+      var $parent = getParent($(this))
+      if (!$parent.hasClass('open')) return
+      $parent.trigger(e = $.Event('hide.bs.dropdown'))
+      if (e.isDefaultPrevented()) return
+      $parent.removeClass('open').trigger('hidden.bs.dropdown')
+    })
+  }
+
+  function getParent($this) {
+    var selector = $this.attr('data-target')
+
+    if (!selector) {
+      selector = $this.attr('href')
+      selector = selector && /#/.test(selector) && selector.replace(/.*(?=#[^\s]*$)/, '') //strip for ie7
+    }
+
+    var $parent = selector && $(selector)
+
+    return $parent && $parent.length ? $parent : $this.parent()
+  }
+
+
+  // DROPDOWN PLUGIN DEFINITION
+  // ==========================
+
+  var old = $.fn.dropdown
+
+  $.fn.dropdown = function (option) {
+    return this.each(function () {
+      var $this = $(this)
+      var data  = $this.data('dropdown')
+
+      if (!data) $this.data('dropdown', (data = new Dropdown(this)))
+      if (typeof option == 'string') data[option].call($this)
+    })
+  }
+
+  $.fn.dropdown.Constructor = Dropdown
+
+
+  // DROPDOWN NO CONFLICT
+  // ====================
+
+  $.fn.dropdown.noConflict = function () {
+    $.fn.dropdown = old
+    return this
+  }
+
+
+  // APPLY TO STANDARD DROPDOWN ELEMENTS
+  // ===================================
+
+  $(document)
+    .on('click.bs.dropdown.data-api', clearMenus)
+    .on('click.bs.dropdown.data-api', '.dropdown form', function (e) { e.stopPropagation() })
+    .on('click.bs.dropdown.data-api'  , toggle, Dropdown.prototype.toggle)
+    .on('keydown.bs.dropdown.data-api', toggle + ', [role=menu]' , Dropdown.prototype.keydown)
+
+}(jQuery);
+
+/* ========================================================================
+ * Bootstrap: modal.js v3.0.2
+ * http://getbootstrap.com/javascript/#modals
+ * ========================================================================
+ * Copyright 2013 Twitter, Inc.
+ *
+ * Licensed under the Apache License, Version 2.0 (the "License");
+ * you may not use this file except in compliance with the License.
+ * You may obtain a copy of the License at
+ *
+ * http://www.apache.org/licenses/LICENSE-2.0
+ *
+ * Unless required by applicable law or agreed to in writing, software
+ * distributed under the License is distributed on an "AS IS" BASIS,
+ * WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+ * See the License for the specific language governing permissions and
+ * limitations under the License.
+ * ======================================================================== */
+
+
++function ($) { "use strict";
+
+  // MODAL CLASS DEFINITION
+  // ======================
+
+  var Modal = function (element, options) {
+    this.options   = options
+    this.$element  = $(element)
+    this.$backdrop =
+    this.isShown   = null
+
+    if (this.options.remote) this.$element.load(this.options.remote)
+  }
+
+  Modal.DEFAULTS = {
+      backdrop: true
+    , keyboard: true
+    , show: true
+  }
+
+  Modal.prototype.toggle = function (_relatedTarget) {
+    return this[!this.isShown ? 'show' : 'hide'](_relatedTarget)
+  }
+
+  Modal.prototype.show = function (_relatedTarget) {
+    var that = this
+    var e    = $.Event('show.bs.modal', { relatedTarget: _relatedTarget })
+
+    this.$element.trigger(e)
+
+    if (this.isShown || e.isDefaultPrevented()) return
+
+    this.isShown = true
+
+    this.escape()
+
+    this.$element.on('click.dismiss.modal', '[data-dismiss="modal"]', $.proxy(this.hide, this))
+
+    this.backdrop(function () {
+      var transition = $.support.transition && that.$element.hasClass('fade')
+
+      if (!that.$element.parent().length) {
+        that.$element.appendTo(document.body) // don't move modals dom position
+      }
+
+      that.$element.show()
+
+      if (transition) {
+        that.$element[0].offsetWidth // force reflow
+      }
+
+      that.$element
+        .addClass('in')
+        .attr('aria-hidden', false)
+
+      that.enforceFocus()
+
+      var e = $.Event('shown.bs.modal', { relatedTarget: _relatedTarget })
+
+      transition ?
+        that.$element.find('.modal-dialog') // wait for modal to slide in
+          .one($.support.transition.end, function () {
+            that.$element.focus().trigger(e)
+          })
+          .emulateTransitionEnd(300) :
+        that.$element.focus().trigger(e)
+    })
+  }
+
+  Modal.prototype.hide = function (e) {
+    if (e) e.preventDefault()
+
+    e = $.Event('hide.bs.modal')
+
+    this.$element.trigger(e)
+
+    if (!this.isShown || e.isDefaultPrevented()) return
+
+    this.isShown = false
+
+    this.escape()
+
+    $(document).off('focusin.bs.modal')
+
+    this.$element
+      .removeClass('in')
+      .attr('aria-hidden', true)
+      .off('click.dismiss.modal')
+
+    $.support.transition && this.$element.hasClass('fade') ?
+      this.$element
+        .one($.support.transition.end, $.proxy(this.hideModal, this))
+        .emulateTransitionEnd(300) :
+      this.hideModal()
+  }
+
+  Modal.prototype.enforceFocus = function () {
+    $(document)
+      .off('focusin.bs.modal') // guard against infinite focus loop
+      .on('focusin.bs.modal', $.proxy(function (e) {
+        if (this.$element[0] !== e.target && !this.$element.has(e.target).length) {
+          this.$element.focus()
+        }
+      }, this))
+  }
+
+  Modal.prototype.escape = function () {
+    if (this.isShown && this.options.keyboard) {
+      this.$element.on('keyup.dismiss.bs.modal', $.proxy(function (e) {
+        e.which == 27 && this.hide()
+      }, this))
+    } else if (!this.isShown) {
+      this.$element.off('keyup.dismiss.bs.modal')
+    }
+  }
+
+  Modal.prototype.hideModal = function () {
+    var that = this
+    this.$element.hide()
+    this.backdrop(function () {
+      that.removeBackdrop()
+      that.$element.trigger('hidden.bs.modal')
+    })
+  }
+
+  Modal.prototype.removeBackdrop = function () {
+    this.$backdrop && this.$backdrop.remove()
+    this.$backdrop = null
+  }
+
+  Modal.prototype.backdrop = function (callback) {
+    var that    = this
+    var animate = this.$element.hasClass('fade') ? 'fade' : ''
+
+    if (this.isShown && this.options.backdrop) {
+      var doAnimate = $.support.transition && animate
+
+      this.$backdrop = $('<div class="modal-backdrop ' + animate + '" />')
+        .appendTo(document.body)
+
+      this.$element.on('click.dismiss.modal', $.proxy(function (e) {
+        if (e.target !== e.currentTarget) return
+        this.options.backdrop == 'static'
+          ? this.$element[0].focus.call(this.$element[0])
+          : this.hide.call(this)
+      }, this))
+
+      if (doAnimate) this.$backdrop[0].offsetWidth // force reflow
+
+      this.$backdrop.addClass('in')
+
+      if (!callback) return
+
+      doAnimate ?
+        this.$backdrop
+          .one($.support.transition.end, callback)
+          .emulateTransitionEnd(150) :
+        callback()
+
+    } else if (!this.isShown && this.$backdrop) {
+      this.$backdrop.removeClass('in')
+
+      $.support.transition && this.$element.hasClass('fade')?
+        this.$backdrop
+          .one($.support.transition.end, callback)
+          .emulateTransitionEnd(150) :
+        callback()
+
+    } else if (callback) {
+      callback()
+    }
+  }
+
+
+  // MODAL PLUGIN DEFINITION
+  // =======================
+
+  var old = $.fn.modal
+
+  $.fn.modal = function (option, _relatedTarget) {
+    return this.each(function () {
+      var $this   = $(this)
+      var data    = $this.data('bs.modal')
+      var options = $.extend({}, Modal.DEFAULTS, $this.data(), typeof option == 'object' && option)
+
+      if (!data) $this.data('bs.modal', (data = new Modal(this, options)))
+      if (typeof option == 'string') data[option](_relatedTarget)
+      else if (options.show) data.show(_relatedTarget)
+    })
+  }
+
+  $.fn.modal.Constructor = Modal
+
+
+  // MODAL NO CONFLICT
+  // =================
+
+  $.fn.modal.noConflict = function () {
+    $.fn.modal = old
+    return this
+  }
+
+
+  // MODAL DATA-API
+  // ==============
+
+  $(document).on('click.bs.modal.data-api', '[data-toggle="modal"]', function (e) {
+    var $this   = $(this)
+    var href    = $this.attr('href')
+    var $target = $($this.attr('data-target') || (href && href.replace(/.*(?=#[^\s]+$)/, ''))) //strip for ie7
+    var option  = $target.data('modal') ? 'toggle' : $.extend({ remote: !/#/.test(href) && href }, $target.data(), $this.data())
+
+    e.preventDefault()
+
+    $target
+      .modal(option, this)
+      .one('hide', function () {
+        $this.is(':visible') && $this.focus()
+      })
+  })
+
+  $(document)
+    .on('show.bs.modal',  '.modal', function () { $(document.body).addClass('modal-open') })
+    .on('hidden.bs.modal', '.modal', function () { $(document.body).removeClass('modal-open') })
+
+}(jQuery);
+
+/* ========================================================================
+ * Bootstrap: tooltip.js v3.0.2
+ * http://getbootstrap.com/javascript/#tooltip
+ * Inspired by the original jQuery.tipsy by Jason Frame
+ * ========================================================================
+ * Copyright 2013 Twitter, Inc.
+ *
+ * Licensed under the Apache License, Version 2.0 (the "License");
+ * you may not use this file except in compliance with the License.
+ * You may obtain a copy of the License at
+ *
+ * http://www.apache.org/licenses/LICENSE-2.0
+ *
+ * Unless required by applicable law or agreed to in writing, software
+ * distributed under the License is distributed on an "AS IS" BASIS,
+ * WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+ * See the License for the specific language governing permissions and
+ * limitations under the License.
+ * ======================================================================== */
+
+
++function ($) { "use strict";
+
+  // TOOLTIP PUBLIC CLASS DEFINITION
+  // ===============================
+
+  var Tooltip = function (element, options) {
+    this.type       =
+    this.options    =
+    this.enabled    =
+    this.timeout    =
+    this.hoverState =
+    this.$element   = null
+
+    this.init('tooltip', element, options)
+  }
+
+  Tooltip.DEFAULTS = {
+    animation: true
+  , placement: 'top'
+  , selector: false
+  , template: '<div class="tooltip"><div class="tooltip-arrow"></div><div class="tooltip-inner"></div></div>'
+  , trigger: 'hover focus'
+  , title: ''
+  , delay: 0
+  , html: false
+  , container: false
+  }
+
+  Tooltip.prototype.init = function (type, element, options) {
+    this.enabled  = true
+    this.type     = type
+    this.$element = $(element)
+    this.options  = this.getOptions(options)
+
+    var triggers = this.options.trigger.split(' ')
+
+    for (var i = triggers.length; i--;) {
+      var trigger = triggers[i]
+
+      if (trigger == 'click') {
+        this.$element.on('click.' + this.type, this.options.selector, $.proxy(this.toggle, this))
+      } else if (trigger != 'manual') {
+        var eventIn  = trigger == 'hover' ? 'mouseenter' : 'focus'
+        var eventOut = trigger == 'hover' ? 'mouseleave' : 'blur'
+
+        this.$element.on(eventIn  + '.' + this.type, this.options.selector, $.proxy(this.enter, this))
+        this.$element.on(eventOut + '.' + this.type, this.options.selector, $.proxy(this.leave, this))
+      }
+    }
+
+    this.options.selector ?
+      (this._options = $.extend({}, this.options, { trigger: 'manual', selector: '' })) :
+      this.fixTitle()
+  }
+
+  Tooltip.prototype.getDefaults = function () {
+    return Tooltip.DEFAULTS
+  }
+
+  Tooltip.prototype.getOptions = function (options) {
+    options = $.extend({}, this.getDefaults(), this.$element.data(), options)
+
+    if (options.delay && typeof options.delay == 'number') {
+      options.delay = {
+        show: options.delay
+      , hide: options.delay
+      }
+    }
+
+    return options
+  }
+
+  Tooltip.prototype.getDelegateOptions = function () {
+    var options  = {}
+    var defaults = this.getDefaults()
+
+    this._options && $.each(this._options, function (key, value) {
+      if (defaults[key] != value) options[key] = value
+    })
+
+    return options
+  }
+
+  Tooltip.prototype.enter = function (obj) {
+    var self = obj instanceof this.constructor ?
+      obj : $(obj.currentTarget)[this.type](this.getDelegateOptions()).data('bs.' + this.type)
+
+    clearTimeout(self.timeout)
+
+    self.hoverState = 'in'
+
+    if (!self.options.delay || !self.options.delay.show) return self.show()
+
+    self.timeout = setTimeout(function () {
+      if (self.hoverState == 'in') self.show()
+    }, self.options.delay.show)
+  }
+
+  Tooltip.prototype.leave = function (obj) {
+    var self = obj instanceof this.constructor ?
+      obj : $(obj.currentTarget)[this.type](this.getDelegateOptions()).data('bs.' + this.type)
+
+    clearTimeout(self.timeout)
+
+    self.hoverState = 'out'
+
+    if (!self.options.delay || !self.options.delay.hide) return self.hide()
+
+    self.timeout = setTimeout(function () {
+      if (self.hoverState == 'out') self.hide()
+    }, self.options.delay.hide)
+  }
+
+  Tooltip.prototype.show = function () {
+    var e = $.Event('show.bs.'+ this.type)
+
+    if (this.hasContent() && this.enabled) {
+      this.$element.trigger(e)
+
+      if (e.isDefaultPrevented()) return
+
+      var $tip = this.tip()
+
+      this.setContent()
+
+      if (this.options.animation) $tip.addClass('fade')
+
+      var placement = typeof this.options.placement == 'function' ?
+        this.options.placement.call(this, $tip[0], this.$element[0]) :
+        this.options.placement
+
+      var autoToken = /\s?auto?\s?/i
+      var autoPlace = autoToken.test(placement)
+      if (autoPlace) placement = placement.replace(autoToken, '') || 'top'
+
+      $tip
+        .detach()
+        .css({ top: 0, left: 0, display: 'block' })
+        .addClass(placement)
+
+      this.options.container ? $tip.appendTo(this.options.container) : $tip.insertAfter(this.$element)
+
+      var pos          = this.getPosition()
+      var actualWidth  = $tip[0].offsetWidth
+      var actualHeight = $tip[0].offsetHeight
+
+      if (autoPlace) {
+        var $parent = this.$element.parent()
+
+        var orgPlacement = placement
+        var docScroll    = document.documentElement.scrollTop || document.body.scrollTop
+        var parentWidth  = this.options.container == 'body' ? window.innerWidth  : $parent.outerWidth()
+        var parentHeight = this.options.container == 'body' ? window.innerHeight : $parent.outerHeight()
+        var parentLeft   = this.options.container == 'body' ? 0 : $parent.offset().left
+
+        placement = placement == 'bottom' && pos.top   + pos.height  + actualHeight - docScroll > parentHeight  ? 'top'    :
+                    placement == 'top'    && pos.top   - docScroll   - actualHeight < 0                         ? 'bottom' :
+                    placement == 'right'  && pos.right + actualWidth > parentWidth                              ? 'left'   :
+                    placement == 'left'   && pos.left  - actualWidth < parentLeft                               ? 'right'  :
+                    placement
+
+        $tip
+          .removeClass(orgPlacement)
+          .addClass(placement)
+      }
+
+      var calculatedOffset = this.getCalculatedOffset(placement, pos, actualWidth, actualHeight)
+
+      this.applyPlacement(calculatedOffset, placement)
+      this.$element.trigger('shown.bs.' + this.type)
+    }
+  }
+
+  Tooltip.prototype.applyPlacement = function(offset, placement) {
+    var replace
+    var $tip   = this.tip()
+    var width  = $tip[0].offsetWidth
+    var height = $tip[0].offsetHeight
+
+    // manually read margins because getBoundingClientRect includes difference
+    var marginTop = parseInt($tip.css('margin-top'), 10)
+    var marginLeft = parseInt($tip.css('margin-left'), 10)
+
+    // we must check for NaN for ie 8/9
+    if (isNaN(marginTop))  marginTop  = 0
+    if (isNaN(marginLeft)) marginLeft = 0
+
+    offset.top  = offset.top  + marginTop
+    offset.left = offset.left + marginLeft
+
+    $tip
+      .offset(offset)
+      .addClass('in')
+
+    // check to see if placing tip in new offset caused the tip to resize itself
+    var actualWidth  = $tip[0].offsetWidth
+    var actualHeight = $tip[0].offsetHeight
+
+    if (placement == 'top' && actualHeight != height) {
+      replace = true
+      offset.top = offset.top + height - actualHeight
+    }
+
+    if (/bottom|top/.test(placement)) {
+      var delta = 0
+
+      if (offset.left < 0) {
+        delta       = offset.left * -2
+        offset.left = 0
+
+        $tip.offset(offset)
+
+        actualWidth  = $tip[0].offsetWidth
+        actualHeight = $tip[0].offsetHeight
+      }
+
+      this.replaceArrow(delta - width + actualWidth, actualWidth, 'left')
+    } else {
+      this.replaceArrow(actualHeight - height, actualHeight, 'top')
+    }
+
+    if (replace) $tip.offset(offset)
+  }
+
+  Tooltip.prototype.replaceArrow = function(delta, dimension, position) {
+    this.arrow().css(position, delta ? (50 * (1 - delta / dimension) + "%") : '')
+  }
+
+  Tooltip.prototype.setContent = function () {
+    var $tip  = this.tip()
+    var title = this.getTitle()
+
+    $tip.find('.tooltip-inner')[this.options.html ? 'html' : 'text'](title)
+    $tip.removeClass('fade in top bottom left right')
+  }
+
+  Tooltip.prototype.hide = function () {
+    var that = this
+    var $tip = this.tip()
+    var e    = $.Event('hide.bs.' + this.type)
+
+    function complete() {
+      if (that.hoverState != 'in') $tip.detach()
+    }
+
+    this.$element.trigger(e)
+
+    if (e.isDefaultPrevented()) return
+
+    $tip.removeClass('in')
+
+    $.support.transition && this.$tip.hasClass('fade') ?
+      $tip
+        .one($.support.transition.end, complete)
+        .emulateTransitionEnd(150) :
+      complete()
+
+    this.$element.trigger('hidden.bs.' + this.type)
+
+    return this
+  }
+
+  Tooltip.prototype.fixTitle = function () {
+    var $e = this.$element
+    if ($e.attr('title') || typeof($e.attr('data-original-title')) != 'string') {
+      $e.attr('data-original-title', $e.attr('title') || '').attr('title', '')
+    }
+  }
+
+  Tooltip.prototype.hasContent = function () {
+    return this.getTitle()
+  }
+
+  Tooltip.prototype.getPosition = function () {
+    var el = this.$element[0]
+    return $.extend({}, (typeof el.getBoundingClientRect == 'function') ? el.getBoundingClientRect() : {
+      width: el.offsetWidth
+    , height: el.offsetHeight
+    }, this.$element.offset())
+  }
+
+  Tooltip.prototype.getCalculatedOffset = function (placement, pos, actualWidth, actualHeight) {
+    return placement == 'bottom' ? { top: pos.top + pos.height,   left: pos.left + pos.width / 2 - actualWidth / 2  } :
+           placement == 'top'    ? { top: pos.top - actualHeight, left: pos.left + pos.width / 2 - actualWidth / 2  } :
+           placement == 'left'   ? { top: pos.top + pos.height / 2 - actualHeight / 2, left: pos.left - actualWidth } :
+        /* placement == 'right' */ { top: pos.top + pos.height / 2 - actualHeight / 2, left: pos.left + pos.width   }
+  }
+
+  Tooltip.prototype.getTitle = function () {
+    var title
+    var $e = this.$element
+    var o  = this.options
+
+    title = $e.attr('data-original-title')
+      || (typeof o.title == 'function' ? o.title.call($e[0]) :  o.title)
+
+    return title
+  }
+
+  Tooltip.prototype.tip = function () {
+    return this.$tip = this.$tip || $(this.options.template)
+  }
+
+  Tooltip.prototype.arrow = function () {
+    return this.$arrow = this.$arrow || this.tip().find('.tooltip-arrow')
+  }
+
+  Tooltip.prototype.validate = function () {
+    if (!this.$element[0].parentNode) {
+      this.hide()
+      this.$element = null
+      this.options  = null
+    }
+  }
+
+  Tooltip.prototype.enable = function () {
+    this.enabled = true
+  }
+
+  Tooltip.prototype.disable = function () {
+    this.enabled = false
+  }
+
+  Tooltip.prototype.toggleEnabled = function () {
+    this.enabled = !this.enabled
+  }
+
+  Tooltip.prototype.toggle = function (e) {
+    var self = e ? $(e.currentTarget)[this.type](this.getDelegateOptions()).data('bs.' + this.type) : this
+    self.tip().hasClass('in') ? self.leave(self) : self.enter(self)
+  }
+
+  Tooltip.prototype.destroy = function () {
+    this.hide().$element.off('.' + this.type).removeData('bs.' + this.type)
+  }
+
+
+  // TOOLTIP PLUGIN DEFINITION
+  // =========================
+
+  var old = $.fn.tooltip
+
+  $.fn.tooltip = function (option) {
+    return this.each(function () {
+      var $this   = $(this)
+      var data    = $this.data('bs.tooltip')
+      var options = typeof option == 'object' && option
+
+      if (!data) $this.data('bs.tooltip', (data = new Tooltip(this, options)))
+      if (typeof option == 'string') data[option]()
+    })
+  }
+
+  $.fn.tooltip.Constructor = Tooltip
+
+
+  // TOOLTIP NO CONFLICT
+  // ===================
+
+  $.fn.tooltip.noConflict = function () {
+    $.fn.tooltip = old
+    return this
+  }
+
+}(jQuery);
+
+/* ========================================================================
+ * Bootstrap: popover.js v3.0.2
+ * http://getbootstrap.com/javascript/#popovers
+ * ========================================================================
+ * Copyright 2013 Twitter, Inc.
+ *
+ * Licensed under the Apache License, Version 2.0 (the "License");
+ * you may not use this file except in compliance with the License.
+ * You may obtain a copy of the License at
+ *
+ * http://www.apache.org/licenses/LICENSE-2.0
+ *
+ * Unless required by applicable law or agreed to in writing, software
+ * distributed under the License is distributed on an "AS IS" BASIS,
+ * WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+ * See the License for the specific language governing permissions and
+ * limitations under the License.
+ * ======================================================================== */
+
+
++function ($) { "use strict";
+
+  // POPOVER PUBLIC CLASS DEFINITION
+  // ===============================
+
+  var Popover = function (element, options) {
+    this.init('popover', element, options)
+  }
+
+  if (!$.fn.tooltip) throw new Error('Popover requires tooltip.js')
+
+  Popover.DEFAULTS = $.extend({} , $.fn.tooltip.Constructor.DEFAULTS, {
+    placement: 'right'
+  , trigger: 'click'
+  , content: ''
+  , template: '<div class="popover"><div class="arrow"></div><h3 class="popover-title"></h3><div class="popover-content"></div></div>'
+  })
+
+
+  // NOTE: POPOVER EXTENDS tooltip.js
+  // ================================
+
+  Popover.prototype = $.extend({}, $.fn.tooltip.Constructor.prototype)
+
+  Popover.prototype.constructor = Popover
+
+  Popover.prototype.getDefaults = function () {
+    return Popover.DEFAULTS
+  }
+
+  Popover.prototype.setContent = function () {
+    var $tip    = this.tip()
+    var title   = this.getTitle()
+    var content = this.getContent()
+
+    $tip.find('.popover-title')[this.options.html ? 'html' : 'text'](title)
+    $tip.find('.popover-content')[this.options.html ? 'html' : 'text'](content)
+
+    $tip.removeClass('fade top bottom left right in')
+
+    // IE8 doesn't accept hiding via the `:empty` pseudo selector, we have to do
+    // this manually by checking the contents.
+    if (!$tip.find('.popover-title').html()) $tip.find('.popover-title').hide()
+  }
+
+  Popover.prototype.hasContent = function () {
+    return this.getTitle() || this.getContent()
+  }
+
+  Popover.prototype.getContent = function () {
+    var $e = this.$element
+    var o  = this.options
+
+    return $e.attr('data-content')
+      || (typeof o.content == 'function' ?
+            o.content.call($e[0]) :
+            o.content)
+  }
+
+  Popover.prototype.arrow = function () {
+    return this.$arrow = this.$arrow || this.tip().find('.arrow')
+  }
+
+  Popover.prototype.tip = function () {
+    if (!this.$tip) this.$tip = $(this.options.template)
+    return this.$tip
+  }
+
+
+  // POPOVER PLUGIN DEFINITION
+  // =========================
+
+  var old = $.fn.popover
+
+  $.fn.popover = function (option) {
+    return this.each(function () {
+      var $this   = $(this)
+      var data    = $this.data('bs.popover')
+      var options = typeof option == 'object' && option
+
+      if (!data) $this.data('bs.popover', (data = new Popover(this, options)))
+      if (typeof option == 'string') data[option]()
+    })
+  }
+
+  $.fn.popover.Constructor = Popover
+
+
+  // POPOVER NO CONFLICT
+  // ===================
+
+  $.fn.popover.noConflict = function () {
+    $.fn.popover = old
+    return this
+  }
+
+}(jQuery);
+
+/* ========================================================================
+ * Bootstrap: scrollspy.js v3.0.2
+ * http://getbootstrap.com/javascript/#scrollspy
+ * ========================================================================
+ * Copyright 2013 Twitter, Inc.
+ *
+ * Licensed under the Apache License, Version 2.0 (the "License");
+ * you may not use this file except in compliance with the License.
+ * You may obtain a copy of the License at
+ *
+ * http://www.apache.org/licenses/LICENSE-2.0
+ *
+ * Unless required by applicable law or agreed to in writing, software
+ * distributed under the License is distributed on an "AS IS" BASIS,
+ * WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+ * See the License for the specific language governing permissions and
+ * limitations under the License.
+ * ======================================================================== */
+
+
++function ($) { "use strict";
+
+  // SCROLLSPY CLASS DEFINITION
+  // ==========================
+
+  function ScrollSpy(element, options) {
+    var href
+    var process  = $.proxy(this.process, this)
+
+    this.$element       = $(element).is('body') ? $(window) : $(element)
+    this.$body          = $('body')
+    this.$scrollElement = this.$element.on('scroll.bs.scroll-spy.data-api', process)
+    this.options        = $.extend({}, ScrollSpy.DEFAULTS, options)
+    this.selector       = (this.options.target
+      || ((href = $(element).attr('href')) && href.replace(/.*(?=#[^\s]+$)/, '')) //strip for ie7
+      || '') + ' .nav li > a'
+    this.offsets        = $([])
+    this.targets        = $([])
+    this.activeTarget   = null
+
+    this.refresh()
+    this.process()
+  }
+
+  ScrollSpy.DEFAULTS = {
+    offset: 10
+  }
+
+  ScrollSpy.prototype.refresh = function () {
+    var offsetMethod = this.$element[0] == window ? 'offset' : 'position'
+
+    this.offsets = $([])
+    this.targets = $([])
+
+    var self     = this
+    var $targets = this.$body
+      .find(this.selector)
+      .map(function () {
+        var $el   = $(this)
+        var href  = $el.data('target') || $el.attr('href')
+        var $href = /^#\w/.test(href) && $(href)
+
+        return ($href
+          && $href.length
+          && [[ $href[offsetMethod]().top + (!$.isWindow(self.$scrollElement.get(0)) && self.$scrollElement.scrollTop()), href ]]) || null
+      })
+      .sort(function (a, b) { return a[0] - b[0] })
+      .each(function () {
+        self.offsets.push(this[0])
+        self.targets.push(this[1])
+      })
+  }
+
+  ScrollSpy.prototype.process = function () {
+    var scrollTop    = this.$scrollElement.scrollTop() + this.options.offset
+    var scrollHeight = this.$scrollElement[0].scrollHeight || this.$body[0].scrollHeight
+    var maxScroll    = scrollHeight - this.$scrollElement.height()
+    var offsets      = this.offsets
+    var targets      = this.targets
+    var activeTarget = this.activeTarget
+    var i
+
+    if (scrollTop >= maxScroll) {
+      return activeTarget != (i = targets.last()[0]) && this.activate(i)
+    }
+
+    for (i = offsets.length; i--;) {
+      activeTarget != targets[i]
+        && scrollTop >= offsets[i]
+        && (!offsets[i + 1] || scrollTop <= offsets[i + 1])
+        && this.activate( targets[i] )
+    }
+  }
+
+  ScrollSpy.prototype.activate = function (target) {
+    this.activeTarget = target
+
+    $(this.selector)
+      .parents('.active')
+      .removeClass('active')
+
+    var selector = this.selector
+      + '[data-target="' + target + '"],'
+      + this.selector + '[href="' + target + '"]'
+
+    var active = $(selector)
+      .parents('li')
+      .addClass('active')
+
+    if (active.parent('.dropdown-menu').length)  {
+      active = active
+        .closest('li.dropdown')
+        .addClass('active')
+    }
+
+    active.trigger('activate')
+  }
+
+
+  // SCROLLSPY PLUGIN DEFINITION
+  // ===========================
+
+  var old = $.fn.scrollspy
+
+  $.fn.scrollspy = function (option) {
+    return this.each(function () {
+      var $this   = $(this)
+      var data    = $this.data('bs.scrollspy')
+      var options = typeof option == 'object' && option
+
+      if (!data) $this.data('bs.scrollspy', (data = new ScrollSpy(this, options)))
+      if (typeof option == 'string') data[option]()
+    })
+  }
+
+  $.fn.scrollspy.Constructor = ScrollSpy
+
+
+  // SCROLLSPY NO CONFLICT
+  // =====================
+
+  $.fn.scrollspy.noConflict = function () {
+    $.fn.scrollspy = old
+    return this
+  }
+
+
+  // SCROLLSPY DATA-API
+  // ==================
+
+  $(window).on('load', function () {
+    $('[data-spy="scroll"]').each(function () {
+      var $spy = $(this)
+      $spy.scrollspy($spy.data())
+    })
+  })
+
+}(jQuery);
+
+/* ========================================================================
+ * Bootstrap: tab.js v3.0.2
+ * http://getbootstrap.com/javascript/#tabs
+ * ========================================================================
+ * Copyright 2013 Twitter, Inc.
+ *
+ * Licensed under the Apache License, Version 2.0 (the "License");
+ * you may not use this file except in compliance with the License.
+ * You may obtain a copy of the License at
+ *
+ * http://www.apache.org/licenses/LICENSE-2.0
+ *
+ * Unless required by applicable law or agreed to in writing, software
+ * distributed under the License is distributed on an "AS IS" BASIS,
+ * WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+ * See the License for the specific language governing permissions and
+ * limitations under the License.
+ * ======================================================================== */
+
+
++function ($) { "use strict";
+
+  // TAB CLASS DEFINITION
+  // ====================
+
+  var Tab = function (element) {
+    this.element = $(element)
+  }
+
+  Tab.prototype.show = function () {
+    var $this    = this.element
+    var $ul      = $this.closest('ul:not(.dropdown-menu)')
+    var selector = $this.data('target')
+
+    if (!selector) {
+      selector = $this.attr('href')
+      selector = selector && selector.replace(/.*(?=#[^\s]*$)/, '') //strip for ie7
+    }
+
+    if ($this.parent('li').hasClass('active')) return
+
+    var previous = $ul.find('.active:last a')[0]
+    var e        = $.Event('show.bs.tab', {
+      relatedTarget: previous
+    })
+
+    $this.trigger(e)
+
+    if (e.isDefaultPrevented()) return
+
+    var $target = $(selector)
+
+    this.activate($this.parent('li'), $ul)
+    this.activate($target, $target.parent(), function () {
+      $this.trigger({
+        type: 'shown.bs.tab'
+      , relatedTarget: previous
+      })
+    })
+  }
+
+  Tab.prototype.activate = function (element, container, callback) {
+    var $active    = container.find('> .active')
+    var transition = callback
+      && $.support.transition
+      && $active.hasClass('fade')
+
+    function next() {
+      $active
+        .removeClass('active')
+        .find('> .dropdown-menu > .active')
+        .removeClass('active')
+
+      element.addClass('active')
+
+      if (transition) {
+        element[0].offsetWidth // reflow for transition
+        element.addClass('in')
+      } else {
+        element.removeClass('fade')
+      }
+
+      if (element.parent('.dropdown-menu')) {
+        element.closest('li.dropdown').addClass('active')
+      }
+
+      callback && callback()
+    }
+
+    transition ?
+      $active
+        .one($.support.transition.end, next)
+        .emulateTransitionEnd(150) :
+      next()
+
+    $active.removeClass('in')
+  }
+
+
+  // TAB PLUGIN DEFINITION
+  // =====================
+
+  var old = $.fn.tab
+
+  $.fn.tab = function ( option ) {
+    return this.each(function () {
+      var $this = $(this)
+      var data  = $this.data('bs.tab')
+
+      if (!data) $this.data('bs.tab', (data = new Tab(this)))
+      if (typeof option == 'string') data[option]()
+    })
+  }
+
+  $.fn.tab.Constructor = Tab
+
+
+  // TAB NO CONFLICT
+  // ===============
+
+  $.fn.tab.noConflict = function () {
+    $.fn.tab = old
+    return this
+  }
+
+
+  // TAB DATA-API
+  // ============
+
+  $(document).on('click.bs.tab.data-api', '[data-toggle="tab"], [data-toggle="pill"]', function (e) {
+    e.preventDefault()
+    $(this).tab('show')
+  })
+
+}(jQuery);
+
+/* ========================================================================
+ * Bootstrap: affix.js v3.0.2
+ * http://getbootstrap.com/javascript/#affix
+ * ========================================================================
+ * Copyright 2013 Twitter, Inc.
+ *
+ * Licensed under the Apache License, Version 2.0 (the "License");
+ * you may not use this file except in compliance with the License.
+ * You may obtain a copy of the License at
+ *
+ * http://www.apache.org/licenses/LICENSE-2.0
+ *
+ * Unless required by applicable law or agreed to in writing, software
+ * distributed under the License is distributed on an "AS IS" BASIS,
+ * WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+ * See the License for the specific language governing permissions and
+ * limitations under the License.
+ * ======================================================================== */
+
+
++function ($) { "use strict";
+
+  // AFFIX CLASS DEFINITION
+  // ======================
+
+  var Affix = function (element, options) {
+    this.options = $.extend({}, Affix.DEFAULTS, options)
+    this.$window = $(window)
+      .on('scroll.bs.affix.data-api', $.proxy(this.checkPosition, this))
+      .on('click.bs.affix.data-api',  $.proxy(this.checkPositionWithEventLoop, this))
+
+    this.$element = $(element)
+    this.affixed  =
+    this.unpin    = null
+
+    this.checkPosition()
+  }
+
+  Affix.RESET = 'affix affix-top affix-bottom'
+
+  Affix.DEFAULTS = {
+    offset: 0
+  }
+
+  Affix.prototype.checkPositionWithEventLoop = function () {
+    setTimeout($.proxy(this.checkPosition, this), 1)
+  }
+
+  Affix.prototype.checkPosition = function () {
+    if (!this.$element.is(':visible')) return
+
+    var scrollHeight = $(document).height()
+    var scrollTop    = this.$window.scrollTop()
+    var position     = this.$element.offset()
+    var offset       = this.options.offset
+    var offsetTop    = offset.top
+    var offsetBottom = offset.bottom
+
+    if (typeof offset != 'object')         offsetBottom = offsetTop = offset
+    if (typeof offsetTop == 'function')    offsetTop    = offset.top()
+    if (typeof offsetBottom == 'function') offsetBottom = offset.bottom()
+
+    var affix = this.unpin   != null && (scrollTop + this.unpin <= position.top) ? false :
+                offsetBottom != null && (position.top + this.$element.height() >= scrollHeight - offsetBottom) ? 'bottom' :
+                offsetTop    != null && (scrollTop <= offsetTop) ? 'top' : false
+
+    if (this.affixed === affix) return
+    if (this.unpin) this.$element.css('top', '')
+
+    this.affixed = affix
+    this.unpin   = affix == 'bottom' ? position.top - scrollTop : null
+
+    this.$element.removeClass(Affix.RESET).addClass('affix' + (affix ? '-' + affix : ''))
+
+    if (affix == 'bottom') {
+      this.$element.offset({ top: document.body.offsetHeight - offsetBottom - this.$element.height() })
+    }
+  }
+
+
+  // AFFIX PLUGIN DEFINITION
+  // =======================
+
+  var old = $.fn.affix
+
+  $.fn.affix = function (option) {
+    return this.each(function () {
+      var $this   = $(this)
+      var data    = $this.data('bs.affix')
+      var options = typeof option == 'object' && option
+
+      if (!data) $this.data('bs.affix', (data = new Affix(this, options)))
+      if (typeof option == 'string') data[option]()
+    })
+  }
+
+  $.fn.affix.Constructor = Affix
+
+
+  // AFFIX NO CONFLICT
+  // =================
+
+  $.fn.affix.noConflict = function () {
+    $.fn.affix = old
+    return this
+  }
+
+
+  // AFFIX DATA-API
+  // ==============
+
+  $(window).on('load', function () {
+    $('[data-spy="affix"]').each(function () {
+      var $spy = $(this)
+      var data = $spy.data()
+
+      data.offset = data.offset || {}
+
+      if (data.offsetBottom) data.offset.bottom = data.offsetBottom
+      if (data.offsetTop)    data.offset.top    = data.offsetTop
+
+      $spy.affix(data)
+    })
+  })
+
+}(jQuery);
+
+// MarionetteJS (Backbone.Marionette)
+// ----------------------------------
+// v2.2.2
+//
+// Copyright (c)2014 Derick Bailey, Muted Solutions, LLC.
+// Distributed under MIT license
+//
+// http://marionettejs.com
+
+(function(root, factory) {
+
+  if (typeof define === 'function' && define.amd) {
+    define(['backbone', 'underscore', 'backbone.wreqr', 'backbone.babysitter'], function(Backbone, _) {
+      return (root.Marionette = factory(root, Backbone, _));
+    });
+  } else if (typeof exports !== 'undefined') {
+    var Backbone = require('backbone');
+    var _ = require('underscore');
+    var Wreqr = require('backbone.wreqr');
+    var BabySitter = require('backbone.babysitter');
+    module.exports = factory(root, Backbone, _);
+  } else {
+    root.Marionette = factory(root, root.Backbone, root._);
+  }
+
+}(this, function(root, Backbone, _) {
+  'use strict';
+
+  var previousMarionette = root.Marionette;
+
+  var Marionette = Backbone.Marionette = {};
+
+  Marionette.VERSION = '2.2.2';
+
+  Marionette.noConflict = function() {
+    root.Marionette = previousMarionette;
+    return this;
+  };
+
+  // Get the Deferred creator for later use
+  Marionette.Deferred = Backbone.$.Deferred;
+
+  /* jshint unused: false */
+  
+  // Helpers
+  // -------
+  
+  // For slicing `arguments` in functions
+  var slice = Array.prototype.slice;
+  
+  // Marionette.extend
+  // -----------------
+  
+  // Borrow the Backbone `extend` method so we can use it as needed
+  Marionette.extend = Backbone.Model.extend;
+  
+  // Marionette.getOption
+  // --------------------
+  
+  // Retrieve an object, function or other value from a target
+  // object or its `options`, with `options` taking precedence.
+  Marionette.getOption = function(target, optionName) {
+    if (!target || !optionName) { return; }
+    var value;
+  
+    if (target.options && (target.options[optionName] !== undefined)) {
+      value = target.options[optionName];
+    } else {
+      value = target[optionName];
+    }
+  
+    return value;
+  };
+  
+  // Proxy `Marionette.getOption`
+  Marionette.proxyGetOption = function(optionName) {
+    return Marionette.getOption(this, optionName);
+  };
+  
+  // Marionette.normalizeMethods
+  // ----------------------
+  
+  // Pass in a mapping of events => functions or function names
+  // and return a mapping of events => functions
+  Marionette.normalizeMethods = function(hash) {
+    var normalizedHash = {};
+    _.each(hash, function(method, name) {
+      if (!_.isFunction(method)) {
+        method = this[method];
+      }
+      if (!method) {
+        return;
+      }
+      normalizedHash[name] = method;
+    }, this);
+    return normalizedHash;
+  };
+  
+  // utility method for parsing @ui. syntax strings
+  // into associated selector
+  Marionette.normalizeUIString = function(uiString, ui) {
+    return uiString.replace(/@ui\.[a-zA-Z_$0-9]*/g, function(r) {
+      return ui[r.slice(4)];
+    });
+  };
+  
+  // allows for the use of the @ui. syntax within
+  // a given key for triggers and events
+  // swaps the @ui with the associated selector.
+  // Returns a new, non-mutated, parsed events hash.
+  Marionette.normalizeUIKeys = function(hash, ui) {
+    if (typeof(hash) === 'undefined') {
+      return;
+    }
+  
+    hash = _.clone(hash);
+  
+    _.each(_.keys(hash), function(key) {
+      var normalizedKey = Marionette.normalizeUIString(key, ui);
+      if (normalizedKey !== key) {
+        hash[normalizedKey] = hash[key];
+        delete hash[key];
+      }
+    });
+  
+    return hash;
+  };
+  
+  // allows for the use of the @ui. syntax within
+  // a given value for regions
+  // swaps the @ui with the associated selector
+  Marionette.normalizeUIValues = function(hash, ui) {
+    if (typeof(hash) === 'undefined') {
+      return;
+    }
+  
+    _.each(hash, function(val, key) {
+      if (_.isString(val)) {
+        hash[key] = Marionette.normalizeUIString(val, ui);
+      }
+    });
+  
+    return hash;
+  };
+  
+  // Mix in methods from Underscore, for iteration, and other
+  // collection related features.
+  // Borrowing this code from Backbone.Collection:
+  // http://backbonejs.org/docs/backbone.html#section-121
+  Marionette.actAsCollection = function(object, listProperty) {
+    var methods = ['forEach', 'each', 'map', 'find', 'detect', 'filter',
+      'select', 'reject', 'every', 'all', 'some', 'any', 'include',
+      'contains', 'invoke', 'toArray', 'first', 'initial', 'rest',
+      'last', 'without', 'isEmpty', 'pluck'];
+  
+    _.each(methods, function(method) {
+      object[method] = function() {
+        var list = _.values(_.result(this, listProperty));
+        var args = [list].concat(_.toArray(arguments));
+        return _[method].apply(_, args);
+      };
+    });
+  };
+  
+  // Trigger an event and/or a corresponding method name. Examples:
+  //
+  // `this.triggerMethod("foo")` will trigger the "foo" event and
+  // call the "onFoo" method.
+  //
+  // `this.triggerMethod("foo:bar")` will trigger the "foo:bar" event and
+  // call the "onFooBar" method.
+  Marionette.triggerMethod = function(event) {
+  
+    // split the event name on the ":"
+    var splitter = /(^|:)(\w)/gi;
+  
+    // take the event section ("section1:section2:section3")
+    // and turn it in to uppercase name
+    function getEventName(match, prefix, eventName) {
+      return eventName.toUpperCase();
+    }
+  
+    // get the method name from the event name
+    var methodName = 'on' + event.replace(splitter, getEventName);
+    var method = this[methodName];
+    var result;
+  
+    // call the onMethodName if it exists
+    if (_.isFunction(method)) {
+      // pass all arguments, except the event name
+      result = method.apply(this, _.tail(arguments));
+    }
+  
+    // trigger the event, if a trigger method exists
+    if (_.isFunction(this.trigger)) {
+      this.trigger.apply(this, arguments);
+    }
+  
+    return result;
+  };
+  
+  // triggerMethodOn invokes triggerMethod on a specific context
+  //
+  // e.g. `Marionette.triggerMethodOn(view, 'show')`
+  // will trigger a "show" event or invoke onShow the view.
+  Marionette.triggerMethodOn = function(context, event) {
+    var args = _.tail(arguments, 2);
+    var fnc;
+  
+    if (_.isFunction(context.triggerMethod)) {
+      fnc = context.triggerMethod;
+    } else {
+      fnc = Marionette.triggerMethod;
+    }
+  
+    return fnc.apply(context, [event].concat(args));
+  };
+  
+  // DOMRefresh
+  // ----------
+  //
+  // Monitor a view's state, and after it has been rendered and shown
+  // in the DOM, trigger a "dom:refresh" event every time it is
+  // re-rendered.
+  
+  Marionette.MonitorDOMRefresh = (function(documentElement) {
+    // track when the view has been shown in the DOM,
+    // using a Marionette.Region (or by other means of triggering "show")
+    function handleShow(view) {
+      view._isShown = true;
+      triggerDOMRefresh(view);
+    }
+  
+    // track when the view has been rendered
+    function handleRender(view) {
+      view._isRendered = true;
+      triggerDOMRefresh(view);
+    }
+  
+    // Trigger the "dom:refresh" event and corresponding "onDomRefresh" method
+    function triggerDOMRefresh(view) {
+      if (view._isShown && view._isRendered && isInDOM(view)) {
+        if (_.isFunction(view.triggerMethod)) {
+          view.triggerMethod('dom:refresh');
+        }
+      }
+    }
+  
+    function isInDOM(view) {
+      return Backbone.$.contains(documentElement, view.el);
+    }
+  
+    // Export public API
+    return function(view) {
+      view.listenTo(view, 'show', function() {
+        handleShow(view);
+      });
+  
+      view.listenTo(view, 'render', function() {
+        handleRender(view);
+      });
+    };
+  })(document.documentElement);
+  
+
+  /* jshint maxparams: 5 */
+  
+  // Marionette.bindEntityEvents & unbindEntityEvents
+  // ---------------------------
+  //
+  // These methods are used to bind/unbind a backbone "entity" (collection/model)
+  // to methods on a target object.
+  //
+  // The first parameter, `target`, must have a `listenTo` method from the
+  // EventBinder object.
+  //
+  // The second parameter is the entity (Backbone.Model or Backbone.Collection)
+  // to bind the events from.
+  //
+  // The third parameter is a hash of { "event:name": "eventHandler" }
+  // configuration. Multiple handlers can be separated by a space. A
+  // function can be supplied instead of a string handler name.
+  
+  (function(Marionette) {
+    'use strict';
+  
+    // Bind the event to handlers specified as a string of
+    // handler names on the target object
+    function bindFromStrings(target, entity, evt, methods) {
+      var methodNames = methods.split(/\s+/);
+  
+      _.each(methodNames, function(methodName) {
+  
+        var method = target[methodName];
+        if (!method) {
+          throw new Marionette.Error('Method "' + methodName +
+            '" was configured as an event handler, but does not exist.');
+        }
+  
+        target.listenTo(entity, evt, method);
+      });
+    }
+  
+    // Bind the event to a supplied callback function
+    function bindToFunction(target, entity, evt, method) {
+      target.listenTo(entity, evt, method);
+    }
+  
+    // Bind the event to handlers specified as a string of
+    // handler names on the target object
+    function unbindFromStrings(target, entity, evt, methods) {
+      var methodNames = methods.split(/\s+/);
+  
+      _.each(methodNames, function(methodName) {
+        var method = target[methodName];
+        target.stopListening(entity, evt, method);
+      });
+    }
+  
+    // Bind the event to a supplied callback function
+    function unbindToFunction(target, entity, evt, method) {
+      target.stopListening(entity, evt, method);
+    }
+  
+  
+    // generic looping function
+    function iterateEvents(target, entity, bindings, functionCallback, stringCallback) {
+      if (!entity || !bindings) { return; }
+  
+      // type-check bindings
+      if (!_.isFunction(bindings) && !_.isObject(bindings)) {
+        throw new Marionette.Error({
+          message: 'Bindings must be an object or function.',
+          url: 'marionette.functions.html#marionettebindentityevents'
+        });
+      }
+  
+      // allow the bindings to be a function
+      if (_.isFunction(bindings)) {
+        bindings = bindings.call(target);
+      }
+  
+      // iterate the bindings and bind them
+      _.each(bindings, function(methods, evt) {
+  
+        // allow for a function as the handler,
+        // or a list of event names as a string
+        if (_.isFunction(methods)) {
+          functionCallback(target, entity, evt, methods);
+        } else {
+          stringCallback(target, entity, evt, methods);
+        }
+  
+      });
+    }
+  
+    // Export Public API
+    Marionette.bindEntityEvents = function(target, entity, bindings) {
+      iterateEvents(target, entity, bindings, bindToFunction, bindFromStrings);
+    };
+  
+    Marionette.unbindEntityEvents = function(target, entity, bindings) {
+      iterateEvents(target, entity, bindings, unbindToFunction, unbindFromStrings);
+    };
+  
+    // Proxy `bindEntityEvents`
+    Marionette.proxyBindEntityEvents = function(entity, bindings) {
+      return Marionette.bindEntityEvents(this, entity, bindings);
+    };
+  
+    // Proxy `unbindEntityEvents`
+    Marionette.proxyUnbindEntityEvents = function(entity, bindings) {
+      return Marionette.unbindEntityEvents(this, entity, bindings);
+    };
+  })(Marionette);
+  
+
+  var errorProps = ['description', 'fileName', 'lineNumber', 'name', 'message', 'number'];
+  
+  Marionette.Error = Marionette.extend.call(Error, {
+    urlRoot: 'http://marionettejs.com/docs/v' + Marionette.VERSION + '/',
+  
+    constructor: function(message, options) {
+      if (_.isObject(message)) {
+        options = message;
+        message = options.message;
+      } else if (!options) {
+        options = {};
+      }
+  
+      var error = Error.call(this, message);
+      _.extend(this, _.pick(error, errorProps), _.pick(options, errorProps));
+  
+      this.captureStackTrace();
+  
+      if (options.url) {
+        this.url = this.urlRoot + options.url;
+      }
+    },
+  
+    captureStackTrace: function() {
+      if (Error.captureStackTrace) {
+        Error.captureStackTrace(this, Marionette.Error);
+      }
+    },
+  
+    toString: function() {
+      return this.name + ': ' + this.message + (this.url ? ' See: ' + this.url : '');
+    }
+  });
+  
+  Marionette.Error.extend = Marionette.extend;
+  
+  // Callbacks
+  // ---------
+  
+  // A simple way of managing a collection of callbacks
+  // and executing them at a later point in time, using jQuery's
+  // `Deferred` object.
+  Marionette.Callbacks = function() {
+    this._deferred = Marionette.Deferred();
+    this._callbacks = [];
+  };
+  
+  _.extend(Marionette.Callbacks.prototype, {
+  
+    // Add a callback to be executed. Callbacks added here are
+    // guaranteed to execute, even if they are added after the
+    // `run` method is called.
+    add: function(callback, contextOverride) {
+      var promise = _.result(this._deferred, 'promise');
+  
+      this._callbacks.push({cb: callback, ctx: contextOverride});
+  
+      promise.then(function(args) {
+        if (contextOverride){ args.context = contextOverride; }
+        callback.call(args.context, args.options);
+      });
+    },
+  
+    // Run all registered callbacks with the context specified.
+    // Additional callbacks can be added after this has been run
+    // and they will still be executed.
+    run: function(options, context) {
+      this._deferred.resolve({
+        options: options,
+        context: context
+      });
+    },
+  
+    // Resets the list of callbacks to be run, allowing the same list
+    // to be run multiple times - whenever the `run` method is called.
+    reset: function() {
+      var callbacks = this._callbacks;
+      this._deferred = Marionette.Deferred();
+      this._callbacks = [];
+  
+      _.each(callbacks, function(cb) {
+        this.add(cb.cb, cb.ctx);
+      }, this);
+    }
+  });
+  
+  // Marionette Controller
+  // ---------------------
+  //
+  // A multi-purpose object to use as a controller for
+  // modules and routers, and as a mediator for workflow
+  // and coordination of other objects, views, and more.
+  Marionette.Controller = function(options) {
+    this.options = options || {};
+  
+    if (_.isFunction(this.initialize)) {
+      this.initialize(this.options);
+    }
+  };
+  
+  Marionette.Controller.extend = Marionette.extend;
+  
+  // Controller Methods
+  // --------------
+  
+  // Ensure it can trigger events with Backbone.Events
+  _.extend(Marionette.Controller.prototype, Backbone.Events, {
+    destroy: function() {
+      var args = slice.call(arguments);
+      this.triggerMethod.apply(this, ['before:destroy'].concat(args));
+      this.triggerMethod.apply(this, ['destroy'].concat(args));
+  
+      this.stopListening();
+      this.off();
+      return this;
+    },
+  
+    // import the `triggerMethod` to trigger events with corresponding
+    // methods if the method exists
+    triggerMethod: Marionette.triggerMethod,
+  
+    // Proxy `getOption` to enable getting options from this or this.options by name.
+    getOption: Marionette.proxyGetOption
+  
+  });
+  
+  // Marionette Object
+  // ---------------------
+  //
+  // A Base Class that other Classes should descend from.
+  // Object borrows many conventions and utilities from Backbone.
+  Marionette.Object = function(options) {
+    this.options = _.extend({}, _.result(this, 'options'), options);
+  
+    this.initialize.apply(this, arguments);
+  };
+  
+  Marionette.Object.extend = Marionette.extend;
+  
+  // Object Methods
+  // --------------
+  
+  _.extend(Marionette.Object.prototype, {
+  
+    //this is a noop method intended to be overridden by classes that extend from this base
+    initialize: function() {},
+  
+    destroy: function() {
+      this.triggerMethod('before:destroy');
+      this.triggerMethod('destroy');
+      this.stopListening();
+    },
+  
+    // Import the `triggerMethod` to trigger events with corresponding
+    // methods if the method exists
+    triggerMethod: Marionette.triggerMethod,
+  
+    // Proxy `getOption` to enable getting options from this or this.options by name.
+    getOption: Marionette.proxyGetOption,
+  
+    // Proxy `unbindEntityEvents` to enable binding view's events from another entity.
+    bindEntityEvents: Marionette.proxyBindEntityEvents,
+  
+    // Proxy `unbindEntityEvents` to enable unbinding view's events from another entity.
+    unbindEntityEvents: Marionette.proxyUnbindEntityEvents
+  });
+  
+  // Ensure it can trigger events with Backbone.Events
+  _.extend(Marionette.Object.prototype, Backbone.Events);
+  
+  /* jshint maxcomplexity: 10, maxstatements: 29 */
+  
+  // Region
+  // ------
+  //
+  // Manage the visual regions of your composite application. See
+  // http://lostechies.com/derickbailey/2011/12/12/composite-js-apps-regions-and-region-managers/
+  
+  Marionette.Region = function(options) {
+    this.options = options || {};
+    this.el = this.getOption('el');
+  
+    // Handle when this.el is passed in as a $ wrapped element.
+    this.el = this.el instanceof Backbone.$ ? this.el[0] : this.el;
+  
+    if (!this.el) {
+      throw new Marionette.Error({
+        name: 'NoElError',
+        message: 'An "el" must be specified for a region.'
+      });
+    }
+  
+    this.$el = this.getEl(this.el);
+  
+    if (this.initialize) {
+      var args = slice.apply(arguments);
+      this.initialize.apply(this, args);
+    }
+  };
+  
+  
+  // Region Class methods
+  // -------------------
+  
+  _.extend(Marionette.Region, {
+  
+    // Build an instance of a region by passing in a configuration object
+    // and a default region class to use if none is specified in the config.
+    //
+    // The config object should either be a string as a jQuery DOM selector,
+    // a Region class directly, or an object literal that specifies both
+    // a selector and regionClass:
+    //
+    // ```js
+    // {
+    //   selector: "#foo",
+    //   regionClass: MyCustomRegion
+    // }
+    // ```
+    //
+    buildRegion: function(regionConfig, DefaultRegionClass) {
+      if (_.isString(regionConfig)) {
+        return this._buildRegionFromSelector(regionConfig, DefaultRegionClass);
+      }
+  
+      if (regionConfig.selector || regionConfig.el || regionConfig.regionClass) {
+        return this._buildRegionFromObject(regionConfig, DefaultRegionClass);
+      }
+  
+      if (_.isFunction(regionConfig)) {
+        return this._buildRegionFromRegionClass(regionConfig);
+      }
+  
+      throw new Marionette.Error({
+        message: 'Improper region configuration type.',
+        url: 'marionette.region.html#region-configuration-types'
+      });
+    },
+  
+    // Build the region from a string selector like '#foo-region'
+    _buildRegionFromSelector: function(selector, DefaultRegionClass) {
+      return new DefaultRegionClass({ el: selector });
+    },
+  
+    // Build the region from a configuration object
+    // ```js
+    // { selector: '#foo', regionClass: FooRegion }
+    // ```
+    _buildRegionFromObject: function(regionConfig, DefaultRegionClass) {
+      var RegionClass = regionConfig.regionClass || DefaultRegionClass;
+      var options = _.omit(regionConfig, 'selector', 'regionClass');
+  
+      if (regionConfig.selector && !options.el) {
+        options.el = regionConfig.selector;
+      }
+  
+      var region = new RegionClass(options);
+  
+      // override the `getEl` function if we have a parentEl
+      // this must be overridden to ensure the selector is found
+      // on the first use of the region. if we try to assign the
+      // region's `el` to `parentEl.find(selector)` in the object
+      // literal to build the region, the element will not be
+      // guaranteed to be in the DOM already, and will cause problems
+      if (regionConfig.parentEl) {
+        region.getEl = function(el) {
+          if (_.isObject(el)) {
+            return Backbone.$(el);
+          }
+          var parentEl = regionConfig.parentEl;
+          if (_.isFunction(parentEl)) {
+            parentEl = parentEl();
+          }
+          return parentEl.find(el);
+        };
+      }
+  
+      return region;
+    },
+  
+    // Build the region directly from a given `RegionClass`
+    _buildRegionFromRegionClass: function(RegionClass) {
+      return new RegionClass();
+    }
+  
+  });
+  
+  // Region Instance Methods
+  // -----------------------
+  
+  _.extend(Marionette.Region.prototype, Backbone.Events, {
+  
+    // Displays a backbone view instance inside of the region.
+    // Handles calling the `render` method for you. Reads content
+    // directly from the `el` attribute. Also calls an optional
+    // `onShow` and `onDestroy` method on your view, just after showing
+    // or just before destroying the view, respectively.
+    // The `preventDestroy` option can be used to prevent a view from
+    // the old view being destroyed on show.
+    // The `forceShow` option can be used to force a view to be
+    // re-rendered if it's already shown in the region.
+  
+    show: function(view, options){
+      this._ensureElement();
+  
+      var showOptions     = options || {};
+      var isDifferentView = view !== this.currentView;
+      var preventDestroy  = !!showOptions.preventDestroy;
+      var forceShow       = !!showOptions.forceShow;
+  
+      // We are only changing the view if there is a current view to change to begin with
+      var isChangingView = !!this.currentView;
+  
+      // Only destroy the current view if we don't want to `preventDestroy` and if
+      // the view given in the first argument is different than `currentView`
+      var _shouldDestroyView = isDifferentView && !preventDestroy;
+  
+      // Only show the view given in the first argument if it is different than
+      // the current view or if we want to re-show the view. Note that if
+      // `_shouldDestroyView` is true, then `_shouldShowView` is also necessarily true.
+      var _shouldShowView = isDifferentView || forceShow;
+  
+      if (isChangingView) {
+        this.triggerMethod('before:swapOut', this.currentView);
+      }
+  
+      if (_shouldDestroyView) {
+        this.empty();
+      }
+  
+      if (_shouldShowView) {
+  
+        // We need to listen for if a view is destroyed
+        // in a way other than through the region.
+        // If this happens we need to remove the reference
+        // to the currentView since once a view has been destroyed
+        // we can not reuse it.
+        view.once('destroy', this.empty, this);
+        view.render();
+  
+        if (isChangingView) {
+          this.triggerMethod('before:swap', view);
+        }
+  
+        this.triggerMethod('before:show', view);
+        Marionette.triggerMethodOn(view, 'before:show');
+  
+        this.attachHtml(view);
+  
+        if (isChangingView) {
+          this.triggerMethod('swapOut', this.currentView);
+        }
+  
+        this.currentView = view;
+  
+        if (isChangingView) {
+          this.triggerMethod('swap', view);
+        }
+  
+        this.triggerMethod('show', view);
+        Marionette.triggerMethodOn(view, 'show');
+  
+        return this;
+      }
+  
+      return this;
+    },
+  
+    _ensureElement: function(){
+      if (!_.isObject(this.el)) {
+        this.$el = this.getEl(this.el);
+        this.el = this.$el[0];
+      }
+  
+      if (!this.$el || this.$el.length === 0) {
+        throw new Marionette.Error('An "el" ' + this.$el.selector + ' must exist in DOM');
+      }
+    },
+  
+    // Override this method to change how the region finds the
+    // DOM element that it manages. Return a jQuery selector object.
+    getEl: function(el) {
+      return Backbone.$(el);
+    },
+  
+    // Override this method to change how the new view is
+    // appended to the `$el` that the region is managing
+    attachHtml: function(view) {
+      // empty the node and append new view
+      this.el.innerHTML='';
+      this.el.appendChild(view.el);
+    },
+  
+    // Destroy the current view, if there is one. If there is no
+    // current view, it does nothing and returns immediately.
+    empty: function() {
+      var view = this.currentView;
+  
+      // If there is no view in the region
+      // we should not remove anything
+      if (!view) { return; }
+  
+      view.off('destroy', this.empty, this);
+      this.triggerMethod('before:empty', view);
+      this._destroyView();
+      this.triggerMethod('empty', view);
+  
+      // Remove region pointer to the currentView
+      delete this.currentView;
+      return this;
+    },
+  
+    // call 'destroy' or 'remove', depending on which is found
+    // on the view (if showing a raw Backbone view or a Marionette View)
+    _destroyView: function() {
+      var view = this.currentView;
+  
+      if (view.destroy && !view.isDestroyed) {
+        view.destroy();
+      } else if (view.remove) {
+        view.remove();
+      }
+    },
+  
+    // Attach an existing view to the region. This
+    // will not call `render` or `onShow` for the new view,
+    // and will not replace the current HTML for the `el`
+    // of the region.
+    attachView: function(view) {
+      this.currentView = view;
+      return this;
+    },
+  
+    // Checks whether a view is currently present within
+    // the region. Returns `true` if there is and `false` if
+    // no view is present.
+    hasView: function() {
+      return !!this.currentView;
+    },
+  
+    // Reset the region by destroying any existing view and
+    // clearing out the cached `$el`. The next time a view
+    // is shown via this region, the region will re-query the
+    // DOM for the region's `el`.
+    reset: function() {
+      this.empty();
+  
+      if (this.$el) {
+        this.el = this.$el.selector;
+      }
+  
+      delete this.$el;
+      return this;
+    },
+  
+    // Proxy `getOption` to enable getting options from this or this.options by name.
+    getOption: Marionette.proxyGetOption,
+  
+    // import the `triggerMethod` to trigger events with corresponding
+    // methods if the method exists
+    triggerMethod: Marionette.triggerMethod
+  });
+  
+  // Copy the `extend` function used by Backbone's classes
+  Marionette.Region.extend = Marionette.extend;
+  
+  // Marionette.RegionManager
+  // ------------------------
+  //
+  // Manage one or more related `Marionette.Region` objects.
+  Marionette.RegionManager = (function(Marionette) {
+  
+    var RegionManager = Marionette.Controller.extend({
+      constructor: function(options) {
+        this._regions = {};
+        Marionette.Controller.call(this, options);
+      },
+  
+      // Add multiple regions using an object literal or a
+      // function that returns an object literal, where
+      // each key becomes the region name, and each value is
+      // the region definition.
+      addRegions: function(regionDefinitions, defaults) {
+        if (_.isFunction(regionDefinitions)) {
+          regionDefinitions = regionDefinitions.apply(this, arguments);
+        }
+  
+        var regions = {};
+  
+        _.each(regionDefinitions, function(definition, name) {
+          if (_.isString(definition)) {
+            definition = {selector: definition};
+          }
+  
+          if (definition.selector) {
+            definition = _.defaults({}, definition, defaults);
+          }
+  
+          var region = this.addRegion(name, definition);
+          regions[name] = region;
+        }, this);
+  
+        return regions;
+      },
+  
+      // Add an individual region to the region manager,
+      // and return the region instance
+      addRegion: function(name, definition) {
+        var region;
+  
+        if (definition instanceof Marionette.Region) {
+          region = definition;
+        } else {
+          region = Marionette.Region.buildRegion(definition, Marionette.Region);
+        }
+  
+        this.triggerMethod('before:add:region', name, region);
+  
+        this._store(name, region);
+  
+        this.triggerMethod('add:region', name, region);
+        return region;
+      },
+  
+      // Get a region by name
+      get: function(name) {
+        return this._regions[name];
+      },
+  
+      // Gets all the regions contained within
+      // the `regionManager` instance.
+      getRegions: function(){
+        return _.clone(this._regions);
+      },
+  
+      // Remove a region by name
+      removeRegion: function(name) {
+        var region = this._regions[name];
+        this._remove(name, region);
+  
+        return region;
+      },
+  
+      // Empty all regions in the region manager, and
+      // remove them
+      removeRegions: function() {
+        var regions = this.getRegions();
+        _.each(this._regions, function(region, name) {
+          this._remove(name, region);
+        }, this);
+  
+        return regions;
+      },
+  
+      // Empty all regions in the region manager, but
+      // leave them attached
+      emptyRegions: function() {
+        var regions = this.getRegions();
+        _.each(regions, function(region) {
+          region.empty();
+        }, this);
+  
+        return regions;
+      },
+  
+      // Destroy all regions and shut down the region
+      // manager entirely
+      destroy: function() {
+        this.removeRegions();
+        return Marionette.Controller.prototype.destroy.apply(this, arguments);
+      },
+  
+      // internal method to store regions
+      _store: function(name, region) {
+        this._regions[name] = region;
+        this._setLength();
+      },
+  
+      // internal method to remove a region
+      _remove: function(name, region) {
+        this.triggerMethod('before:remove:region', name, region);
+        region.empty();
+        region.stopListening();
+        delete this._regions[name];
+        this._setLength();
+        this.triggerMethod('remove:region', name, region);
+      },
+  
+      // set the number of regions current held
+      _setLength: function() {
+        this.length = _.size(this._regions);
+      }
+  
+    });
+  
+    Marionette.actAsCollection(RegionManager.prototype, '_regions');
+  
+    return RegionManager;
+  })(Marionette);
+  
+
+  // Template Cache
+  // --------------
+  
+  // Manage templates stored in `<script>` blocks,
+  // caching them for faster access.
+  Marionette.TemplateCache = function(templateId) {
+    this.templateId = templateId;
+  };
+  
+  // TemplateCache object-level methods. Manage the template
+  // caches from these method calls instead of creating
+  // your own TemplateCache instances
+  _.extend(Marionette.TemplateCache, {
+    templateCaches: {},
+  
+    // Get the specified template by id. Either
+    // retrieves the cached version, or loads it
+    // from the DOM.
+    get: function(templateId) {
+      var cachedTemplate = this.templateCaches[templateId];
+  
+      if (!cachedTemplate) {
+        cachedTemplate = new Marionette.TemplateCache(templateId);
+        this.templateCaches[templateId] = cachedTemplate;
+      }
+  
+      return cachedTemplate.load();
+    },
+  
+    // Clear templates from the cache. If no arguments
+    // are specified, clears all templates:
+    // `clear()`
+    //
+    // If arguments are specified, clears each of the
+    // specified templates from the cache:
+    // `clear("#t1", "#t2", "...")`
+    clear: function() {
+      var i;
+      var args = slice.call(arguments);
+      var length = args.length;
+  
+      if (length > 0) {
+        for (i = 0; i < length; i++) {
+          delete this.templateCaches[args[i]];
+        }
+      } else {
+        this.templateCaches = {};
+      }
+    }
+  });
+  
+  // TemplateCache instance methods, allowing each
+  // template cache object to manage its own state
+  // and know whether or not it has been loaded
+  _.extend(Marionette.TemplateCache.prototype, {
+  
+    // Internal method to load the template
+    load: function() {
+      // Guard clause to prevent loading this template more than once
+      if (this.compiledTemplate) {
+        return this.compiledTemplate;
+      }
+  
+      // Load the template and compile it
+      var template = this.loadTemplate(this.templateId);
+      this.compiledTemplate = this.compileTemplate(template);
+  
+      return this.compiledTemplate;
+    },
+  
+    // Load a template from the DOM, by default. Override
+    // this method to provide your own template retrieval
+    // For asynchronous loading with AMD/RequireJS, consider
+    // using a template-loader plugin as described here:
+    // https://github.com/marionettejs/backbone.marionette/wiki/Using-marionette-with-requirejs
+    loadTemplate: function(templateId) {
+      var template = Backbone.$(templateId).html();
+  
+      if (!template || template.length === 0) {
+        throw new Marionette.Error({
+          name: 'NoTemplateError',
+          message: 'Could not find template: "' + templateId + '"'
+        });
+      }
+  
+      return template;
+    },
+  
+    // Pre-compile the template before caching it. Override
+    // this method if you do not need to pre-compile a template
+    // (JST / RequireJS for example) or if you want to change
+    // the template engine used (Handebars, etc).
+    compileTemplate: function(rawTemplate) {
+      return _.template(rawTemplate);
+    }
+  });
+  
+  // Renderer
+  // --------
+  
+  // Render a template with data by passing in the template
+  // selector and the data to render.
+  Marionette.Renderer = {
+  
+    // Render a template with data. The `template` parameter is
+    // passed to the `TemplateCache` object to retrieve the
+    // template function. Override this method to provide your own
+    // custom rendering and template handling for all of Marionette.
+    render: function(template, data) {
+      if (!template) {
+        throw new Marionette.Error({
+          name: 'TemplateNotFoundError',
+          message: 'Cannot render the template since its false, null or undefined.'
+        });
+      }
+  
+      var templateFunc;
+      if (typeof template === 'function') {
+        templateFunc = template;
+      } else {
+        templateFunc = Marionette.TemplateCache.get(template);
+      }
+  
+      return templateFunc(data);
+    }
+  };
+  
+
+  /* jshint maxlen: 114, nonew: false */
+  // Marionette.View
+  // ---------------
+  
+  // The core view class that other Marionette views extend from.
+  Marionette.View = Backbone.View.extend({
+  
+    constructor: function(options) {
+      _.bindAll(this, 'render');
+  
+      // this exposes view options to the view initializer
+      // this is a backfill since backbone removed the assignment
+      // of this.options
+      // at some point however this may be removed
+      this.options = _.extend({}, _.result(this, 'options'), _.isFunction(options) ? options.call(this) : options);
+  
+      this._behaviors = Marionette.Behaviors(this);
+  
+      Backbone.View.apply(this, arguments);
+  
+      Marionette.MonitorDOMRefresh(this);
+      this.listenTo(this, 'show', this.onShowCalled);
+    },
+  
+    // Get the template for this view
+    // instance. You can set a `template` attribute in the view
+    // definition or pass a `template: "whatever"` parameter in
+    // to the constructor options.
+    getTemplate: function() {
+      return this.getOption('template');
+    },
+  
+    // Serialize a model by returning its attributes. Clones
+    // the attributes to allow modification.
+    serializeModel: function(model){
+      return model.toJSON.apply(model, slice.call(arguments, 1));
+    },
+  
+    // Mix in template helper methods. Looks for a
+    // `templateHelpers` attribute, which can either be an
+    // object literal, or a function that returns an object
+    // literal. All methods and attributes from this object
+    // are copies to the object passed in.
+    mixinTemplateHelpers: function(target) {
+      target = target || {};
+      var templateHelpers = this.getOption('templateHelpers');
+      if (_.isFunction(templateHelpers)) {
+        templateHelpers = templateHelpers.call(this);
+      }
+      return _.extend(target, templateHelpers);
+    },
+  
+    // normalize the keys of passed hash with the views `ui` selectors.
+    // `{"@ui.foo": "bar"}`
+    normalizeUIKeys: function(hash) {
+      var ui = _.result(this, 'ui');
+      var uiBindings = _.result(this, '_uiBindings');
+      return Marionette.normalizeUIKeys(hash, uiBindings || ui);
+    },
+  
+    // normalize the values of passed hash with the views `ui` selectors.
+    // `{foo: "@ui.bar"}`
+    normalizeUIValues: function(hash) {
+      var ui = _.result(this, 'ui');
+      var uiBindings = _.result(this, '_uiBindings');
+      return Marionette.normalizeUIValues(hash, uiBindings || ui);
+    },
+  
+    // Configure `triggers` to forward DOM events to view
+    // events. `triggers: {"click .foo": "do:foo"}`
+    configureTriggers: function() {
+      if (!this.triggers) { return; }
+  
+      var triggerEvents = {};
+  
+      // Allow `triggers` to be configured as a function
+      var triggers = this.normalizeUIKeys(_.result(this, 'triggers'));
+  
+      // Configure the triggers, prevent default
+      // action and stop propagation of DOM events
+      _.each(triggers, function(value, key) {
+        triggerEvents[key] = this._buildViewTrigger(value);
+      }, this);
+  
+      return triggerEvents;
+    },
+  
+    // Overriding Backbone.View's delegateEvents to handle
+    // the `triggers`, `modelEvents`, and `collectionEvents` configuration
+    delegateEvents: function(events) {
+      this._delegateDOMEvents(events);
+      this.bindEntityEvents(this.model, this.getOption('modelEvents'));
+      this.bindEntityEvents(this.collection, this.getOption('collectionEvents'));
+  
+      _.each(this._behaviors, function(behavior) {
+        behavior.bindEntityEvents(this.model, behavior.getOption('modelEvents'));
+        behavior.bindEntityEvents(this.collection, behavior.getOption('collectionEvents'));
+      }, this);
+  
+      return this;
+    },
+  
+    // internal method to delegate DOM events and triggers
+    _delegateDOMEvents: function(eventsArg) {
+      var events = eventsArg || this.events;
+      if (_.isFunction(events)) { events = events.call(this); }
+  
+      // normalize ui keys
+      events = this.normalizeUIKeys(events);
+      if(_.isUndefined(eventsArg)) {this.events = events;}
+  
+      var combinedEvents = {};
+  
+      // look up if this view has behavior events
+      var behaviorEvents = _.result(this, 'behaviorEvents') || {};
+      var triggers = this.configureTriggers();
+      var behaviorTriggers = _.result(this, 'behaviorTriggers') || {};
+  
+      // behavior events will be overriden by view events and or triggers
+      _.extend(combinedEvents, behaviorEvents, events, triggers, behaviorTriggers);
+  
+      Backbone.View.prototype.delegateEvents.call(this, combinedEvents);
+    },
+  
+    // Overriding Backbone.View's undelegateEvents to handle unbinding
+    // the `triggers`, `modelEvents`, and `collectionEvents` config
+    undelegateEvents: function() {
+      var args = slice.call(arguments);
+      Backbone.View.prototype.undelegateEvents.apply(this, args);
+  
+      this.unbindEntityEvents(this.model, this.getOption('modelEvents'));
+      this.unbindEntityEvents(this.collection, this.getOption('collectionEvents'));
+  
+      _.each(this._behaviors, function(behavior) {
+        behavior.unbindEntityEvents(this.model, behavior.getOption('modelEvents'));
+        behavior.unbindEntityEvents(this.collection, behavior.getOption('collectionEvents'));
+      }, this);
+  
+      return this;
+    },
+  
+    // Internal method, handles the `show` event.
+    onShowCalled: function() {},
+  
+    // Internal helper method to verify whether the view hasn't been destroyed
+    _ensureViewIsIntact: function() {
+      if (this.isDestroyed) {
+        throw new Marionette.Error({
+          name: 'ViewDestroyedError',
+          message: 'View (cid: "' + this.cid + '") has already been destroyed and cannot be used.'
+        });
+      }
+    },
+  
+    // Default `destroy` implementation, for removing a view from the
+    // DOM and unbinding it. Regions will call this method
+    // for you. You can specify an `onDestroy` method in your view to
+    // add custom code that is called after the view is destroyed.
+    destroy: function() {
+      if (this.isDestroyed) { return; }
+  
+      var args = slice.call(arguments);
+  
+      this.triggerMethod.apply(this, ['before:destroy'].concat(args));
+  
+      // mark as destroyed before doing the actual destroy, to
+      // prevent infinite loops within "destroy" event handlers
+      // that are trying to destroy other views
+      this.isDestroyed = true;
+      this.triggerMethod.apply(this, ['destroy'].concat(args));
+  
+      // unbind UI elements
+      this.unbindUIElements();
+  
+      // remove the view from the DOM
+      this.remove();
+  
+      // Call destroy on each behavior after
+      // destroying the view.
+      // This unbinds event listeners
+      // that behaviors have registered for.
+      _.invoke(this._behaviors, 'destroy', args);
+  
+      return this;
+    },
+  
+    bindUIElements: function() {
+      this._bindUIElements();
+      _.invoke(this._behaviors, this._bindUIElements);
+    },
+  
+    // This method binds the elements specified in the "ui" hash inside the view's code with
+    // the associated jQuery selectors.
+    _bindUIElements: function() {
+      if (!this.ui) { return; }
+  
+      // store the ui hash in _uiBindings so they can be reset later
+      // and so re-rendering the view will be able to find the bindings
+      if (!this._uiBindings) {
+        this._uiBindings = this.ui;
+      }
+  
+      // get the bindings result, as a function or otherwise
+      var bindings = _.result(this, '_uiBindings');
+  
+      // empty the ui so we don't have anything to start with
+      this.ui = {};
+  
+      // bind each of the selectors
+      _.each(_.keys(bindings), function(key) {
+        var selector = bindings[key];
+        this.ui[key] = this.$(selector);
+      }, this);
+    },
+  
+    // This method unbinds the elements specified in the "ui" hash
+    unbindUIElements: function() {
+      this._unbindUIElements();
+      _.invoke(this._behaviors, this._unbindUIElements);
+    },
+  
+    _unbindUIElements: function() {
+      if (!this.ui || !this._uiBindings) { return; }
+  
+      // delete all of the existing ui bindings
+      _.each(this.ui, function($el, name) {
+        delete this.ui[name];
+      }, this);
+  
+      // reset the ui element to the original bindings configuration
+      this.ui = this._uiBindings;
+      delete this._uiBindings;
+    },
+  
+    // Internal method to create an event handler for a given `triggerDef` like
+    // 'click:foo'
+    _buildViewTrigger: function(triggerDef) {
+      var hasOptions = _.isObject(triggerDef);
+  
+      var options = _.defaults({}, (hasOptions ? triggerDef : {}), {
+        preventDefault: true,
+        stopPropagation: true
+      });
+  
+      var eventName = hasOptions ? options.event : triggerDef;
+  
+      return function(e) {
+        if (e) {
+          if (e.preventDefault && options.preventDefault) {
+            e.preventDefault();
+          }
+  
+          if (e.stopPropagation && options.stopPropagation) {
+            e.stopPropagation();
+          }
+        }
+  
+        var args = {
+          view: this,
+          model: this.model,
+          collection: this.collection
+        };
+  
+        this.triggerMethod(eventName, args);
+      };
+    },
+  
+    setElement: function() {
+      var ret = Backbone.View.prototype.setElement.apply(this, arguments);
+  
+      // proxy behavior $el to the view's $el.
+      // This is needed because a view's $el proxy
+      // is not set until after setElement is called.
+      _.invoke(this._behaviors, 'proxyViewProperties', this);
+  
+      return ret;
+    },
+  
+    // import the `triggerMethod` to trigger events with corresponding
+    // methods if the method exists
+    triggerMethod: function() {
+      var args = arguments;
+      var triggerMethod = Marionette.triggerMethod;
+  
+      var ret = triggerMethod.apply(this, args);
+      _.each(this._behaviors, function(b) {
+        triggerMethod.apply(b, args);
+      });
+  
+      return ret;
+    },
+  
+    // Imports the "normalizeMethods" to transform hashes of
+    // events=>function references/names to a hash of events=>function references
+    normalizeMethods: Marionette.normalizeMethods,
+  
+    // Proxy `getOption` to enable getting options from this or this.options by name.
+    getOption: Marionette.proxyGetOption,
+  
+    // Proxy `unbindEntityEvents` to enable binding view's events from another entity.
+    bindEntityEvents: Marionette.proxyBindEntityEvents,
+  
+    // Proxy `unbindEntityEvents` to enable unbinding view's events from another entity.
+    unbindEntityEvents: Marionette.proxyUnbindEntityEvents
+  });
+  
+  // Item View
+  // ---------
+  
+  // A single item view implementation that contains code for rendering
+  // with underscore.js templates, serializing the view's model or collection,
+  // and calling several methods on extended views, such as `onRender`.
+  Marionette.ItemView = Marionette.View.extend({
+  
+    // Setting up the inheritance chain which allows changes to
+    // Marionette.View.prototype.constructor which allows overriding
+    constructor: function() {
+      Marionette.View.apply(this, arguments);
+    },
+  
+    // Serialize the model or collection for the view. If a model is
+    // found, the view's `serializeModel` is called. If a collection is found,
+    // each model in the collection is serialized by calling
+    // the view's `serializeCollection` and put into an `items` array in
+    // the resulting data. If both are found, defaults to the model.
+    // You can override the `serializeData` method in your own view definition,
+    // to provide custom serialization for your view's data.
+    serializeData: function(){
+      var data = {};
+  
+      if (this.model) {
+        data = _.partial(this.serializeModel, this.model).apply(this, arguments);
+      }
+      else if (this.collection) {
+        data = { items: _.partial(this.serializeCollection, this.collection).apply(this, arguments) };
+      }
+  
+      return data;
+    },
+  
+    // Serialize a collection by serializing each of its models.
+    serializeCollection: function(collection){
+      return collection.toJSON.apply(collection, slice.call(arguments, 1));
+    },
+  
+    // Render the view, defaulting to underscore.js templates.
+    // You can override this in your view definition to provide
+    // a very specific rendering for your view. In general, though,
+    // you should override the `Marionette.Renderer` object to
+    // change how Marionette renders views.
+    render: function() {
+      this._ensureViewIsIntact();
+  
+      this.triggerMethod('before:render', this);
+  
+      this._renderTemplate();
+      this.bindUIElements();
+  
+      this.triggerMethod('render', this);
+  
+      return this;
+    },
+  
+    // Internal method to render the template with the serialized data
+    // and template helpers via the `Marionette.Renderer` object.
+    // Throws an `UndefinedTemplateError` error if the template is
+    // any falsely value but literal `false`.
+    _renderTemplate: function() {
+      var template = this.getTemplate();
+  
+      // Allow template-less item views
+      if (template === false) {
+        return;
+      }
+  
+      if (!template) {
+        throw new Marionette.Error({
+          name: 'UndefinedTemplateError',
+          message: 'Cannot render the template since it is null or undefined.'
+        });
+      }
+  
+      // Add in entity data and template helpers
+      var data = this.serializeData();
+      data = this.mixinTemplateHelpers(data);
+  
+      // Render and add to el
+      var html = Marionette.Renderer.render(template, data, this);
+      this.attachElContent(html);
+  
+      return this;
+    },
+  
+    // Attaches the content of a given view.
+    // This method can be overridden to optimize rendering,
+    // or to render in a non standard way.
+    //
+    // For example, using `innerHTML` instead of `$el.html`
+    //
+    // ```js
+    // attachElContent: function(html) {
+    //   this.el.innerHTML = html;
+    //   return this;
+    // }
+    // ```
+    attachElContent: function(html) {
+      this.$el.html(html);
+  
+      return this;
+    },
+  
+    // Override the default destroy event to add a few
+    // more events that are triggered.
+    destroy: function() {
+      if (this.isDestroyed) { return; }
+  
+      return Marionette.View.prototype.destroy.apply(this, arguments);
+    }
+  });
+  
+  /* jshint maxstatements: 14 */
+  
+  // Collection View
+  // ---------------
+  
+  // A view that iterates over a Backbone.Collection
+  // and renders an individual child view for each model.
+  Marionette.CollectionView = Marionette.View.extend({
+  
+    // used as the prefix for child view events
+    // that are forwarded through the collectionview
+    childViewEventPrefix: 'childview',
+  
+    // constructor
+    // option to pass `{sort: false}` to prevent the `CollectionView` from
+    // maintaining the sorted order of the collection.
+    // This will fallback onto appending childView's to the end.
+    constructor: function(options){
+      var initOptions = options || {};
+      this.sort = _.isUndefined(initOptions.sort) ? true : initOptions.sort;
+  
+      this.once('render', this._initialEvents);
+      this._initChildViewStorage();
+  
+      Marionette.View.apply(this, arguments);
+  
+      this.initRenderBuffer();
+    },
+  
+    // Instead of inserting elements one by one into the page,
+    // it's much more performant to insert elements into a document
+    // fragment and then insert that document fragment into the page
+    initRenderBuffer: function() {
+      this.elBuffer = document.createDocumentFragment();
+      this._bufferedChildren = [];
+    },
+  
+    startBuffering: function() {
+      this.initRenderBuffer();
+      this.isBuffering = true;
+    },
+  
+    endBuffering: function() {
+      this.isBuffering = false;
+      this._triggerBeforeShowBufferedChildren();
+      this.attachBuffer(this, this.elBuffer);
+      this._triggerShowBufferedChildren();
+      this.initRenderBuffer();
+    },
+  
+    _triggerBeforeShowBufferedChildren: function() {
+      if (this._isShown) {
+        _.each(this._bufferedChildren, _.partial(this._triggerMethodOnChild, 'before:show'));
+      }
+    },
+  
+    _triggerShowBufferedChildren: function() {
+      if (this._isShown) {
+        _.each(this._bufferedChildren, _.partial(this._triggerMethodOnChild, 'show'));
+  
+        this._bufferedChildren = [];
+      }
+    },
+  
+    // Internal method for _.each loops to call `Marionette.triggerMethodOn` on
+    // a child view
+    _triggerMethodOnChild: function(event, childView) {
+      Marionette.triggerMethodOn(childView, event);
+    },
+  
+    // Configured the initial events that the collection view
+    // binds to.
+    _initialEvents: function() {
+      if (this.collection) {
+        this.listenTo(this.collection, 'add', this._onCollectionAdd);
+        this.listenTo(this.collection, 'remove', this._onCollectionRemove);
+        this.listenTo(this.collection, 'reset', this.render);
+  
+        if (this.sort) {
+          this.listenTo(this.collection, 'sort', this._sortViews);
+        }
+      }
+    },
+  
+    // Handle a child added to the collection
+    _onCollectionAdd: function(child) {
+      this.destroyEmptyView();
+      var ChildView = this.getChildView(child);
+      var index = this.collection.indexOf(child);
+      this.addChild(child, ChildView, index);
+    },
+  
+    // get the child view by model it holds, and remove it
+    _onCollectionRemove: function(model) {
+      var view = this.children.findByModel(model);
+      this.removeChildView(view);
+      this.checkEmpty();
+    },
+  
+    // Override from `Marionette.View` to trigger show on child views
+    onShowCalled: function() {
+      this.children.each(_.partial(this._triggerMethodOnChild, 'show'));
+    },
+  
+    // Render children views. Override this method to
+    // provide your own implementation of a render function for
+    // the collection view.
+    render: function() {
+      this._ensureViewIsIntact();
+      this.triggerMethod('before:render', this);
+      this._renderChildren();
+      this.triggerMethod('render', this);
+      return this;
+    },
+  
+    // Render view after sorting. Override this method to
+    // change how the view renders after a `sort` on the collection.
+    // An example of this would be to only `renderChildren` in a `CompositeView`
+    // rather than the full view.
+    resortView: function() {
+      this.render();
+    },
+  
+    // Internal method. This checks for any changes in the order of the collection.
+    // If the index of any view doesn't match, it will render.
+    _sortViews: function() {
+      // check for any changes in sort order of views
+      var orderChanged = this.collection.find(function(item, index){
+        var view = this.children.findByModel(item);
+        return !view || view._index !== index;
+      }, this);
+  
+      if (orderChanged) {
+        this.resortView();
+      }
+    },
+  
+    // Internal method. Separated so that CompositeView can have
+    // more control over events being triggered, around the rendering
+    // process
+    _renderChildren: function() {
+      this.destroyEmptyView();
+      this.destroyChildren();
+  
+      if (this.isEmpty(this.collection)) {
+        this.showEmptyView();
+      } else {
+        this.triggerMethod('before:render:collection', this);
+        this.startBuffering();
+        this.showCollection();
+        this.endBuffering();
+        this.triggerMethod('render:collection', this);
+      }
+    },
+  
+    // Internal method to loop through collection and show each child view.
+    showCollection: function() {
+      var ChildView;
+      this.collection.each(function(child, index) {
+        ChildView = this.getChildView(child);
+        this.addChild(child, ChildView, index);
+      }, this);
+    },
+  
+    // Internal method to show an empty view in place of
+    // a collection of child views, when the collection is empty
+    showEmptyView: function() {
+      var EmptyView = this.getEmptyView();
+  
+      if (EmptyView && !this._showingEmptyView) {
+        this.triggerMethod('before:render:empty');
+  
+        this._showingEmptyView = true;
+        var model = new Backbone.Model();
+        this.addEmptyView(model, EmptyView);
+  
+        this.triggerMethod('render:empty');
+      }
+    },
+  
+    // Internal method to destroy an existing emptyView instance
+    // if one exists. Called when a collection view has been
+    // rendered empty, and then a child is added to the collection.
+    destroyEmptyView: function() {
+      if (this._showingEmptyView) {
+        this.triggerMethod('before:remove:empty');
+  
+        this.destroyChildren();
+        delete this._showingEmptyView;
+  
+        this.triggerMethod('remove:empty');
+      }
+    },
+  
+    // Retrieve the empty view class
+    getEmptyView: function() {
+      return this.getOption('emptyView');
+    },
+  
+    // Render and show the emptyView. Similar to addChild method
+    // but "child:added" events are not fired, and the event from
+    // emptyView are not forwarded
+    addEmptyView: function(child, EmptyView) {
+  
+      // get the emptyViewOptions, falling back to childViewOptions
+      var emptyViewOptions = this.getOption('emptyViewOptions') ||
+                            this.getOption('childViewOptions');
+  
+      if (_.isFunction(emptyViewOptions)){
+        emptyViewOptions = emptyViewOptions.call(this);
+      }
+  
+      // build the empty view
+      var view = this.buildChildView(child, EmptyView, emptyViewOptions);
+  
+      // Proxy emptyView events
+      this.proxyChildEvents(view);
+  
+      // trigger the 'before:show' event on `view` if the collection view
+      // has already been shown
+      if (this._isShown) {
+        Marionette.triggerMethodOn(view, 'before:show');
+      }
+  
+      // Store the `emptyView` like a `childView` so we can properly
+      // remove and/or close it later
+      this.children.add(view);
+  
+      // Render it and show it
+      this.renderChildView(view, -1);
+  
+      // call the 'show' method if the collection view
+      // has already been shown
+      if (this._isShown) {
+        Marionette.triggerMethodOn(view, 'show');
+      }
+    },
+  
+    // Retrieve the `childView` class, either from `this.options.childView`
+    // or from the `childView` in the object definition. The "options"
+    // takes precedence.
+    // This method receives the model that will be passed to the instance
+    // created from this `childView`. Overriding methods may use the child
+    // to determine what `childView` class to return.
+    getChildView: function(child) {
+      var childView = this.getOption('childView');
+  
+      if (!childView) {
+        throw new Marionette.Error({
+          name: 'NoChildViewError',
+          message: 'A "childView" must be specified'
+        });
+      }
+  
+      return childView;
+    },
+  
+    // Render the child's view and add it to the
+    // HTML for the collection view at a given index.
+    // This will also update the indices of later views in the collection
+    // in order to keep the children in sync with the collection.
+    addChild: function(child, ChildView, index) {
+      var childViewOptions = this.getOption('childViewOptions');
+      if (_.isFunction(childViewOptions)) {
+        childViewOptions = childViewOptions.call(this, child, index);
+      }
+  
+      var view = this.buildChildView(child, ChildView, childViewOptions);
+  
+      // increment indices of views after this one
+      this._updateIndices(view, true, index);
+  
+      this._addChildView(view, index);
+  
+      return view;
+    },
+  
+    // Internal method. This decrements or increments the indices of views after the
+    // added/removed view to keep in sync with the collection.
+    _updateIndices: function(view, increment, index) {
+      if (!this.sort) {
+        return;
+      }
+  
+      if (increment) {
+        // assign the index to the view
+        view._index = index;
+  
+        // increment the index of views after this one
+        this.children.each(function (laterView) {
+          if (laterView._index >= view._index) {
+            laterView._index++;
+          }
+        });
+      }
+      else {
+        // decrement the index of views after this one
+        this.children.each(function (laterView) {
+          if (laterView._index >= view._index) {
+            laterView._index--;
+          }
+        });
+      }
+    },
+  
+  
+    // Internal Method. Add the view to children and render it at
+    // the given index.
+    _addChildView: function(view, index) {
+      // set up the child view event forwarding
+      this.proxyChildEvents(view);
+  
+      this.triggerMethod('before:add:child', view);
+  
+      // Store the child view itself so we can properly
+      // remove and/or destroy it later
+      this.children.add(view);
+      this.renderChildView(view, index);
+  
+      if (this._isShown && !this.isBuffering) {
+        Marionette.triggerMethodOn(view, 'show');
+      }
+  
+      this.triggerMethod('add:child', view);
+    },
+  
+    // render the child view
+    renderChildView: function(view, index) {
+      view.render();
+      this.attachHtml(this, view, index);
+      return view;
+    },
+  
+    // Build a `childView` for a model in the collection.
+    buildChildView: function(child, ChildViewClass, childViewOptions) {
+      var options = _.extend({model: child}, childViewOptions);
+      return new ChildViewClass(options);
+    },
+  
+    // Remove the child view and destroy it.
+    // This function also updates the indices of
+    // later views in the collection in order to keep
+    // the children in sync with the collection.
+    removeChildView: function(view) {
+  
+      if (view) {
+        this.triggerMethod('before:remove:child', view);
+        // call 'destroy' or 'remove', depending on which is found
+        if (view.destroy) { view.destroy(); }
+        else if (view.remove) { view.remove(); }
+  
+        this.stopListening(view);
+        this.children.remove(view);
+        this.triggerMethod('remove:child', view);
+  
+        // decrement the index of views after this one
+        this._updateIndices(view, false);
+      }
+  
+      return view;
+    },
+  
+    // check if the collection is empty
+    isEmpty: function() {
+      return !this.collection || this.collection.length === 0;
+    },
+  
+    // If empty, show the empty view
+    checkEmpty: function() {
+      if (this.isEmpty(this.collection)) {
+        this.showEmptyView();
+      }
+    },
+  
+    // You might need to override this if you've overridden attachHtml
+    attachBuffer: function(collectionView, buffer) {
+      collectionView.$el.append(buffer);
+    },
+  
+    // Append the HTML to the collection's `el`.
+    // Override this method to do something other
+    // than `.append`.
+    attachHtml: function(collectionView, childView, index) {
+      if (collectionView.isBuffering) {
+        // buffering happens on reset events and initial renders
+        // in order to reduce the number of inserts into the
+        // document, which are expensive.
+        collectionView.elBuffer.appendChild(childView.el);
+        collectionView._bufferedChildren.push(childView);
+      }
+      else {
+        // If we've already rendered the main collection, append
+        // the new child into the correct order if we need to. Otherwise
+        // append to the end.
+        if (!collectionView._insertBefore(childView, index)){
+          collectionView._insertAfter(childView);
+        }
+      }
+    },
+  
+    // Internal method. Check whether we need to insert the view into
+    // the correct position.
+    _insertBefore: function(childView, index) {
+      var currentView;
+      var findPosition = this.sort && (index < this.children.length - 1);
+      if (findPosition) {
+        // Find the view after this one
+        currentView = this.children.find(function (view) {
+          return view._index === index + 1;
+        });
+      }
+  
+      if (currentView) {
+        currentView.$el.before(childView.el);
+        return true;
+      }
+  
+      return false;
+    },
+  
+    // Internal method. Append a view to the end of the $el
+    _insertAfter: function(childView) {
+      this.$el.append(childView.el);
+    },
+  
+    // Internal method to set up the `children` object for
+    // storing all of the child views
+    _initChildViewStorage: function() {
+      this.children = new Backbone.ChildViewContainer();
+    },
+  
+    // Handle cleanup and other destroying needs for the collection of views
+    destroy: function() {
+      if (this.isDestroyed) { return; }
+  
+      this.triggerMethod('before:destroy:collection');
+      this.destroyChildren();
+      this.triggerMethod('destroy:collection');
+  
+      return Marionette.View.prototype.destroy.apply(this, arguments);
+    },
+  
+    // Destroy the child views that this collection view
+    // is holding on to, if any
+    destroyChildren: function() {
+      var childViews = this.children.map(_.identity);
+      this.children.each(this.removeChildView, this);
+      this.checkEmpty();
+      return childViews;
+    },
+  
+    // Set up the child view event forwarding. Uses a "childview:"
+    // prefix in front of all forwarded events.
+    proxyChildEvents: function(view) {
+      var prefix = this.getOption('childViewEventPrefix');
+  
+      // Forward all child view events through the parent,
+      // prepending "childview:" to the event name
+      this.listenTo(view, 'all', function() {
+        var args = slice.call(arguments);
+        var rootEvent = args[0];
+        var childEvents = this.normalizeMethods(_.result(this, 'childEvents'));
+  
+        args[0] = prefix + ':' + rootEvent;
+        args.splice(1, 0, view);
+  
+        // call collectionView childEvent if defined
+        if (typeof childEvents !== 'undefined' && _.isFunction(childEvents[rootEvent])) {
+          childEvents[rootEvent].apply(this, args.slice(1));
+        }
+  
+        this.triggerMethod.apply(this, args);
+      }, this);
+    }
+  });
+  
+  /* jshint maxstatements: 17, maxlen: 117 */
+  
+  // Composite View
+  // --------------
+  
+  // Used for rendering a branch-leaf, hierarchical structure.
+  // Extends directly from CollectionView and also renders an
+  // a child view as `modelView`, for the top leaf
+  Marionette.CompositeView = Marionette.CollectionView.extend({
+  
+    // Setting up the inheritance chain which allows changes to
+    // Marionette.CollectionView.prototype.constructor which allows overriding
+    // option to pass '{sort: false}' to prevent the CompositeView from
+    // maintaining the sorted order of the collection.
+    // This will fallback onto appending childView's to the end.
+    constructor: function() {
+      Marionette.CollectionView.apply(this, arguments);
+    },
+  
+    // Configured the initial events that the composite view
+    // binds to. Override this method to prevent the initial
+    // events, or to add your own initial events.
+    _initialEvents: function() {
+  
+      // Bind only after composite view is rendered to avoid adding child views
+      // to nonexistent childViewContainer
+  
+      if (this.collection) {
+        this.listenTo(this.collection, 'add', this._onCollectionAdd);
+        this.listenTo(this.collection, 'remove', this._onCollectionRemove);
+        this.listenTo(this.collection, 'reset', this._renderChildren);
+  
+        if (this.sort) {
+          this.listenTo(this.collection, 'sort', this._sortViews);
+        }
+      }
+    },
+  
+    // Retrieve the `childView` to be used when rendering each of
+    // the items in the collection. The default is to return
+    // `this.childView` or Marionette.CompositeView if no `childView`
+    // has been defined
+    getChildView: function(child) {
+      var childView = this.getOption('childView') || this.constructor;
+  
+      if (!childView) {
+        throw new Marionette.Error({
+          name: 'NoChildViewError',
+          message: 'A "childView" must be specified'
+        });
+      }
+  
+      return childView;
+    },
+  
+    // Serialize the collection for the view.
+    // You can override the `serializeData` method in your own view
+    // definition, to provide custom serialization for your view's data.
+    serializeData: function() {
+      var data = {};
+  
+      if (this.model){
+        data = _.partial(this.serializeModel, this.model).apply(this, arguments);
+      }
+  
+      return data;
+    },
+  
+    // Renders the model once, and the collection once. Calling
+    // this again will tell the model's view to re-render itself
+    // but the collection will not re-render.
+    render: function() {
+      this._ensureViewIsIntact();
+      this.isRendered = true;
+      this.resetChildViewContainer();
+  
+      this.triggerMethod('before:render', this);
+  
+      this._renderTemplate();
+      this._renderChildren();
+  
+      this.triggerMethod('render', this);
+      return this;
+    },
+  
+    _renderChildren: function() {
+      if (this.isRendered) {
+        Marionette.CollectionView.prototype._renderChildren.call(this);
+      }
+    },
+  
+    // Render the root template that the children
+    // views are appended to
+    _renderTemplate: function() {
+      var data = {};
+      data = this.serializeData();
+      data = this.mixinTemplateHelpers(data);
+  
+      this.triggerMethod('before:render:template');
+  
+      var template = this.getTemplate();
+      var html = Marionette.Renderer.render(template, data, this);
+      this.attachElContent(html);
+  
+      // the ui bindings is done here and not at the end of render since they
+      // will not be available until after the model is rendered, but should be
+      // available before the collection is rendered.
+      this.bindUIElements();
+      this.triggerMethod('render:template');
+    },
+  
+    // Attaches the content of the root.
+    // This method can be overridden to optimize rendering,
+    // or to render in a non standard way.
+    //
+    // For example, using `innerHTML` instead of `$el.html`
+    //
+    // ```js
+    // attachElContent: function(html) {
+    //   this.el.innerHTML = html;
+    //   return this;
+    // }
+    // ```
+    attachElContent: function(html) {
+      this.$el.html(html);
+  
+      return this;
+    },
+  
+    // You might need to override this if you've overridden attachHtml
+    attachBuffer: function(compositeView, buffer) {
+      var $container = this.getChildViewContainer(compositeView);
+      $container.append(buffer);
+    },
+  
+    // Internal method. Append a view to the end of the $el.
+    // Overidden from CollectionView to ensure view is appended to
+    // childViewContainer
+    _insertAfter: function (childView) {
+      var $container = this.getChildViewContainer(this);
+      $container.append(childView.el);
+    },
+  
+    // Internal method to ensure an `$childViewContainer` exists, for the
+    // `attachHtml` method to use.
+    getChildViewContainer: function(containerView) {
+      if ('$childViewContainer' in containerView) {
+        return containerView.$childViewContainer;
+      }
+  
+      var container;
+      var childViewContainer = Marionette.getOption(containerView, 'childViewContainer');
+      if (childViewContainer) {
+  
+        var selector = _.isFunction(childViewContainer) ? childViewContainer.call(containerView) : childViewContainer;
+  
+        if (selector.charAt(0) === '@' && containerView.ui) {
+          container = containerView.ui[selector.substr(4)];
+        } else {
+          container = containerView.$(selector);
+        }
+  
+        if (container.length <= 0) {
+          throw new Marionette.Error({
+            name: 'ChildViewContainerMissingError',
+            message: 'The specified "childViewContainer" was not found: ' + containerView.childViewContainer
+          });
+        }
+  
+      } else {
+        container = containerView.$el;
+      }
+  
+      containerView.$childViewContainer = container;
+      return container;
+    },
+  
+    // Internal method to reset the `$childViewContainer` on render
+    resetChildViewContainer: function() {
+      if (this.$childViewContainer) {
+        delete this.$childViewContainer;
+      }
+    }
+  });
+  
+  // LayoutView
+  // ----------
+  
+  // Used for managing application layoutViews, nested layoutViews and
+  // multiple regions within an application or sub-application.
+  //
+  // A specialized view class that renders an area of HTML and then
+  // attaches `Region` instances to the specified `regions`.
+  // Used for composite view management and sub-application areas.
+  Marionette.LayoutView = Marionette.ItemView.extend({
+    regionClass: Marionette.Region,
+  
+    // Ensure the regions are available when the `initialize` method
+    // is called.
+    constructor: function(options) {
+      options = options || {};
+  
+      this._firstRender = true;
+      this._initializeRegions(options);
+  
+      Marionette.ItemView.call(this, options);
+    },
+  
+    // LayoutView's render will use the existing region objects the
+    // first time it is called. Subsequent calls will destroy the
+    // views that the regions are showing and then reset the `el`
+    // for the regions to the newly rendered DOM elements.
+    render: function() {
+      this._ensureViewIsIntact();
+  
+      if (this._firstRender) {
+        // if this is the first render, don't do anything to
+        // reset the regions
+        this._firstRender = false;
+      } else {
+        // If this is not the first render call, then we need to
+        // re-initialize the `el` for each region
+        this._reInitializeRegions();
+      }
+  
+      return Marionette.ItemView.prototype.render.apply(this, arguments);
+    },
+  
+    // Handle destroying regions, and then destroy the view itself.
+    destroy: function() {
+      if (this.isDestroyed) { return this; }
+  
+      this.regionManager.destroy();
+      return Marionette.ItemView.prototype.destroy.apply(this, arguments);
+    },
+  
+    // Add a single region, by name, to the layoutView
+    addRegion: function(name, definition) {
+      var regions = {};
+      regions[name] = definition;
+      return this._buildRegions(regions)[name];
+    },
+  
+    // Add multiple regions as a {name: definition, name2: def2} object literal
+    addRegions: function(regions) {
+      this.regions = _.extend({}, this.regions, regions);
+      return this._buildRegions(regions);
+    },
+  
+    // Remove a single region from the LayoutView, by name
+    removeRegion: function(name) {
+      delete this.regions[name];
+      return this.regionManager.removeRegion(name);
+    },
+  
+    // Provides alternative access to regions
+    // Accepts the region name
+    // getRegion('main')
+    getRegion: function(region) {
+      return this.regionManager.get(region);
+    },
+  
+    // Get all regions
+    getRegions: function(){
+      return this.regionManager.getRegions();
+    },
+  
+    // internal method to build regions
+    _buildRegions: function(regions) {
+      var that = this;
+  
+      var defaults = {
+        regionClass: this.getOption('regionClass'),
+        parentEl: function() { return that.$el; }
+      };
+  
+      return this.regionManager.addRegions(regions, defaults);
+    },
+  
+    // Internal method to initialize the regions that have been defined in a
+    // `regions` attribute on this layoutView.
+    _initializeRegions: function(options) {
+      var regions;
+      this._initRegionManager();
+  
+      if (_.isFunction(this.regions)) {
+        regions = this.regions(options);
+      } else {
+        regions = this.regions || {};
+      }
+  
+      // Enable users to define `regions` as instance options.
+      var regionOptions = this.getOption.call(options, 'regions');
+  
+      // enable region options to be a function
+      if (_.isFunction(regionOptions)) {
+        regionOptions = regionOptions.call(this, options);
+      }
+  
+      _.extend(regions, regionOptions);
+  
+      // Normalize region selectors hash to allow
+      // a user to use the @ui. syntax.
+      regions = this.normalizeUIValues(regions);
+  
+      this.addRegions(regions);
+    },
+  
+    // Internal method to re-initialize all of the regions by updating the `el` that
+    // they point to
+    _reInitializeRegions: function() {
+      this.regionManager.emptyRegions();
+      this.regionManager.each(function(region) {
+        region.reset();
+      });
+    },
+  
+    // Enable easy overriding of the default `RegionManager`
+    // for customized region interactions and business specific
+    // view logic for better control over single regions.
+    getRegionManager: function() {
+      return new Marionette.RegionManager();
+    },
+  
+    // Internal method to initialize the region manager
+    // and all regions in it
+    _initRegionManager: function() {
+      this.regionManager = this.getRegionManager();
+  
+      this.listenTo(this.regionManager, 'before:add:region', function(name) {
+        this.triggerMethod('before:add:region', name);
+      });
+  
+      this.listenTo(this.regionManager, 'add:region', function(name, region) {
+        this[name] = region;
+        this.triggerMethod('add:region', name, region);
+      });
+  
+      this.listenTo(this.regionManager, 'before:remove:region', function(name) {
+        this.triggerMethod('before:remove:region', name);
+      });
+  
+      this.listenTo(this.regionManager, 'remove:region', function(name, region) {
+        delete this[name];
+        this.triggerMethod('remove:region', name, region);
+      });
+    }
+  });
+  
+
+  // Behavior
+  // -----------
+  
+  // A Behavior is an isolated set of DOM /
+  // user interactions that can be mixed into any View.
+  // Behaviors allow you to blackbox View specific interactions
+  // into portable logical chunks, keeping your views simple and your code DRY.
+  
+  Marionette.Behavior = (function(_, Backbone) {
+    function Behavior(options, view) {
+      // Setup reference to the view.
+      // this comes in handle when a behavior
+      // wants to directly talk up the chain
+      // to the view.
+      this.view = view;
+      this.defaults = _.result(this, 'defaults') || {};
+      this.options  = _.extend({}, this.defaults, options);
+  
+      // proxy behavior $ method to the view
+      // this is useful for doing jquery DOM lookups
+      // scoped to behaviors view.
+      this.$ = function() {
+        return this.view.$.apply(this.view, arguments);
+      };
+  
+      // Call the initialize method passing
+      // the arguments from the instance constructor
+      this.initialize.apply(this, arguments);
+    }
+  
+    _.extend(Behavior.prototype, Backbone.Events, {
+      initialize: function() {},
+  
+      // stopListening to behavior `onListen` events.
+      destroy: function() {
+        this.stopListening();
+      },
+  
+      proxyViewProperties: function (view) {
+        this.$el = view.$el;
+        this.el = view.el;
+      },
+  
+      // import the `triggerMethod` to trigger events with corresponding
+      // methods if the method exists
+      triggerMethod: Marionette.triggerMethod,
+  
+      // Proxy `getOption` to enable getting options from this or this.options by name.
+      getOption: Marionette.proxyGetOption,
+  
+      // Proxy `unbindEntityEvents` to enable binding view's events from another entity.
+      bindEntityEvents: Marionette.proxyBindEntityEvents,
+  
+      // Proxy `unbindEntityEvents` to enable unbinding view's events from another entity.
+      unbindEntityEvents: Marionette.proxyUnbindEntityEvents
+    });
+  
+    // Borrow Backbones extend implementation
+    // this allows us to setup a proper
+    // inheritance pattern that follows suit
+    // with the rest of Marionette views.
+    Behavior.extend = Marionette.extend;
+  
+    return Behavior;
+  })(_, Backbone);
+  
+  /* jshint maxlen: 143 */
+  // Marionette.Behaviors
+  // --------
+  
+  // Behaviors is a utility class that takes care of
+  // gluing your behavior instances to their given View.
+  // The most important part of this class is that you
+  // **MUST** override the class level behaviorsLookup
+  // method for things to work properly.
+  
+  Marionette.Behaviors = (function(Marionette, _) {
+  
+    function Behaviors(view, behaviors) {
+  
+      if (!_.isObject(view.behaviors)) {
+        return {};
+      }
+  
+      // Behaviors defined on a view can be a flat object literal
+      // or it can be a function that returns an object.
+      behaviors = Behaviors.parseBehaviors(view, behaviors || _.result(view, 'behaviors'));
+  
+      // Wraps several of the view's methods
+      // calling the methods first on each behavior
+      // and then eventually calling the method on the view.
+      Behaviors.wrap(view, behaviors, _.keys(methods));
+      return behaviors;
+    }
+  
+    var methods = {
+      behaviorTriggers: function(behaviorTriggers, behaviors) {
+        var triggerBuilder = new BehaviorTriggersBuilder(this, behaviors);
+        return triggerBuilder.buildBehaviorTriggers();
+      },
+  
+      behaviorEvents: function(behaviorEvents, behaviors) {
+        var _behaviorsEvents = {};
+        var viewUI = _.result(this, 'ui');
+  
+        _.each(behaviors, function(b, i) {
+          var _events = {};
+          var behaviorEvents = _.clone(_.result(b, 'events')) || {};
+          var behaviorUI = _.result(b, 'ui');
+  
+          // Construct an internal UI hash first using
+          // the views UI hash and then the behaviors UI hash.
+          // This allows the user to use UI hash elements
+          // defined in the parent view as well as those
+          // defined in the given behavior.
+          var ui = _.extend({}, viewUI, behaviorUI);
+  
+          // Normalize behavior events hash to allow
+          // a user to use the @ui. syntax.
+          behaviorEvents = Marionette.normalizeUIKeys(behaviorEvents, ui);
+  
+          _.each(_.keys(behaviorEvents), function(key) {
+            // Append white-space at the end of each key to prevent behavior key collisions.
+            // This is relying on the fact that backbone events considers "click .foo" the same as
+            // "click .foo ".
+  
+            // +2 is used because new Array(1) or 0 is "" and not " "
+            var whitespace = (new Array(i + 2)).join(' ');
+            var eventKey   = key + whitespace;
+            var handler    = _.isFunction(behaviorEvents[key]) ? behaviorEvents[key] : b[behaviorEvents[key]];
+  
+            _events[eventKey] = _.bind(handler, b);
+          });
+  
+          _behaviorsEvents = _.extend(_behaviorsEvents, _events);
+        });
+  
+        return _behaviorsEvents;
+      }
+    };
+  
+    _.extend(Behaviors, {
+  
+      // Placeholder method to be extended by the user.
+      // The method should define the object that stores the behaviors.
+      // i.e.
+      //
+      // ```js
+      // Marionette.Behaviors.behaviorsLookup: function() {
+      //   return App.Behaviors
+      // }
+      // ```
+      behaviorsLookup: function() {
+        throw new Marionette.Error({
+          message: 'You must define where your behaviors are stored.',
+          url: 'marionette.behaviors.html#behaviorslookup'
+        });
+      },
+  
+      // Takes care of getting the behavior class
+      // given options and a key.
+      // If a user passes in options.behaviorClass
+      // default to using that. Otherwise delegate
+      // the lookup to the users `behaviorsLookup` implementation.
+      getBehaviorClass: function(options, key) {
+        if (options.behaviorClass) {
+          return options.behaviorClass;
+        }
+  
+        // Get behavior class can be either a flat object or a method
+        return _.isFunction(Behaviors.behaviorsLookup) ? Behaviors.behaviorsLookup.apply(this, arguments)[key] : Behaviors.behaviorsLookup[key];
+      },
+  
+      // Iterate over the behaviors object, for each behavior
+      // instantiate it and get its grouped behaviors.
+      parseBehaviors: function(view, behaviors) {
+        return _.chain(behaviors).map(function(options, key) {
+          var BehaviorClass = Behaviors.getBehaviorClass(options, key);
+  
+          var behavior = new BehaviorClass(options, view);
+          var nestedBehaviors = Behaviors.parseBehaviors(view, _.result(behavior, 'behaviors'));
+  
+          return [behavior].concat(nestedBehaviors);
+        }).flatten().value();
+      },
+  
+      // Wrap view internal methods so that they delegate to behaviors. For example,
+      // `onDestroy` should trigger destroy on all of the behaviors and then destroy itself.
+      // i.e.
+      //
+      // `view.delegateEvents = _.partial(methods.delegateEvents, view.delegateEvents, behaviors);`
+      wrap: function(view, behaviors, methodNames) {
+        _.each(methodNames, function(methodName) {
+          view[methodName] = _.partial(methods[methodName], view[methodName], behaviors);
+        });
+      }
+    });
+  
+    // Class to build handlers for `triggers` on behaviors
+    // for views
+    function BehaviorTriggersBuilder(view, behaviors) {
+      this._view      = view;
+      this._viewUI    = _.result(view, 'ui');
+      this._behaviors = behaviors;
+      this._triggers  = {};
+    }
+  
+    _.extend(BehaviorTriggersBuilder.prototype, {
+      // Main method to build the triggers hash with event keys and handlers
+      buildBehaviorTriggers: function() {
+        _.each(this._behaviors, this._buildTriggerHandlersForBehavior, this);
+        return this._triggers;
+      },
+  
+      // Internal method to build all trigger handlers for a given behavior
+      _buildTriggerHandlersForBehavior: function(behavior, i) {
+        var ui = _.extend({}, this._viewUI, _.result(behavior, 'ui'));
+        var triggersHash = _.clone(_.result(behavior, 'triggers')) || {};
+  
+        triggersHash = Marionette.normalizeUIKeys(triggersHash, ui);
+  
+        _.each(triggersHash, _.partial(this._setHandlerForBehavior, behavior, i), this);
+      },
+  
+      // Internal method to create and assign the trigger handler for a given
+      // behavior
+      _setHandlerForBehavior: function(behavior, i, eventName, trigger) {
+        // Unique identifier for the `this._triggers` hash
+        var triggerKey = trigger.replace(/^\S+/, function(triggerName) {
+          return triggerName + '.' + 'behaviortriggers' + i;
+        });
+  
+        this._triggers[triggerKey] = this._view._buildViewTrigger(eventName);
+      }
+    });
+  
+    return Behaviors;
+  
+  })(Marionette, _);
+  
+
+  // AppRouter
+  // ---------
+  
+  // Reduce the boilerplate code of handling route events
+  // and then calling a single method on another object.
+  // Have your routers configured to call the method on
+  // your object, directly.
+  //
+  // Configure an AppRouter with `appRoutes`.
+  //
+  // App routers can only take one `controller` object.
+  // It is recommended that you divide your controller
+  // objects in to smaller pieces of related functionality
+  // and have multiple routers / controllers, instead of
+  // just one giant router and controller.
+  //
+  // You can also add standard routes to an AppRouter.
+  
+  Marionette.AppRouter = Backbone.Router.extend({
+  
+    constructor: function(options) {
+      Backbone.Router.apply(this, arguments);
+  
+      this.options = options || {};
+  
+      var appRoutes = this.getOption('appRoutes');
+      var controller = this._getController();
+      this.processAppRoutes(controller, appRoutes);
+      this.on('route', this._processOnRoute, this);
+    },
+  
+    // Similar to route method on a Backbone Router but
+    // method is called on the controller
+    appRoute: function(route, methodName) {
+      var controller = this._getController();
+      this._addAppRoute(controller, route, methodName);
+    },
+  
+    // process the route event and trigger the onRoute
+    // method call, if it exists
+    _processOnRoute: function(routeName, routeArgs) {
+      // find the path that matched
+      var routePath = _.invert(this.getOption('appRoutes'))[routeName];
+  
+      // make sure an onRoute is there, and call it
+      if (_.isFunction(this.onRoute)) {
+        this.onRoute(routeName, routePath, routeArgs);
+      }
+    },
+  
+    // Internal method to process the `appRoutes` for the
+    // router, and turn them in to routes that trigger the
+    // specified method on the specified `controller`.
+    processAppRoutes: function(controller, appRoutes) {
+      if (!appRoutes) { return; }
+  
+      var routeNames = _.keys(appRoutes).reverse(); // Backbone requires reverted order of routes
+  
+      _.each(routeNames, function(route) {
+        this._addAppRoute(controller, route, appRoutes[route]);
+      }, this);
+    },
+  
+    _getController: function() {
+      return this.getOption('controller');
+    },
+  
+    _addAppRoute: function(controller, route, methodName) {
+      var method = controller[methodName];
+  
+      if (!method) {
+        throw new Marionette.Error('Method "' + methodName + '" was not found on the controller');
+      }
+  
+      this.route(route, methodName, _.bind(method, controller));
+    },
+  
+    // Proxy `getOption` to enable getting options from this or this.options by name.
+    getOption: Marionette.proxyGetOption
+  });
+  
+  // Application
+  // -----------
+  
+  // Contain and manage the composite application as a whole.
+  // Stores and starts up `Region` objects, includes an
+  // event aggregator as `app.vent`
+  Marionette.Application = function(options) {
+    this.options = options;
+    this._initializeRegions(options);
+    this._initCallbacks = new Marionette.Callbacks();
+    this.submodules = {};
+    _.extend(this, options);
+    this._initChannel();
+    this.initialize.apply(this, arguments);
+  };
+  
+  _.extend(Marionette.Application.prototype, Backbone.Events, {
+    // Initialize is an empty function by default. Override it with your own
+    // initialization logic.
+    initialize: function() {},
+  
+    // Command execution, facilitated by Backbone.Wreqr.Commands
+    execute: function() {
+      this.commands.execute.apply(this.commands, arguments);
+    },
+  
+    // Request/response, facilitated by Backbone.Wreqr.RequestResponse
+    request: function() {
+      return this.reqres.request.apply(this.reqres, arguments);
+    },
+  
+    // Add an initializer that is either run at when the `start`
+    // method is called, or run immediately if added after `start`
+    // has already been called.
+    addInitializer: function(initializer) {
+      this._initCallbacks.add(initializer);
+    },
+  
+    // kick off all of the application's processes.
+    // initializes all of the regions that have been added
+    // to the app, and runs all of the initializer functions
+    start: function(options) {
+      this.triggerMethod('before:start', options);
+      this._initCallbacks.run(options, this);
+      this.triggerMethod('start', options);
+    },
+  
+    // Add regions to your app.
+    // Accepts a hash of named strings or Region objects
+    // addRegions({something: "#someRegion"})
+    // addRegions({something: Region.extend({el: "#someRegion"}) });
+    addRegions: function(regions) {
+      return this._regionManager.addRegions(regions);
+    },
+  
+    // Empty all regions in the app, without removing them
+    emptyRegions: function() {
+      return this._regionManager.emptyRegions();
+    },
+  
+    // Removes a region from your app, by name
+    // Accepts the regions name
+    // removeRegion('myRegion')
+    removeRegion: function(region) {
+      return this._regionManager.removeRegion(region);
+    },
+  
+    // Provides alternative access to regions
+    // Accepts the region name
+    // getRegion('main')
+    getRegion: function(region) {
+      return this._regionManager.get(region);
+    },
+  
+    // Get all the regions from the region manager
+    getRegions: function(){
+      return this._regionManager.getRegions();
+    },
+  
+    // Create a module, attached to the application
+    module: function(moduleNames, moduleDefinition) {
+  
+      // Overwrite the module class if the user specifies one
+      var ModuleClass = Marionette.Module.getClass(moduleDefinition);
+  
+      // slice the args, and add this application object as the
+      // first argument of the array
+      var args = slice.call(arguments);
+      args.unshift(this);
+  
+      // see the Marionette.Module object for more information
+      return ModuleClass.create.apply(ModuleClass, args);
+    },
+  
+    // Enable easy overriding of the default `RegionManager`
+    // for customized region interactions and business-specific
+    // view logic for better control over single regions.
+    getRegionManager: function() {
+      return new Marionette.RegionManager();
+    },
+  
+    // Internal method to initialize the regions that have been defined in a
+    // `regions` attribute on the application instance
+    _initializeRegions: function(options) {
+      var regions = _.isFunction(this.regions) ? this.regions(options) : this.regions || {};
+  
+      this._initRegionManager();
+  
+      // Enable users to define `regions` in instance options.
+      var optionRegions = Marionette.getOption(options, 'regions');
+  
+      // Enable region options to be a function
+      if (_.isFunction(optionRegions)) {
+        optionRegions = optionRegions.call(this, options);
+      }
+  
+      // Overwrite current regions with those passed in options
+      _.extend(regions, optionRegions);
+  
+      this.addRegions(regions);
+  
+      return this;
+    },
+  
+    // Internal method to set up the region manager
+    _initRegionManager: function() {
+      this._regionManager = this.getRegionManager();
+  
+      this.listenTo(this._regionManager, 'before:add:region', function(name) {
+        this.triggerMethod('before:add:region', name);
+      });
+  
+      this.listenTo(this._regionManager, 'add:region', function(name, region) {
+        this[name] = region;
+        this.triggerMethod('add:region', name, region);
+      });
+  
+      this.listenTo(this._regionManager, 'before:remove:region', function(name) {
+        this.triggerMethod('before:remove:region', name);
+      });
+  
+      this.listenTo(this._regionManager, 'remove:region', function(name, region) {
+        delete this[name];
+        this.triggerMethod('remove:region', name, region);
+      });
+    },
+  
+    // Internal method to setup the Wreqr.radio channel
+    _initChannel: function() {
+      this.channelName = _.result(this, 'channelName') || 'global';
+      this.channel = _.result(this, 'channel') || Backbone.Wreqr.radio.channel(this.channelName);
+      this.vent = _.result(this, 'vent') || this.channel.vent;
+      this.commands = _.result(this, 'commands') || this.channel.commands;
+      this.reqres = _.result(this, 'reqres') || this.channel.reqres;
+    },
+  
+    // import the `triggerMethod` to trigger events with corresponding
+    // methods if the method exists
+    triggerMethod: Marionette.triggerMethod,
+  
+    // Proxy `getOption` to enable getting options from this or this.options by name.
+    getOption: Marionette.proxyGetOption
+  });
+  
+  // Copy the `extend` function used by Backbone's classes
+  Marionette.Application.extend = Marionette.extend;
+  
+  /* jshint maxparams: 9 */
+  
+  // Module
+  // ------
+  
+  // A simple module system, used to create privacy and encapsulation in
+  // Marionette applications
+  Marionette.Module = function(moduleName, app, options) {
+    this.moduleName = moduleName;
+    this.options = _.extend({}, this.options, options);
+    // Allow for a user to overide the initialize
+    // for a given module instance.
+    this.initialize = options.initialize || this.initialize;
+  
+    // Set up an internal store for sub-modules.
+    this.submodules = {};
+  
+    this._setupInitializersAndFinalizers();
+  
+    // Set an internal reference to the app
+    // within a module.
+    this.app = app;
+  
+    if (_.isFunction(this.initialize)) {
+      this.initialize(moduleName, app, this.options);
+    }
+  };
+  
+  Marionette.Module.extend = Marionette.extend;
+  
+  // Extend the Module prototype with events / listenTo, so that the module
+  // can be used as an event aggregator or pub/sub.
+  _.extend(Marionette.Module.prototype, Backbone.Events, {
+  
+    // By default modules start with their parents.
+    startWithParent: true,
+  
+    // Initialize is an empty function by default. Override it with your own
+    // initialization logic when extending Marionette.Module.
+    initialize: function() {},
+  
+    // Initializer for a specific module. Initializers are run when the
+    // module's `start` method is called.
+    addInitializer: function(callback) {
+      this._initializerCallbacks.add(callback);
+    },
+  
+    // Finalizers are run when a module is stopped. They are used to teardown
+    // and finalize any variables, references, events and other code that the
+    // module had set up.
+    addFinalizer: function(callback) {
+      this._finalizerCallbacks.add(callback);
+    },
+  
+    // Start the module, and run all of its initializers
+    start: function(options) {
+      // Prevent re-starting a module that is already started
+      if (this._isInitialized) { return; }
+  
+      // start the sub-modules (depth-first hierarchy)
+      _.each(this.submodules, function(mod) {
+        // check to see if we should start the sub-module with this parent
+        if (mod.startWithParent) {
+          mod.start(options);
+        }
+      });
+  
+      // run the callbacks to "start" the current module
+      this.triggerMethod('before:start', options);
+  
+      this._initializerCallbacks.run(options, this);
+      this._isInitialized = true;
+  
+      this.triggerMethod('start', options);
+    },
+  
+    // Stop this module by running its finalizers and then stop all of
+    // the sub-modules for this module
+    stop: function() {
+      // if we are not initialized, don't bother finalizing
+      if (!this._isInitialized) { return; }
+      this._isInitialized = false;
+  
+      this.triggerMethod('before:stop');
+  
+      // stop the sub-modules; depth-first, to make sure the
+      // sub-modules are stopped / finalized before parents
+      _.each(this.submodules, function(mod) { mod.stop(); });
+  
+      // run the finalizers
+      this._finalizerCallbacks.run(undefined, this);
+  
+      // reset the initializers and finalizers
+      this._initializerCallbacks.reset();
+      this._finalizerCallbacks.reset();
+  
+      this.triggerMethod('stop');
+    },
+  
+    // Configure the module with a definition function and any custom args
+    // that are to be passed in to the definition function
+    addDefinition: function(moduleDefinition, customArgs) {
+      this._runModuleDefinition(moduleDefinition, customArgs);
+    },
+  
+    // Internal method: run the module definition function with the correct
+    // arguments
+    _runModuleDefinition: function(definition, customArgs) {
+      // If there is no definition short circut the method.
+      if (!definition) { return; }
+  
+      // build the correct list of arguments for the module definition
+      var args = _.flatten([
+        this,
+        this.app,
+        Backbone,
+        Marionette,
+        Backbone.$, _,
+        customArgs
+      ]);
+  
+      definition.apply(this, args);
+    },
+  
+    // Internal method: set up new copies of initializers and finalizers.
+    // Calling this method will wipe out all existing initializers and
+    // finalizers.
+    _setupInitializersAndFinalizers: function() {
+      this._initializerCallbacks = new Marionette.Callbacks();
+      this._finalizerCallbacks = new Marionette.Callbacks();
+    },
+  
+    // import the `triggerMethod` to trigger events with corresponding
+    // methods if the method exists
+    triggerMethod: Marionette.triggerMethod
+  });
+  
+  // Class methods to create modules
+  _.extend(Marionette.Module, {
+  
+    // Create a module, hanging off the app parameter as the parent object.
+    create: function(app, moduleNames, moduleDefinition) {
+      var module = app;
+  
+      // get the custom args passed in after the module definition and
+      // get rid of the module name and definition function
+      var customArgs = slice.call(arguments);
+      customArgs.splice(0, 3);
+  
+      // Split the module names and get the number of submodules.
+      // i.e. an example module name of `Doge.Wow.Amaze` would
+      // then have the potential for 3 module definitions.
+      moduleNames = moduleNames.split('.');
+      var length = moduleNames.length;
+  
+      // store the module definition for the last module in the chain
+      var moduleDefinitions = [];
+      moduleDefinitions[length - 1] = moduleDefinition;
+  
+      // Loop through all the parts of the module definition
+      _.each(moduleNames, function(moduleName, i) {
+        var parentModule = module;
+        module = this._getModule(parentModule, moduleName, app, moduleDefinition);
+        this._addModuleDefinition(parentModule, module, moduleDefinitions[i], customArgs);
+      }, this);
+  
+      // Return the last module in the definition chain
+      return module;
+    },
+  
+    _getModule: function(parentModule, moduleName, app, def, args) {
+      var options = _.extend({}, def);
+      var ModuleClass = this.getClass(def);
+  
+      // Get an existing module of this name if we have one
+      var module = parentModule[moduleName];
+  
+      if (!module) {
+        // Create a new module if we don't have one
+        module = new ModuleClass(moduleName, app, options);
+        parentModule[moduleName] = module;
+        // store the module on the parent
+        parentModule.submodules[moduleName] = module;
+      }
+  
+      return module;
+    },
+  
+    // ## Module Classes
+    //
+    // Module classes can be used as an alternative to the define pattern.
+    // The extend function of a Module is identical to the extend functions
+    // on other Backbone and Marionette classes.
+    // This allows module lifecyle events like `onStart` and `onStop` to be called directly.
+    getClass: function(moduleDefinition) {
+      var ModuleClass = Marionette.Module;
+  
+      if (!moduleDefinition) {
+        return ModuleClass;
+      }
+  
+      // If all of the module's functionality is defined inside its class,
+      // then the class can be passed in directly. `MyApp.module("Foo", FooModule)`.
+      if (moduleDefinition.prototype instanceof ModuleClass) {
+        return moduleDefinition;
+      }
+  
+      return moduleDefinition.moduleClass || ModuleClass;
+    },
+  
+    // Add the module definition and add a startWithParent initializer function.
+    // This is complicated because module definitions are heavily overloaded
+    // and support an anonymous function, module class, or options object
+    _addModuleDefinition: function(parentModule, module, def, args) {
+      var fn = this._getDefine(def);
+      var startWithParent = this._getStartWithParent(def, module);
+  
+      if (fn) {
+        module.addDefinition(fn, args);
+      }
+  
+      this._addStartWithParent(parentModule, module, startWithParent);
+    },
+  
+    _getStartWithParent: function(def, module) {
+      var swp;
+  
+      if (_.isFunction(def) && (def.prototype instanceof Marionette.Module)) {
+        swp = module.constructor.prototype.startWithParent;
+        return _.isUndefined(swp) ? true : swp;
+      }
+  
+      if (_.isObject(def)) {
+        swp = def.startWithParent;
+        return _.isUndefined(swp) ? true : swp;
+      }
+  
+      return true;
+    },
+  
+    _getDefine: function(def) {
+      if (_.isFunction(def) && !(def.prototype instanceof Marionette.Module)) {
+        return def;
+      }
+  
+      if (_.isObject(def)) {
+        return def.define;
+      }
+  
+      return null;
+    },
+  
+    _addStartWithParent: function(parentModule, module, startWithParent) {
+      module.startWithParent = module.startWithParent && startWithParent;
+  
+      if (!module.startWithParent || !!module.startWithParentIsConfigured) {
+        return;
+      }
+  
+      module.startWithParentIsConfigured = true;
+  
+      parentModule.addInitializer(function(options) {
+        if (module.startWithParent) {
+          module.start(options);
+        }
+      });
+    }
+  });
+  
+
+  return Marionette;
+}));
+
+//! moment.js
+//! version : 2.8.4
+//! authors : Tim Wood, Iskren Chernev, Moment.js contributors
+//! license : MIT
+//! momentjs.com
+
+(function (undefined) {
+    /************************************
+        Constants
+    ************************************/
+
+    var moment,
+        VERSION = '2.8.4',
+        // the global-scope this is NOT the global object in Node.js
+        globalScope = typeof global !== 'undefined' ? global : this,
+        oldGlobalMoment,
+        round = Math.round,
+        hasOwnProperty = Object.prototype.hasOwnProperty,
+        i,
+
+        YEAR = 0,
+        MONTH = 1,
+        DATE = 2,
+        HOUR = 3,
+        MINUTE = 4,
+        SECOND = 5,
+        MILLISECOND = 6,
+
+        // internal storage for locale config files
+        locales = {},
+
+        // extra moment internal properties (plugins register props here)
+        momentProperties = [],
+
+        // check for nodeJS
+        hasModule = (typeof module !== 'undefined' && module && module.exports),
+
+        // ASP.NET json date format regex
+        aspNetJsonRegex = /^\/?Date\((\-?\d+)/i,
+        aspNetTimeSpanJsonRegex = /(\-)?(?:(\d*)\.)?(\d+)\:(\d+)(?:\:(\d+)\.?(\d{3})?)?/,
+
+        // from http://docs.closure-library.googlecode.com/git/closure_goog_date_date.js.source.html
+        // somewhat more in line with 4.4.3.2 2004 spec, but allows decimal anywhere
+        isoDurationRegex = /^(-)?P(?:(?:([0-9,.]*)Y)?(?:([0-9,.]*)M)?(?:([0-9,.]*)D)?(?:T(?:([0-9,.]*)H)?(?:([0-9,.]*)M)?(?:([0-9,.]*)S)?)?|([0-9,.]*)W)$/,
+
+        // format tokens
+        formattingTokens = /(\[[^\[]*\])|(\\)?(Mo|MM?M?M?|Do|DDDo|DD?D?D?|ddd?d?|do?|w[o|w]?|W[o|W]?|Q|YYYYYY|YYYYY|YYYY|YY|gg(ggg?)?|GG(GGG?)?|e|E|a|A|hh?|HH?|mm?|ss?|S{1,4}|x|X|zz?|ZZ?|.)/g,
+        localFormattingTokens = /(\[[^\[]*\])|(\\)?(LTS|LT|LL?L?L?|l{1,4})/g,
+
+        // parsing token regexes
+        parseTokenOneOrTwoDigits = /\d\d?/, // 0 - 99
+        parseTokenOneToThreeDigits = /\d{1,3}/, // 0 - 999
+        parseTokenOneToFourDigits = /\d{1,4}/, // 0 - 9999
+        parseTokenOneToSixDigits = /[+\-]?\d{1,6}/, // -999,999 - 999,999
+        parseTokenDigits = /\d+/, // nonzero number of digits
+        parseTokenWord = /[0-9]*['a-z\u00A0-\u05FF\u0700-\uD7FF\uF900-\uFDCF\uFDF0-\uFFEF]+|[\u0600-\u06FF\/]+(\s*?[\u0600-\u06FF]+){1,2}/i, // any word (or two) characters or numbers including two/three word month in arabic.
+        parseTokenTimezone = /Z|[\+\-]\d\d:?\d\d/gi, // +00:00 -00:00 +0000 -0000 or Z
+        parseTokenT = /T/i, // T (ISO separator)
+        parseTokenOffsetMs = /[\+\-]?\d+/, // 1234567890123
+        parseTokenTimestampMs = /[\+\-]?\d+(\.\d{1,3})?/, // 123456789 123456789.123
+
+        //strict parsing regexes
+        parseTokenOneDigit = /\d/, // 0 - 9
+        parseTokenTwoDigits = /\d\d/, // 00 - 99
+        parseTokenThreeDigits = /\d{3}/, // 000 - 999
+        parseTokenFourDigits = /\d{4}/, // 0000 - 9999
+        parseTokenSixDigits = /[+-]?\d{6}/, // -999,999 - 999,999
+        parseTokenSignedNumber = /[+-]?\d+/, // -inf - inf
+
+        // iso 8601 regex
+        // 0000-00-00 0000-W00 or 0000-W00-0 + T + 00 or 00:00 or 00:00:00 or 00:00:00.000 + +00:00 or +0000 or +00)
+        isoRegex = /^\s*(?:[+-]\d{6}|\d{4})-(?:(\d\d-\d\d)|(W\d\d$)|(W\d\d-\d)|(\d\d\d))((T| )(\d\d(:\d\d(:\d\d(\.\d+)?)?)?)?([\+\-]\d\d(?::?\d\d)?|\s*Z)?)?$/,
+
+        isoFormat = 'YYYY-MM-DDTHH:mm:ssZ',
+
+        isoDates = [
+            ['YYYYYY-MM-DD', /[+-]\d{6}-\d{2}-\d{2}/],
+            ['YYYY-MM-DD', /\d{4}-\d{2}-\d{2}/],
+            ['GGGG-[W]WW-E', /\d{4}-W\d{2}-\d/],
+            ['GGGG-[W]WW', /\d{4}-W\d{2}/],
+            ['YYYY-DDD', /\d{4}-\d{3}/]
+        ],
+
+        // iso time formats and regexes
+        isoTimes = [
+            ['HH:mm:ss.SSSS', /(T| )\d\d:\d\d:\d\d\.\d+/],
+            ['HH:mm:ss', /(T| )\d\d:\d\d:\d\d/],
+            ['HH:mm', /(T| )\d\d:\d\d/],
+            ['HH', /(T| )\d\d/]
+        ],
+
+        // timezone chunker '+10:00' > ['10', '00'] or '-1530' > ['-15', '30']
+        parseTimezoneChunker = /([\+\-]|\d\d)/gi,
+
+        // getter and setter names
+        proxyGettersAndSetters = 'Date|Hours|Minutes|Seconds|Milliseconds'.split('|'),
+        unitMillisecondFactors = {
+            'Milliseconds' : 1,
+            'Seconds' : 1e3,
+            'Minutes' : 6e4,
+            'Hours' : 36e5,
+            'Days' : 864e5,
+            'Months' : 2592e6,
+            'Years' : 31536e6
+        },
+
+        unitAliases = {
+            ms : 'millisecond',
+            s : 'second',
+            m : 'minute',
+            h : 'hour',
+            d : 'day',
+            D : 'date',
+            w : 'week',
+            W : 'isoWeek',
+            M : 'month',
+            Q : 'quarter',
+            y : 'year',
+            DDD : 'dayOfYear',
+            e : 'weekday',
+            E : 'isoWeekday',
+            gg: 'weekYear',
+            GG: 'isoWeekYear'
+        },
+
+        camelFunctions = {
+            dayofyear : 'dayOfYear',
+            isoweekday : 'isoWeekday',
+            isoweek : 'isoWeek',
+            weekyear : 'weekYear',
+            isoweekyear : 'isoWeekYear'
+        },
+
+        // format function strings
+        formatFunctions = {},
+
+        // default relative time thresholds
+        relativeTimeThresholds = {
+            s: 45,  // seconds to minute
+            m: 45,  // minutes to hour
+            h: 22,  // hours to day
+            d: 26,  // days to month
+            M: 11   // months to year
+        },
+
+        // tokens to ordinalize and pad
+        ordinalizeTokens = 'DDD w W M D d'.split(' '),
+        paddedTokens = 'M D H h m s w W'.split(' '),
+
+        formatTokenFunctions = {
+            M    : function () {
+                return this.month() + 1;
+            },
+            MMM  : function (format) {
+                return this.localeData().monthsShort(this, format);
+            },
+            MMMM : function (format) {
+                return this.localeData().months(this, format);
+            },
+            D    : function () {
+                return this.date();
+            },
+            DDD  : function () {
+                return this.dayOfYear();
+            },
+            d    : function () {
+                return this.day();
+            },
+            dd   : function (format) {
+                return this.localeData().weekdaysMin(this, format);
+            },
+            ddd  : function (format) {
+                return this.localeData().weekdaysShort(this, format);
+            },
+            dddd : function (format) {
+                return this.localeData().weekdays(this, format);
+            },
+            w    : function () {
+                return this.week();
+            },
+            W    : function () {
+                return this.isoWeek();
+            },
+            YY   : function () {
+                return leftZeroFill(this.year() % 100, 2);
+            },
+            YYYY : function () {
+                return leftZeroFill(this.year(), 4);
+            },
+            YYYYY : function () {
+                return leftZeroFill(this.year(), 5);
+            },
+            YYYYYY : function () {
+                var y = this.year(), sign = y >= 0 ? '+' : '-';
+                return sign + leftZeroFill(Math.abs(y), 6);
+            },
+            gg   : function () {
+                return leftZeroFill(this.weekYear() % 100, 2);
+            },
+            gggg : function () {
+                return leftZeroFill(this.weekYear(), 4);
+            },
+            ggggg : function () {
+                return leftZeroFill(this.weekYear(), 5);
+            },
+            GG   : function () {
+                return leftZeroFill(this.isoWeekYear() % 100, 2);
+            },
+            GGGG : function () {
+                return leftZeroFill(this.isoWeekYear(), 4);
+            },
+            GGGGG : function () {
+                return leftZeroFill(this.isoWeekYear(), 5);
+            },
+            e : function () {
+                return this.weekday();
+            },
+            E : function () {
+                return this.isoWeekday();
+            },
+            a    : function () {
+                return this.localeData().meridiem(this.hours(), this.minutes(), true);
+            },
+            A    : function () {
+                return this.localeData().meridiem(this.hours(), this.minutes(), false);
+            },
+            H    : function () {
+                return this.hours();
+            },
+            h    : function () {
+                return this.hours() % 12 || 12;
+            },
+            m    : function () {
+                return this.minutes();
+            },
+            s    : function () {
+                return this.seconds();
+            },
+            S    : function () {
+                return toInt(this.milliseconds() / 100);
+            },
+            SS   : function () {
+                return leftZeroFill(toInt(this.milliseconds() / 10), 2);
+            },
+            SSS  : function () {
+                return leftZeroFill(this.milliseconds(), 3);
+            },
+            SSSS : function () {
+                return leftZeroFill(this.milliseconds(), 3);
+            },
+            Z    : function () {
+                var a = -this.zone(),
+                    b = '+';
+                if (a < 0) {
+                    a = -a;
+                    b = '-';
+                }
+                return b + leftZeroFill(toInt(a / 60), 2) + ':' + leftZeroFill(toInt(a) % 60, 2);
+            },
+            ZZ   : function () {
+                var a = -this.zone(),
+                    b = '+';
+                if (a < 0) {
+                    a = -a;
+                    b = '-';
+                }
+                return b + leftZeroFill(toInt(a / 60), 2) + leftZeroFill(toInt(a) % 60, 2);
+            },
+            z : function () {
+                return this.zoneAbbr();
+            },
+            zz : function () {
+                return this.zoneName();
+            },
+            x    : function () {
+                return this.valueOf();
+            },
+            X    : function () {
+                return this.unix();
+            },
+            Q : function () {
+                return this.quarter();
+            }
+        },
+
+        deprecations = {},
+
+        lists = ['months', 'monthsShort', 'weekdays', 'weekdaysShort', 'weekdaysMin'];
+
+    // Pick the first defined of two or three arguments. dfl comes from
+    // default.
+    function dfl(a, b, c) {
+        switch (arguments.length) {
+            case 2: return a != null ? a : b;
+            case 3: return a != null ? a : b != null ? b : c;
+            default: throw new Error('Implement me');
+        }
+    }
+
+    function hasOwnProp(a, b) {
+        return hasOwnProperty.call(a, b);
+    }
+
+    function defaultParsingFlags() {
+        // We need to deep clone this object, and es5 standard is not very
+        // helpful.
+        return {
+            empty : false,
+            unusedTokens : [],
+            unusedInput : [],
+            overflow : -2,
+            charsLeftOver : 0,
+            nullInput : false,
+            invalidMonth : null,
+            invalidFormat : false,
+            userInvalidated : false,
+            iso: false
+        };
+    }
+
+    function printMsg(msg) {
+        if (moment.suppressDeprecationWarnings === false &&
+                typeof console !== 'undefined' && console.warn) {
+            console.warn('Deprecation warning: ' + msg);
+        }
+    }
+
+    function deprecate(msg, fn) {
+        var firstTime = true;
+        return extend(function () {
+            if (firstTime) {
+                printMsg(msg);
+                firstTime = false;
+            }
+            return fn.apply(this, arguments);
+        }, fn);
+    }
+
+    function deprecateSimple(name, msg) {
+        if (!deprecations[name]) {
+            printMsg(msg);
+            deprecations[name] = true;
+        }
+    }
+
+    function padToken(func, count) {
+        return function (a) {
+            return leftZeroFill(func.call(this, a), count);
+        };
+    }
+    function ordinalizeToken(func, period) {
+        return function (a) {
+            return this.localeData().ordinal(func.call(this, a), period);
+        };
+    }
+
+    while (ordinalizeTokens.length) {
+        i = ordinalizeTokens.pop();
+        formatTokenFunctions[i + 'o'] = ordinalizeToken(formatTokenFunctions[i], i);
+    }
+    while (paddedTokens.length) {
+        i = paddedTokens.pop();
+        formatTokenFunctions[i + i] = padToken(formatTokenFunctions[i], 2);
+    }
+    formatTokenFunctions.DDDD = padToken(formatTokenFunctions.DDD, 3);
+
+
+    /************************************
+        Constructors
+    ************************************/
+
+    function Locale() {
+    }
+
+    // Moment prototype object
+    function Moment(config, skipOverflow) {
+        if (skipOverflow !== false) {
+            checkOverflow(config);
+        }
+        copyConfig(this, config);
+        this._d = new Date(+config._d);
+    }
+
+    // Duration Constructor
+    function Duration(duration) {
+        var normalizedInput = normalizeObjectUnits(duration),
+            years = normalizedInput.year || 0,
+            quarters = normalizedInput.quarter || 0,
+            months = normalizedInput.month || 0,
+            weeks = normalizedInput.week || 0,
+            days = normalizedInput.day || 0,
+            hours = normalizedInput.hour || 0,
+            minutes = normalizedInput.minute || 0,
+            seconds = normalizedInput.second || 0,
+            milliseconds = normalizedInput.millisecond || 0;
+
+        // representation for dateAddRemove
+        this._milliseconds = +milliseconds +
+            seconds * 1e3 + // 1000
+            minutes * 6e4 + // 1000 * 60
+            hours * 36e5; // 1000 * 60 * 60
+        // Because of dateAddRemove treats 24 hours as different from a
+        // day when working around DST, we need to store them separately
+        this._days = +days +
+            weeks * 7;
+        // It is impossible translate months into days without knowing
+        // which months you are are talking about, so we have to store
+        // it separately.
+        this._months = +months +
+            quarters * 3 +
+            years * 12;
+
+        this._data = {};
+
+        this._locale = moment.localeData();
+
+        this._bubble();
+    }
+
+    /************************************
+        Helpers
+    ************************************/
+
+
+    function extend(a, b) {
+        for (var i in b) {
+            if (hasOwnProp(b, i)) {
+                a[i] = b[i];
+            }
+        }
+
+        if (hasOwnProp(b, 'toString')) {
+            a.toString = b.toString;
+        }
+
+        if (hasOwnProp(b, 'valueOf')) {
+            a.valueOf = b.valueOf;
+        }
+
+        return a;
+    }
+
+    function copyConfig(to, from) {
+        var i, prop, val;
+
+        if (typeof from._isAMomentObject !== 'undefined') {
+            to._isAMomentObject = from._isAMomentObject;
+        }
+        if (typeof from._i !== 'undefined') {
+            to._i = from._i;
+        }
+        if (typeof from._f !== 'undefined') {
+            to._f = from._f;
+        }
+        if (typeof from._l !== 'undefined') {
+            to._l = from._l;
+        }
+        if (typeof from._strict !== 'undefined') {
+            to._strict = from._strict;
+        }
+        if (typeof from._tzm !== 'undefined') {
+            to._tzm = from._tzm;
+        }
+        if (typeof from._isUTC !== 'undefined') {
+            to._isUTC = from._isUTC;
+        }
+        if (typeof from._offset !== 'undefined') {
+            to._offset = from._offset;
+        }
+        if (typeof from._pf !== 'undefined') {
+            to._pf = from._pf;
+        }
+        if (typeof from._locale !== 'undefined') {
+            to._locale = from._locale;
+        }
+
+        if (momentProperties.length > 0) {
+            for (i in momentProperties) {
+                prop = momentProperties[i];
+                val = from[prop];
+                if (typeof val !== 'undefined') {
+                    to[prop] = val;
+                }
+            }
+        }
+
+        return to;
+    }
+
+    function absRound(number) {
+        if (number < 0) {
+            return Math.ceil(number);
+        } else {
+            return Math.floor(number);
+        }
+    }
+
+    // left zero fill a number
+    // see http://jsperf.com/left-zero-filling for performance comparison
+    function leftZeroFill(number, targetLength, forceSign) {
+        var output = '' + Math.abs(number),
+            sign = number >= 0;
+
+        while (output.length < targetLength) {
+            output = '0' + output;
+        }
+        return (sign ? (forceSign ? '+' : '') : '-') + output;
+    }
+
+    function positiveMomentsDifference(base, other) {
+        var res = {milliseconds: 0, months: 0};
+
+        res.months = other.month() - base.month() +
+            (other.year() - base.year()) * 12;
+        if (base.clone().add(res.months, 'M').isAfter(other)) {
+            --res.months;
+        }
+
+        res.milliseconds = +other - +(base.clone().add(res.months, 'M'));
+
+        return res;
+    }
+
+    function momentsDifference(base, other) {
+        var res;
+        other = makeAs(other, base);
+        if (base.isBefore(other)) {
+            res = positiveMomentsDifference(base, other);
+        } else {
+            res = positiveMomentsDifference(other, base);
+            res.milliseconds = -res.milliseconds;
+            res.months = -res.months;
+        }
+
+        return res;
+    }
+
+    // TODO: remove 'name' arg after deprecation is removed
+    function createAdder(direction, name) {
+        return function (val, period) {
+            var dur, tmp;
+            //invert the arguments, but complain about it
+            if (period !== null && !isNaN(+period)) {
+                deprecateSimple(name, 'moment().' + name  + '(period, number) is deprecated. Please use moment().' + name + '(number, period).');
+                tmp = val; val = period; period = tmp;
+            }
+
+            val = typeof val === 'string' ? +val : val;
+            dur = moment.duration(val, period);
+            addOrSubtractDurationFromMoment(this, dur, direction);
+            return this;
+        };
+    }
+
+    function addOrSubtractDurationFromMoment(mom, duration, isAdding, updateOffset) {
+        var milliseconds = duration._milliseconds,
+            days = duration._days,
+            months = duration._months;
+        updateOffset = updateOffset == null ? true : updateOffset;
+
+        if (milliseconds) {
+            mom._d.setTime(+mom._d + milliseconds * isAdding);
+        }
+        if (days) {
+            rawSetter(mom, 'Date', rawGetter(mom, 'Date') + days * isAdding);
+        }
+        if (months) {
+            rawMonthSetter(mom, rawGetter(mom, 'Month') + months * isAdding);
+        }
+        if (updateOffset) {
+            moment.updateOffset(mom, days || months);
+        }
+    }
+
+    // check if is an array
+    function isArray(input) {
+        return Object.prototype.toString.call(input) === '[object Array]';
+    }
+
+    function isDate(input) {
+        return Object.prototype.toString.call(input) === '[object Date]' ||
+            input instanceof Date;
+    }
+
+    // compare two arrays, return the number of differences
+    function compareArrays(array1, array2, dontConvert) {
+        var len = Math.min(array1.length, array2.length),
+            lengthDiff = Math.abs(array1.length - array2.length),
+            diffs = 0,
+            i;
+        for (i = 0; i < len; i++) {
+            if ((dontConvert && array1[i] !== array2[i]) ||
+                (!dontConvert && toInt(array1[i]) !== toInt(array2[i]))) {
+                diffs++;
+            }
+        }
+        return diffs + lengthDiff;
+    }
+
+    function normalizeUnits(units) {
+        if (units) {
+            var lowered = units.toLowerCase().replace(/(.)s$/, '$1');
+            units = unitAliases[units] || camelFunctions[lowered] || lowered;
+        }
+        return units;
+    }
+
+    function normalizeObjectUnits(inputObject) {
+        var normalizedInput = {},
+            normalizedProp,
+            prop;
+
+        for (prop in inputObject) {
+            if (hasOwnProp(inputObject, prop)) {
+                normalizedProp = normalizeUnits(prop);
+                if (normalizedProp) {
+                    normalizedInput[normalizedProp] = inputObject[prop];
+                }
+            }
+        }
+
+        return normalizedInput;
+    }
+
+    function makeList(field) {
+        var count, setter;
+
+        if (field.indexOf('week') === 0) {
+            count = 7;
+            setter = 'day';
+        }
+        else if (field.indexOf('month') === 0) {
+            count = 12;
+            setter = 'month';
+        }
+        else {
+            return;
+        }
+
+        moment[field] = function (format, index) {
+            var i, getter,
+                method = moment._locale[field],
+                results = [];
+
+            if (typeof format === 'number') {
+                index = format;
+                format = undefined;
+            }
+
+            getter = function (i) {
+                var m = moment().utc().set(setter, i);
+                return method.call(moment._locale, m, format || '');
+            };
+
+            if (index != null) {
+                return getter(index);
+            }
+            else {
+                for (i = 0; i < count; i++) {
+                    results.push(getter(i));
+                }
+                return results;
+            }
+        };
+    }
+
+    function toInt(argumentForCoercion) {
+        var coercedNumber = +argumentForCoercion,
+            value = 0;
+
+        if (coercedNumber !== 0 && isFinite(coercedNumber)) {
+            if (coercedNumber >= 0) {
+                value = Math.floor(coercedNumber);
+            } else {
+                value = Math.ceil(coercedNumber);
+            }
+        }
+
+        return value;
+    }
+
+    function daysInMonth(year, month) {
+        return new Date(Date.UTC(year, month + 1, 0)).getUTCDate();
+    }
+
+    function weeksInYear(year, dow, doy) {
+        return weekOfYear(moment([year, 11, 31 + dow - doy]), dow, doy).week;
+    }
+
+    function daysInYear(year) {
+        return isLeapYear(year) ? 366 : 365;
+    }
+
+    function isLeapYear(year) {
+        return (year % 4 === 0 && year % 100 !== 0) || year % 400 === 0;
+    }
+
+    function checkOverflow(m) {
+        var overflow;
+        if (m._a && m._pf.overflow === -2) {
+            overflow =
+                m._a[MONTH] < 0 || m._a[MONTH] > 11 ? MONTH :
+                m._a[DATE] < 1 || m._a[DATE] > daysInMonth(m._a[YEAR], m._a[MONTH]) ? DATE :
+                m._a[HOUR] < 0 || m._a[HOUR] > 24 ||
+                    (m._a[HOUR] === 24 && (m._a[MINUTE] !== 0 ||
+                                           m._a[SECOND] !== 0 ||
+                                           m._a[MILLISECOND] !== 0)) ? HOUR :
+                m._a[MINUTE] < 0 || m._a[MINUTE] > 59 ? MINUTE :
+                m._a[SECOND] < 0 || m._a[SECOND] > 59 ? SECOND :
+                m._a[MILLISECOND] < 0 || m._a[MILLISECOND] > 999 ? MILLISECOND :
+                -1;
+
+            if (m._pf._overflowDayOfYear && (overflow < YEAR || overflow > DATE)) {
+                overflow = DATE;
+            }
+
+            m._pf.overflow = overflow;
+        }
+    }
+
+    function isValid(m) {
+        if (m._isValid == null) {
+            m._isValid = !isNaN(m._d.getTime()) &&
+                m._pf.overflow < 0 &&
+                !m._pf.empty &&
+                !m._pf.invalidMonth &&
+                !m._pf.nullInput &&
+                !m._pf.invalidFormat &&
+                !m._pf.userInvalidated;
+
+            if (m._strict) {
+                m._isValid = m._isValid &&
+                    m._pf.charsLeftOver === 0 &&
+                    m._pf.unusedTokens.length === 0 &&
+                    m._pf.bigHour === undefined;
+            }
+        }
+        return m._isValid;
+    }
+
+    function normalizeLocale(key) {
+        return key ? key.toLowerCase().replace('_', '-') : key;
+    }
+
+    // pick the locale from the array
+    // try ['en-au', 'en-gb'] as 'en-au', 'en-gb', 'en', as in move through the list trying each
+    // substring from most specific to least, but move to the next array item if it's a more specific variant than the current root
+    function chooseLocale(names) {
+        var i = 0, j, next, locale, split;
+
+        while (i < names.length) {
+            split = normalizeLocale(names[i]).split('-');
+            j = split.length;
+            next = normalizeLocale(names[i + 1]);
+            next = next ? next.split('-') : null;
+            while (j > 0) {
+                locale = loadLocale(split.slice(0, j).join('-'));
+                if (locale) {
+                    return locale;
+                }
+                if (next && next.length >= j && compareArrays(split, next, true) >= j - 1) {
+                    //the next array item is better than a shallower substring of this one
+                    break;
+                }
+                j--;
+            }
+            i++;
+        }
+        return null;
+    }
+
+    function loadLocale(name) {
+        var oldLocale = null;
+        if (!locales[name] && hasModule) {
+            try {
+                oldLocale = moment.locale();
+                require('./locale/' + name);
+                // because defineLocale currently also sets the global locale, we want to undo that for lazy loaded locales
+                moment.locale(oldLocale);
+            } catch (e) { }
+        }
+        return locales[name];
+    }
+
+    // Return a moment from input, that is local/utc/zone equivalent to model.
+    function makeAs(input, model) {
+        var res, diff;
+        if (model._isUTC) {
+            res = model.clone();
+            diff = (moment.isMoment(input) || isDate(input) ?
+                    +input : +moment(input)) - (+res);
+            // Use low-level api, because this fn is low-level api.
+            res._d.setTime(+res._d + diff);
+            moment.updateOffset(res, false);
+            return res;
+        } else {
+            return moment(input).local();
+        }
+    }
+
+    /************************************
+        Locale
+    ************************************/
+
+
+    extend(Locale.prototype, {
+
+        set : function (config) {
+            var prop, i;
+            for (i in config) {
+                prop = config[i];
+                if (typeof prop === 'function') {
+                    this[i] = prop;
+                } else {
+                    this['_' + i] = prop;
+                }
+            }
+            // Lenient ordinal parsing accepts just a number in addition to
+            // number + (possibly) stuff coming from _ordinalParseLenient.
+            this._ordinalParseLenient = new RegExp(this._ordinalParse.source + '|' + /\d{1,2}/.source);
+        },
+
+        _months : 'January_February_March_April_May_June_July_August_September_October_November_December'.split('_'),
+        months : function (m) {
+            return this._months[m.month()];
+        },
+
+        _monthsShort : 'Jan_Feb_Mar_Apr_May_Jun_Jul_Aug_Sep_Oct_Nov_Dec'.split('_'),
+        monthsShort : function (m) {
+            return this._monthsShort[m.month()];
+        },
+
+        monthsParse : function (monthName, format, strict) {
+            var i, mom, regex;
+
+            if (!this._monthsParse) {
+                this._monthsParse = [];
+                this._longMonthsParse = [];
+                this._shortMonthsParse = [];
+            }
+
+            for (i = 0; i < 12; i++) {
+                // make the regex if we don't have it already
+                mom = moment.utc([2000, i]);
+                if (strict && !this._longMonthsParse[i]) {
+                    this._longMonthsParse[i] = new RegExp('^' + this.months(mom, '').replace('.', '') + '$', 'i');
+                    this._shortMonthsParse[i] = new RegExp('^' + this.monthsShort(mom, '').replace('.', '') + '$', 'i');
+                }
+                if (!strict && !this._monthsParse[i]) {
+                    regex = '^' + this.months(mom, '') + '|^' + this.monthsShort(mom, '');
+                    this._monthsParse[i] = new RegExp(regex.replace('.', ''), 'i');
+                }
+                // test the regex
+                if (strict && format === 'MMMM' && this._longMonthsParse[i].test(monthName)) {
+                    return i;
+                } else if (strict && format === 'MMM' && this._shortMonthsParse[i].test(monthName)) {
+                    return i;
+                } else if (!strict && this._monthsParse[i].test(monthName)) {
+                    return i;
+                }
+            }
+        },
+
+        _weekdays : 'Sunday_Monday_Tuesday_Wednesday_Thursday_Friday_Saturday'.split('_'),
+        weekdays : function (m) {
+            return this._weekdays[m.day()];
+        },
+
+        _weekdaysShort : 'Sun_Mon_Tue_Wed_Thu_Fri_Sat'.split('_'),
+        weekdaysShort : function (m) {
+            return this._weekdaysShort[m.day()];
+        },
+
+        _weekdaysMin : 'Su_Mo_Tu_We_Th_Fr_Sa'.split('_'),
+        weekdaysMin : function (m) {
+            return this._weekdaysMin[m.day()];
+        },
+
+        weekdaysParse : function (weekdayName) {
+            var i, mom, regex;
+
+            if (!this._weekdaysParse) {
+                this._weekdaysParse = [];
+            }
+
+            for (i = 0; i < 7; i++) {
+                // make the regex if we don't have it already
+                if (!this._weekdaysParse[i]) {
+                    mom = moment([2000, 1]).day(i);
+                    regex = '^' + this.weekdays(mom, '') + '|^' + this.weekdaysShort(mom, '') + '|^' + this.weekdaysMin(mom, '');
+                    this._weekdaysParse[i] = new RegExp(regex.replace('.', ''), 'i');
+                }
+                // test the regex
+                if (this._weekdaysParse[i].test(weekdayName)) {
+                    return i;
+                }
+            }
+        },
+
+        _longDateFormat : {
+            LTS : 'h:mm:ss A',
+            LT : 'h:mm A',
+            L : 'MM/DD/YYYY',
+            LL : 'MMMM D, YYYY',
+            LLL : 'MMMM D, YYYY LT',
+            LLLL : 'dddd, MMMM D, YYYY LT'
+        },
+        longDateFormat : function (key) {
+            var output = this._longDateFormat[key];
+            if (!output && this._longDateFormat[key.toUpperCase()]) {
+                output = this._longDateFormat[key.toUpperCase()].replace(/MMMM|MM|DD|dddd/g, function (val) {
+                    return val.slice(1);
+                });
+                this._longDateFormat[key] = output;
+            }
+            return output;
+        },
+
+        isPM : function (input) {
+            // IE8 Quirks Mode & IE7 Standards Mode do not allow accessing strings like arrays
+            // Using charAt should be more compatible.
+            return ((input + '').toLowerCase().charAt(0) === 'p');
+        },
+
+        _meridiemParse : /[ap]\.?m?\.?/i,
+        meridiem : function (hours, minutes, isLower) {
+            if (hours > 11) {
+                return isLower ? 'pm' : 'PM';
+            } else {
+                return isLower ? 'am' : 'AM';
+            }
+        },
+
+        _calendar : {
+            sameDay : '[Today at] LT',
+            nextDay : '[Tomorrow at] LT',
+            nextWeek : 'dddd [at] LT',
+            lastDay : '[Yesterday at] LT',
+            lastWeek : '[Last] dddd [at] LT',
+            sameElse : 'L'
+        },
+        calendar : function (key, mom, now) {
+            var output = this._calendar[key];
+            return typeof output === 'function' ? output.apply(mom, [now]) : output;
+        },
+
+        _relativeTime : {
+            future : 'in %s',
+            past : '%s ago',
+            s : 'a few seconds',
+            m : 'a minute',
+            mm : '%d minutes',
+            h : 'an hour',
+            hh : '%d hours',
+            d : 'a day',
+            dd : '%d days',
+            M : 'a month',
+            MM : '%d months',
+            y : 'a year',
+            yy : '%d years'
+        },
+
+        relativeTime : function (number, withoutSuffix, string, isFuture) {
+            var output = this._relativeTime[string];
+            return (typeof output === 'function') ?
+                output(number, withoutSuffix, string, isFuture) :
+                output.replace(/%d/i, number);
+        },
+
+        pastFuture : function (diff, output) {
+            var format = this._relativeTime[diff > 0 ? 'future' : 'past'];
+            return typeof format === 'function' ? format(output) : format.replace(/%s/i, output);
+        },
+
+        ordinal : function (number) {
+            return this._ordinal.replace('%d', number);
+        },
+        _ordinal : '%d',
+        _ordinalParse : /\d{1,2}/,
+
+        preparse : function (string) {
+            return string;
+        },
+
+        postformat : function (string) {
+            return string;
+        },
+
+        week : function (mom) {
+            return weekOfYear(mom, this._week.dow, this._week.doy).week;
+        },
+
+        _week : {
+            dow : 0, // Sunday is the first day of the week.
+            doy : 6  // The week that contains Jan 1st is the first week of the year.
+        },
+
+        _invalidDate: 'Invalid date',
+        invalidDate: function () {
+            return this._invalidDate;
+        }
+    });
+
+    /************************************
+        Formatting
+    ************************************/
+
+
+    function removeFormattingTokens(input) {
+        if (input.match(/\[[\s\S]/)) {
+            return input.replace(/^\[|\]$/g, '');
+        }
+        return input.replace(/\\/g, '');
+    }
+
+    function makeFormatFunction(format) {
+        var array = format.match(formattingTokens), i, length;
+
+        for (i = 0, length = array.length; i < length; i++) {
+            if (formatTokenFunctions[array[i]]) {
+                array[i] = formatTokenFunctions[array[i]];
+            } else {
+                array[i] = removeFormattingTokens(array[i]);
+            }
+        }
+
+        return function (mom) {
+            var output = '';
+            for (i = 0; i < length; i++) {
+                output += array[i] instanceof Function ? array[i].call(mom, format) : array[i];
+            }
+            return output;
+        };
+    }
+
+    // format date using native date object
+    function formatMoment(m, format) {
+        if (!m.isValid()) {
+            return m.localeData().invalidDate();
+        }
+
+        format = expandFormat(format, m.localeData());
+
+        if (!formatFunctions[format]) {
+            formatFunctions[format] = makeFormatFunction(format);
+        }
+
+        return formatFunctions[format](m);
+    }
+
+    function expandFormat(format, locale) {
+        var i = 5;
+
+        function replaceLongDateFormatTokens(input) {
+            return locale.longDateFormat(input) || input;
+        }
+
+        localFormattingTokens.lastIndex = 0;
+        while (i >= 0 && localFormattingTokens.test(format)) {
+            format = format.replace(localFormattingTokens, replaceLongDateFormatTokens);
+            localFormattingTokens.lastIndex = 0;
+            i -= 1;
+        }
+
+        return format;
+    }
+
+
+    /************************************
+        Parsing
+    ************************************/
+
+
+    // get the regex to find the next token
+    function getParseRegexForToken(token, config) {
+        var a, strict = config._strict;
+        switch (token) {
+        case 'Q':
+            return parseTokenOneDigit;
+        case 'DDDD':
+            return parseTokenThreeDigits;
+        case 'YYYY':
+        case 'GGGG':
+        case 'gggg':
+            return strict ? parseTokenFourDigits : parseTokenOneToFourDigits;
+        case 'Y':
+        case 'G':
+        case 'g':
+            return parseTokenSignedNumber;
+        case 'YYYYYY':
+        case 'YYYYY':
+        case 'GGGGG':
+        case 'ggggg':
+            return strict ? parseTokenSixDigits : parseTokenOneToSixDigits;
+        case 'S':
+            if (strict) {
+                return parseTokenOneDigit;
+            }
+            /* falls through */
+        case 'SS':
+            if (strict) {
+                return parseTokenTwoDigits;
+            }
+            /* falls through */
+        case 'SSS':
+            if (strict) {
+                return parseTokenThreeDigits;
+            }
+            /* falls through */
+        case 'DDD':
+            return parseTokenOneToThreeDigits;
+        case 'MMM':
+        case 'MMMM':
+        case 'dd':
+        case 'ddd':
+        case 'dddd':
+            return parseTokenWord;
+        case 'a':
+        case 'A':
+            return config._locale._meridiemParse;
+        case 'x':
+            return parseTokenOffsetMs;
+        case 'X':
+            return parseTokenTimestampMs;
+        case 'Z':
+        case 'ZZ':
+            return parseTokenTimezone;
+        case 'T':
+            return parseTokenT;
+        case 'SSSS':
+            return parseTokenDigits;
+        case 'MM':
+        case 'DD':
+        case 'YY':
+        case 'GG':
+        case 'gg':
+        case 'HH':
+        case 'hh':
+        case 'mm':
+        case 'ss':
+        case 'ww':
+        case 'WW':
+            return strict ? parseTokenTwoDigits : parseTokenOneOrTwoDigits;
+        case 'M':
+        case 'D':
+        case 'd':
+        case 'H':
+        case 'h':
+        case 'm':
+        case 's':
+        case 'w':
+        case 'W':
+        case 'e':
+        case 'E':
+            return parseTokenOneOrTwoDigits;
+        case 'Do':
+            return strict ? config._locale._ordinalParse : config._locale._ordinalParseLenient;
+        default :
+            a = new RegExp(regexpEscape(unescapeFormat(token.replace('\\', '')), 'i'));
+            return a;
+        }
+    }
+
+    function timezoneMinutesFromString(string) {
+        string = string || '';
+        var possibleTzMatches = (string.match(parseTokenTimezone) || []),
+            tzChunk = possibleTzMatches[possibleTzMatches.length - 1] || [],
+            parts = (tzChunk + '').match(parseTimezoneChunker) || ['-', 0, 0],
+            minutes = +(parts[1] * 60) + toInt(parts[2]);
+
+        return parts[0] === '+' ? -minutes : minutes;
+    }
+
+    // function to convert string input to date
+    function addTimeToArrayFromToken(token, input, config) {
+        var a, datePartArray = config._a;
+
+        switch (token) {
+        // QUARTER
+        case 'Q':
+            if (input != null) {
+                datePartArray[MONTH] = (toInt(input) - 1) * 3;
+            }
+            break;
+        // MONTH
+        case 'M' : // fall through to MM
+        case 'MM' :
+            if (input != null) {
+                datePartArray[MONTH] = toInt(input) - 1;
+            }
+            break;
+        case 'MMM' : // fall through to MMMM
+        case 'MMMM' :
+            a = config._locale.monthsParse(input, token, config._strict);
+            // if we didn't find a month name, mark the date as invalid.
+            if (a != null) {
+                datePartArray[MONTH] = a;
+            } else {
+                config._pf.invalidMonth = input;
+            }
+            break;
+        // DAY OF MONTH
+        case 'D' : // fall through to DD
+        case 'DD' :
+            if (input != null) {
+                datePartArray[DATE] = toInt(input);
+            }
+            break;
+        case 'Do' :
+            if (input != null) {
+                datePartArray[DATE] = toInt(parseInt(
+                            input.match(/\d{1,2}/)[0], 10));
+            }
+            break;
+        // DAY OF YEAR
+        case 'DDD' : // fall through to DDDD
+        case 'DDDD' :
+            if (input != null) {
+                config._dayOfYear = toInt(input);
+            }
+
+            break;
+        // YEAR
+        case 'YY' :
+            datePartArray[YEAR] = moment.parseTwoDigitYear(input);
+            break;
+        case 'YYYY' :
+        case 'YYYYY' :
+        case 'YYYYYY' :
+            datePartArray[YEAR] = toInt(input);
+            break;
+        // AM / PM
+        case 'a' : // fall through to A
+        case 'A' :
+            config._isPm = config._locale.isPM(input);
+            break;
+        // HOUR
+        case 'h' : // fall through to hh
+        case 'hh' :
+            config._pf.bigHour = true;
+            /* falls through */
+        case 'H' : // fall through to HH
+        case 'HH' :
+            datePartArray[HOUR] = toInt(input);
+            break;
+        // MINUTE
+        case 'm' : // fall through to mm
+        case 'mm' :
+            datePartArray[MINUTE] = toInt(input);
+            break;
+        // SECOND
+        case 's' : // fall through to ss
+        case 'ss' :
+            datePartArray[SECOND] = toInt(input);
+            break;
+        // MILLISECOND
+        case 'S' :
+        case 'SS' :
+        case 'SSS' :
+        case 'SSSS' :
+            datePartArray[MILLISECOND] = toInt(('0.' + input) * 1000);
+            break;
+        // UNIX OFFSET (MILLISECONDS)
+        case 'x':
+            config._d = new Date(toInt(input));
+            break;
+        // UNIX TIMESTAMP WITH MS
+        case 'X':
+            config._d = new Date(parseFloat(input) * 1000);
+            break;
+        // TIMEZONE
+        case 'Z' : // fall through to ZZ
+        case 'ZZ' :
+            config._useUTC = true;
+            config._tzm = timezoneMinutesFromString(input);
+            break;
+        // WEEKDAY - human
+        case 'dd':
+        case 'ddd':
+        case 'dddd':
+            a = config._locale.weekdaysParse(input);
+            // if we didn't get a weekday name, mark the date as invalid
+            if (a != null) {
+                config._w = config._w || {};
+                config._w['d'] = a;
+            } else {
+                config._pf.invalidWeekday = input;
+            }
+            break;
+        // WEEK, WEEK DAY - numeric
+        case 'w':
+        case 'ww':
+        case 'W':
+        case 'WW':
+        case 'd':
+        case 'e':
+        case 'E':
+            token = token.substr(0, 1);
+            /* falls through */
+        case 'gggg':
+        case 'GGGG':
+        case 'GGGGG':
+            token = token.substr(0, 2);
+            if (input) {
+                config._w = config._w || {};
+                config._w[token] = toInt(input);
+            }
+            break;
+        case 'gg':
+        case 'GG':
+            config._w = config._w || {};
+            config._w[token] = moment.parseTwoDigitYear(input);
+        }
+    }
+
+    function dayOfYearFromWeekInfo(config) {
+        var w, weekYear, week, weekday, dow, doy, temp;
+
+        w = config._w;
+        if (w.GG != null || w.W != null || w.E != null) {
+            dow = 1;
+            doy = 4;
+
+            // TODO: We need to take the current isoWeekYear, but that depends on
+            // how we interpret now (local, utc, fixed offset). So create
+            // a now version of current config (take local/utc/offset flags, and
+            // create now).
+            weekYear = dfl(w.GG, config._a[YEAR], weekOfYear(moment(), 1, 4).year);
+            week = dfl(w.W, 1);
+            weekday = dfl(w.E, 1);
+        } else {
+            dow = config._locale._week.dow;
+            doy = config._locale._week.doy;
+
+            weekYear = dfl(w.gg, config._a[YEAR], weekOfYear(moment(), dow, doy).year);
+            week = dfl(w.w, 1);
+
+            if (w.d != null) {
+                // weekday -- low day numbers are considered next week
+                weekday = w.d;
+                if (weekday < dow) {
+                    ++week;
+                }
+            } else if (w.e != null) {
+                // local weekday -- counting starts from begining of week
+                weekday = w.e + dow;
+            } else {
+                // default to begining of week
+                weekday = dow;
+            }
+        }
+        temp = dayOfYearFromWeeks(weekYear, week, weekday, doy, dow);
+
+        config._a[YEAR] = temp.year;
+        config._dayOfYear = temp.dayOfYear;
+    }
+
+    // convert an array to a date.
+    // the array should mirror the parameters below
+    // note: all values past the year are optional and will default to the lowest possible value.
+    // [year, month, day , hour, minute, second, millisecond]
+    function dateFromConfig(config) {
+        var i, date, input = [], currentDate, yearToUse;
+
+        if (config._d) {
+            return;
+        }
+
+        currentDate = currentDateArray(config);
+
+        //compute day of the year from weeks and weekdays
+        if (config._w && config._a[DATE] == null && config._a[MONTH] == null) {
+            dayOfYearFromWeekInfo(config);
+        }
+
+        //if the day of the year is set, figure out what it is
+        if (config._dayOfYear) {
+            yearToUse = dfl(config._a[YEAR], currentDate[YEAR]);
+
+            if (config._dayOfYear > daysInYear(yearToUse)) {
+                config._pf._overflowDayOfYear = true;
+            }
+
+            date = makeUTCDate(yearToUse, 0, config._dayOfYear);
+            config._a[MONTH] = date.getUTCMonth();
+            config._a[DATE] = date.getUTCDate();
+        }
+
+        // Default to current date.
+        // * if no year, month, day of month are given, default to today
+        // * if day of month is given, default month and year
+        // * if month is given, default only year
+        // * if year is given, don't default anything
+        for (i = 0; i < 3 && config._a[i] == null; ++i) {
+            config._a[i] = input[i] = currentDate[i];
+        }
+
+        // Zero out whatever was not defaulted, including time
+        for (; i < 7; i++) {
+            config._a[i] = input[i] = (config._a[i] == null) ? (i === 2 ? 1 : 0) : config._a[i];
+        }
+
+        // Check for 24:00:00.000
+        if (config._a[HOUR] === 24 &&
+                config._a[MINUTE] === 0 &&
+                config._a[SECOND] === 0 &&
+                config._a[MILLISECOND] === 0) {
+            config._nextDay = true;
+            config._a[HOUR] = 0;
+        }
+
+        config._d = (config._useUTC ? makeUTCDate : makeDate).apply(null, input);
+        // Apply timezone offset from input. The actual zone can be changed
+        // with parseZone.
+        if (config._tzm != null) {
+            config._d.setUTCMinutes(config._d.getUTCMinutes() + config._tzm);
+        }
+
+        if (config._nextDay) {
+            config._a[HOUR] = 24;
+        }
+    }
+
+    function dateFromObject(config) {
+        var normalizedInput;
+
+        if (config._d) {
+            return;
+        }
+
+        normalizedInput = normalizeObjectUnits(config._i);
+        config._a = [
+            normalizedInput.year,
+            normalizedInput.month,
+            normalizedInput.day || normalizedInput.date,
+            normalizedInput.hour,
+            normalizedInput.minute,
+            normalizedInput.second,
+            normalizedInput.millisecond
+        ];
+
+        dateFromConfig(config);
+    }
+
+    function currentDateArray(config) {
+        var now = new Date();
+        if (config._useUTC) {
+            return [
+                now.getUTCFullYear(),
+                now.getUTCMonth(),
+                now.getUTCDate()
+            ];
+        } else {
+            return [now.getFullYear(), now.getMonth(), now.getDate()];
+        }
+    }
+
+    // date from string and format string
+    function makeDateFromStringAndFormat(config) {
+        if (config._f === moment.ISO_8601) {
+            parseISO(config);
+            return;
+        }
+
+        config._a = [];
+        config._pf.empty = true;
+
+        // This array is used to make a Date, either with `new Date` or `Date.UTC`
+        var string = '' + config._i,
+            i, parsedInput, tokens, token, skipped,
+            stringLength = string.length,
+            totalParsedInputLength = 0;
+
+        tokens = expandFormat(config._f, config._locale).match(formattingTokens) || [];
+
+        for (i = 0; i < tokens.length; i++) {
+            token = tokens[i];
+            parsedInput = (string.match(getParseRegexForToken(token, config)) || [])[0];
+            if (parsedInput) {
+                skipped = string.substr(0, string.indexOf(parsedInput));
+                if (skipped.length > 0) {
+                    config._pf.unusedInput.push(skipped);
+                }
+                string = string.slice(string.indexOf(parsedInput) + parsedInput.length);
+                totalParsedInputLength += parsedInput.length;
+            }
+            // don't parse if it's not a known token
+            if (formatTokenFunctions[token]) {
+                if (parsedInput) {
+                    config._pf.empty = false;
+                }
+                else {
+                    config._pf.unusedTokens.push(token);
+                }
+                addTimeToArrayFromToken(token, parsedInput, config);
+            }
+            else if (config._strict && !parsedInput) {
+                config._pf.unusedTokens.push(token);
+            }
+        }
+
+        // add remaining unparsed input length to the string
+        config._pf.charsLeftOver = stringLength - totalParsedInputLength;
+        if (string.length > 0) {
+            config._pf.unusedInput.push(string);
+        }
+
+        // clear _12h flag if hour is <= 12
+        if (config._pf.bigHour === true && config._a[HOUR] <= 12) {
+            config._pf.bigHour = undefined;
+        }
+        // handle am pm
+        if (config._isPm && config._a[HOUR] < 12) {
+            config._a[HOUR] += 12;
+        }
+        // if is 12 am, change hours to 0
+        if (config._isPm === false && config._a[HOUR] === 12) {
+            config._a[HOUR] = 0;
+        }
+        dateFromConfig(config);
+        checkOverflow(config);
+    }
+
+    function unescapeFormat(s) {
+        return s.replace(/\\(\[)|\\(\])|\[([^\]\[]*)\]|\\(.)/g, function (matched, p1, p2, p3, p4) {
+            return p1 || p2 || p3 || p4;
+        });
+    }
+
+    // Code from http://stackoverflow.com/questions/3561493/is-there-a-regexp-escape-function-in-javascript
+    function regexpEscape(s) {
+        return s.replace(/[-\/\\^$*+?.()|[\]{}]/g, '\\$&');
+    }
+
+    // date from string and array of format strings
+    function makeDateFromStringAndArray(config) {
+        var tempConfig,
+            bestMoment,
+
+            scoreToBeat,
+            i,
+            currentScore;
+
+        if (config._f.length === 0) {
+            config._pf.invalidFormat = true;
+            config._d = new Date(NaN);
+            return;
+        }
+
+        for (i = 0; i < config._f.length; i++) {
+            currentScore = 0;
+            tempConfig = copyConfig({}, config);
+            if (config._useUTC != null) {
+                tempConfig._useUTC = config._useUTC;
+            }
+            tempConfig._pf = defaultParsingFlags();
+            tempConfig._f = config._f[i];
+            makeDateFromStringAndFormat(tempConfig);
+
+            if (!isValid(tempConfig)) {
+                continue;
+            }
+
+            // if there is any input that was not parsed add a penalty for that format
+            currentScore += tempConfig._pf.charsLeftOver;
+
+            //or tokens
+            currentScore += tempConfig._pf.unusedTokens.length * 10;
+
+            tempConfig._pf.score = currentScore;
+
+            if (scoreToBeat == null || currentScore < scoreToBeat) {
+                scoreToBeat = currentScore;
+                bestMoment = tempConfig;
+            }
+        }
+
+        extend(config, bestMoment || tempConfig);
+    }
+
+    // date from iso format
+    function parseISO(config) {
+        var i, l,
+            string = config._i,
+            match = isoRegex.exec(string);
+
+        if (match) {
+            config._pf.iso = true;
+            for (i = 0, l = isoDates.length; i < l; i++) {
+                if (isoDates[i][1].exec(string)) {
+                    // match[5] should be 'T' or undefined
+                    config._f = isoDates[i][0] + (match[6] || ' ');
+                    break;
+                }
+            }
+            for (i = 0, l = isoTimes.length; i < l; i++) {
+                if (isoTimes[i][1].exec(string)) {
+                    config._f += isoTimes[i][0];
+                    break;
+                }
+            }
+            if (string.match(parseTokenTimezone)) {
+                config._f += 'Z';
+            }
+            makeDateFromStringAndFormat(config);
+        } else {
+            config._isValid = false;
+        }
+    }
+
+    // date from iso format or fallback
+    function makeDateFromString(config) {
+        parseISO(config);
+        if (config._isValid === false) {
+            delete config._isValid;
+            moment.createFromInputFallback(config);
+        }
+    }
+
+    function map(arr, fn) {
+        var res = [], i;
+        for (i = 0; i < arr.length; ++i) {
+            res.push(fn(arr[i], i));
+        }
+        return res;
+    }
+
+    function makeDateFromInput(config) {
+        var input = config._i, matched;
+        if (input === undefined) {
+            config._d = new Date();
+        } else if (isDate(input)) {
+            config._d = new Date(+input);
+        } else if ((matched = aspNetJsonRegex.exec(input)) !== null) {
+            config._d = new Date(+matched[1]);
+        } else if (typeof input === 'string') {
+            makeDateFromString(config);
+        } else if (isArray(input)) {
+            config._a = map(input.slice(0), function (obj) {
+                return parseInt(obj, 10);
+            });
+            dateFromConfig(config);
+        } else if (typeof(input) === 'object') {
+            dateFromObject(config);
+        } else if (typeof(input) === 'number') {
+            // from milliseconds
+            config._d = new Date(input);
+        } else {
+            moment.createFromInputFallback(config);
+        }
+    }
+
+    function makeDate(y, m, d, h, M, s, ms) {
+        //can't just apply() to create a date:
+        //http://stackoverflow.com/questions/181348/instantiating-a-javascript-object-by-calling-prototype-constructor-apply
+        var date = new Date(y, m, d, h, M, s, ms);
+
+        //the date constructor doesn't accept years < 1970
+        if (y < 1970) {
+            date.setFullYear(y);
+        }
+        return date;
+    }
+
+    function makeUTCDate(y) {
+        var date = new Date(Date.UTC.apply(null, arguments));
+        if (y < 1970) {
+            date.setUTCFullYear(y);
+        }
+        return date;
+    }
+
+    function parseWeekday(input, locale) {
+        if (typeof input === 'string') {
+            if (!isNaN(input)) {
+                input = parseInt(input, 10);
+            }
+            else {
+                input = locale.weekdaysParse(input);
+                if (typeof input !== 'number') {
+                    return null;
+                }
+            }
+        }
+        return input;
+    }
+
+    /************************************
+        Relative Time
+    ************************************/
+
+
+    // helper function for moment.fn.from, moment.fn.fromNow, and moment.duration.fn.humanize
+    function substituteTimeAgo(string, number, withoutSuffix, isFuture, locale) {
+        return locale.relativeTime(number || 1, !!withoutSuffix, string, isFuture);
+    }
+
+    function relativeTime(posNegDuration, withoutSuffix, locale) {
+        var duration = moment.duration(posNegDuration).abs(),
+            seconds = round(duration.as('s')),
+            minutes = round(duration.as('m')),
+            hours = round(duration.as('h')),
+            days = round(duration.as('d')),
+            months = round(duration.as('M')),
+            years = round(duration.as('y')),
+
+            args = seconds < relativeTimeThresholds.s && ['s', seconds] ||
+                minutes === 1 && ['m'] ||
+                minutes < relativeTimeThresholds.m && ['mm', minutes] ||
+                hours === 1 && ['h'] ||
+                hours < relativeTimeThresholds.h && ['hh', hours] ||
+                days === 1 && ['d'] ||
+                days < relativeTimeThresholds.d && ['dd', days] ||
+                months === 1 && ['M'] ||
+                months < relativeTimeThresholds.M && ['MM', months] ||
+                years === 1 && ['y'] || ['yy', years];
+
+        args[2] = withoutSuffix;
+        args[3] = +posNegDuration > 0;
+        args[4] = locale;
+        return substituteTimeAgo.apply({}, args);
+    }
+
+
+    /************************************
+        Week of Year
+    ************************************/
+
+
+    // firstDayOfWeek       0 = sun, 6 = sat
+    //                      the day of the week that starts the week
+    //                      (usually sunday or monday)
+    // firstDayOfWeekOfYear 0 = sun, 6 = sat
+    //                      the first week is the week that contains the first
+    //                      of this day of the week
+    //                      (eg. ISO weeks use thursday (4))
+    function weekOfYear(mom, firstDayOfWeek, firstDayOfWeekOfYear) {
+        var end = firstDayOfWeekOfYear - firstDayOfWeek,
+            daysToDayOfWeek = firstDayOfWeekOfYear - mom.day(),
+            adjustedMoment;
+
+
+        if (daysToDayOfWeek > end) {
+            daysToDayOfWeek -= 7;
+        }
+
+        if (daysToDayOfWeek < end - 7) {
+            daysToDayOfWeek += 7;
+        }
+
+        adjustedMoment = moment(mom).add(daysToDayOfWeek, 'd');
+        return {
+            week: Math.ceil(adjustedMoment.dayOfYear() / 7),
+            year: adjustedMoment.year()
+        };
+    }
+
+    //http://en.wikipedia.org/wiki/ISO_week_date#Calculating_a_date_given_the_year.2C_week_number_and_weekday
+    function dayOfYearFromWeeks(year, week, weekday, firstDayOfWeekOfYear, firstDayOfWeek) {
+        var d = makeUTCDate(year, 0, 1).getUTCDay(), daysToAdd, dayOfYear;
+
+        d = d === 0 ? 7 : d;
+        weekday = weekday != null ? weekday : firstDayOfWeek;
+        daysToAdd = firstDayOfWeek - d + (d > firstDayOfWeekOfYear ? 7 : 0) - (d < firstDayOfWeek ? 7 : 0);
+        dayOfYear = 7 * (week - 1) + (weekday - firstDayOfWeek) + daysToAdd + 1;
+
+        return {
+            year: dayOfYear > 0 ? year : year - 1,
+            dayOfYear: dayOfYear > 0 ?  dayOfYear : daysInYear(year - 1) + dayOfYear
+        };
+    }
+
+    /************************************
+        Top Level Functions
+    ************************************/
+
+    function makeMoment(config) {
+        var input = config._i,
+            format = config._f,
+            res;
+
+        config._locale = config._locale || moment.localeData(config._l);
+
+        if (input === null || (format === undefined && input === '')) {
+            return moment.invalid({nullInput: true});
+        }
+
+        if (typeof input === 'string') {
+            config._i = input = config._locale.preparse(input);
+        }
+
+        if (moment.isMoment(input)) {
+            return new Moment(input, true);
+        } else if (format) {
+            if (isArray(format)) {
+                makeDateFromStringAndArray(config);
+            } else {
+                makeDateFromStringAndFormat(config);
+            }
+        } else {
+            makeDateFromInput(config);
+        }
+
+        res = new Moment(config);
+        if (res._nextDay) {
+            // Adding is smart enough around DST
+            res.add(1, 'd');
+            res._nextDay = undefined;
+        }
+
+        return res;
+    }
+
+    moment = function (input, format, locale, strict) {
+        var c;
+
+        if (typeof(locale) === 'boolean') {
+            strict = locale;
+            locale = undefined;
+        }
+        // object construction must be done this way.
+        // https://github.com/moment/moment/issues/1423
+        c = {};
+        c._isAMomentObject = true;
+        c._i = input;
+        c._f = format;
+        c._l = locale;
+        c._strict = strict;
+        c._isUTC = false;
+        c._pf = defaultParsingFlags();
+
+        return makeMoment(c);
+    };
+
+    moment.suppressDeprecationWarnings = false;
+
+    moment.createFromInputFallback = deprecate(
+        'moment construction falls back to js Date. This is ' +
+        'discouraged and will be removed in upcoming major ' +
+        'release. Please refer to ' +
+        'https://github.com/moment/moment/issues/1407 for more info.',
+        function (config) {
+            config._d = new Date(config._i + (config._useUTC ? ' UTC' : ''));
+        }
+    );
+
+    // Pick a moment m from moments so that m[fn](other) is true for all
+    // other. This relies on the function fn to be transitive.
+    //
+    // moments should either be an array of moment objects or an array, whose
+    // first element is an array of moment objects.
+    function pickBy(fn, moments) {
+        var res, i;
+        if (moments.length === 1 && isArray(moments[0])) {
+            moments = moments[0];
+        }
+        if (!moments.length) {
+            return moment();
+        }
+        res = moments[0];
+        for (i = 1; i < moments.length; ++i) {
+            if (moments[i][fn](res)) {
+                res = moments[i];
+            }
+        }
+        return res;
+    }
+
+    moment.min = function () {
+        var args = [].slice.call(arguments, 0);
+
+        return pickBy('isBefore', args);
+    };
+
+    moment.max = function () {
+        var args = [].slice.call(arguments, 0);
+
+        return pickBy('isAfter', args);
+    };
+
+    // creating with utc
+    moment.utc = function (input, format, locale, strict) {
+        var c;
+
+        if (typeof(locale) === 'boolean') {
+            strict = locale;
+            locale = undefined;
+        }
+        // object construction must be done this way.
+        // https://github.com/moment/moment/issues/1423
+        c = {};
+        c._isAMomentObject = true;
+        c._useUTC = true;
+        c._isUTC = true;
+        c._l = locale;
+        c._i = input;
+        c._f = format;
+        c._strict = strict;
+        c._pf = defaultParsingFlags();
+
+        return makeMoment(c).utc();
+    };
+
+    // creating with unix timestamp (in seconds)
+    moment.unix = function (input) {
+        return moment(input * 1000);
+    };
+
+    // duration
+    moment.duration = function (input, key) {
+        var duration = input,
+            // matching against regexp is expensive, do it on demand
+            match = null,
+            sign,
+            ret,
+            parseIso,
+            diffRes;
+
+        if (moment.isDuration(input)) {
+            duration = {
+                ms: input._milliseconds,
+                d: input._days,
+                M: input._months
+            };
+        } else if (typeof input === 'number') {
+            duration = {};
+            if (key) {
+                duration[key] = input;
+            } else {
+                duration.milliseconds = input;
+            }
+        } else if (!!(match = aspNetTimeSpanJsonRegex.exec(input))) {
+            sign = (match[1] === '-') ? -1 : 1;
+            duration = {
+                y: 0,
+                d: toInt(match[DATE]) * sign,
+                h: toInt(match[HOUR]) * sign,
+                m: toInt(match[MINUTE]) * sign,
+                s: toInt(match[SECOND]) * sign,
+                ms: toInt(match[MILLISECOND]) * sign
+            };
+        } else if (!!(match = isoDurationRegex.exec(input))) {
+            sign = (match[1] === '-') ? -1 : 1;
+            parseIso = function (inp) {
+                // We'd normally use ~~inp for this, but unfortunately it also
+                // converts floats to ints.
+                // inp may be undefined, so careful calling replace on it.
+                var res = inp && parseFloat(inp.replace(',', '.'));
+                // apply sign while we're at it
+                return (isNaN(res) ? 0 : res) * sign;
+            };
+            duration = {
+                y: parseIso(match[2]),
+                M: parseIso(match[3]),
+                d: parseIso(match[4]),
+                h: parseIso(match[5]),
+                m: parseIso(match[6]),
+                s: parseIso(match[7]),
+                w: parseIso(match[8])
+            };
+        } else if (typeof duration === 'object' &&
+                ('from' in duration || 'to' in duration)) {
+            diffRes = momentsDifference(moment(duration.from), moment(duration.to));
+
+            duration = {};
+            duration.ms = diffRes.milliseconds;
+            duration.M = diffRes.months;
+        }
+
+        ret = new Duration(duration);
+
+        if (moment.isDuration(input) && hasOwnProp(input, '_locale')) {
+            ret._locale = input._locale;
+        }
+
+        return ret;
+    };
+
+    // version number
+    moment.version = VERSION;
+
+    // default format
+    moment.defaultFormat = isoFormat;
+
+    // constant that refers to the ISO standard
+    moment.ISO_8601 = function () {};
+
+    // Plugins that add properties should also add the key here (null value),
+    // so we can properly clone ourselves.
+    moment.momentProperties = momentProperties;
+
+    // This function will be called whenever a moment is mutated.
+    // It is intended to keep the offset in sync with the timezone.
+    moment.updateOffset = function () {};
+
+    // This function allows you to set a threshold for relative time strings
+    moment.relativeTimeThreshold = function (threshold, limit) {
+        if (relativeTimeThresholds[threshold] === undefined) {
+            return false;
+        }
+        if (limit === undefined) {
+            return relativeTimeThresholds[threshold];
+        }
+        relativeTimeThresholds[threshold] = limit;
+        return true;
+    };
+
+    moment.lang = deprecate(
+        'moment.lang is deprecated. Use moment.locale instead.',
+        function (key, value) {
+            return moment.locale(key, value);
+        }
+    );
+
+    // This function will load locale and then set the global locale.  If
+    // no arguments are passed in, it will simply return the current global
+    // locale key.
+    moment.locale = function (key, values) {
+        var data;
+        if (key) {
+            if (typeof(values) !== 'undefined') {
+                data = moment.defineLocale(key, values);
+            }
+            else {
+                data = moment.localeData(key);
+            }
+
+            if (data) {
+                moment.duration._locale = moment._locale = data;
+            }
+        }
+
+        return moment._locale._abbr;
+    };
+
+    moment.defineLocale = function (name, values) {
+        if (values !== null) {
+            values.abbr = name;
+            if (!locales[name]) {
+                locales[name] = new Locale();
+            }
+            locales[name].set(values);
+
+            // backwards compat for now: also set the locale
+            moment.locale(name);
+
+            return locales[name];
+        } else {
+            // useful for testing
+            delete locales[name];
+            return null;
+        }
+    };
+
+    moment.langData = deprecate(
+        'moment.langData is deprecated. Use moment.localeData instead.',
+        function (key) {
+            return moment.localeData(key);
+        }
+    );
+
+    // returns locale data
+    moment.localeData = function (key) {
+        var locale;
+
+        if (key && key._locale && key._locale._abbr) {
+            key = key._locale._abbr;
+        }
+
+        if (!key) {
+            return moment._locale;
+        }
+
+        if (!isArray(key)) {
+            //short-circuit everything else
+            locale = loadLocale(key);
+            if (locale) {
+                return locale;
+            }
+            key = [key];
+        }
+
+        return chooseLocale(key);
+    };
+
+    // compare moment object
+    moment.isMoment = function (obj) {
+        return obj instanceof Moment ||
+            (obj != null && hasOwnProp(obj, '_isAMomentObject'));
+    };
+
+    // for typechecking Duration objects
+    moment.isDuration = function (obj) {
+        return obj instanceof Duration;
+    };
+
+    for (i = lists.length - 1; i >= 0; --i) {
+        makeList(lists[i]);
+    }
+
+    moment.normalizeUnits = function (units) {
+        return normalizeUnits(units);
+    };
+
+    moment.invalid = function (flags) {
+        var m = moment.utc(NaN);
+        if (flags != null) {
+            extend(m._pf, flags);
+        }
+        else {
+            m._pf.userInvalidated = true;
+        }
+
+        return m;
+    };
+
+    moment.parseZone = function () {
+        return moment.apply(null, arguments).parseZone();
+    };
+
+    moment.parseTwoDigitYear = function (input) {
+        return toInt(input) + (toInt(input) > 68 ? 1900 : 2000);
+    };
+
+    /************************************
+        Moment Prototype
+    ************************************/
+
+
+    extend(moment.fn = Moment.prototype, {
+
+        clone : function () {
+            return moment(this);
+        },
+
+        valueOf : function () {
+            return +this._d + ((this._offset || 0) * 60000);
+        },
+
+        unix : function () {
+            return Math.floor(+this / 1000);
+        },
+
+        toString : function () {
+            return this.clone().locale('en').format('ddd MMM DD YYYY HH:mm:ss [GMT]ZZ');
+        },
+
+        toDate : function () {
+            return this._offset ? new Date(+this) : this._d;
+        },
+
+        toISOString : function () {
+            var m = moment(this).utc();
+            if (0 < m.year() && m.year() <= 9999) {
+                if ('function' === typeof Date.prototype.toISOString) {
+                    // native implementation is ~50x faster, use it when we can
+                    return this.toDate().toISOString();
+                } else {
+                    return formatMoment(m, 'YYYY-MM-DD[T]HH:mm:ss.SSS[Z]');
+                }
+            } else {
+                return formatMoment(m, 'YYYYYY-MM-DD[T]HH:mm:ss.SSS[Z]');
+            }
+        },
+
+        toArray : function () {
+            var m = this;
+            return [
+                m.year(),
+                m.month(),
+                m.date(),
+                m.hours(),
+                m.minutes(),
+                m.seconds(),
+                m.milliseconds()
+            ];
+        },
+
+        isValid : function () {
+            return isValid(this);
+        },
+
+        isDSTShifted : function () {
+            if (this._a) {
+                return this.isValid() && compareArrays(this._a, (this._isUTC ? moment.utc(this._a) : moment(this._a)).toArray()) > 0;
+            }
+
+            return false;
+        },
+
+        parsingFlags : function () {
+            return extend({}, this._pf);
+        },
+
+        invalidAt: function () {
+            return this._pf.overflow;
+        },
+
+        utc : function (keepLocalTime) {
+            return this.zone(0, keepLocalTime);
+        },
+
+        local : function (keepLocalTime) {
+            if (this._isUTC) {
+                this.zone(0, keepLocalTime);
+                this._isUTC = false;
+
+                if (keepLocalTime) {
+                    this.add(this._dateTzOffset(), 'm');
+                }
+            }
+            return this;
+        },
+
+        format : function (inputString) {
+            var output = formatMoment(this, inputString || moment.defaultFormat);
+            return this.localeData().postformat(output);
+        },
+
+        add : createAdder(1, 'add'),
+
+        subtract : createAdder(-1, 'subtract'),
+
+        diff : function (input, units, asFloat) {
+            var that = makeAs(input, this),
+                zoneDiff = (this.zone() - that.zone()) * 6e4,
+                diff, output, daysAdjust;
+
+            units = normalizeUnits(units);
+
+            if (units === 'year' || units === 'month') {
+                // average number of days in the months in the given dates
+                diff = (this.daysInMonth() + that.daysInMonth()) * 432e5; // 24 * 60 * 60 * 1000 / 2
+                // difference in months
+                output = ((this.year() - that.year()) * 12) + (this.month() - that.month());
+                // adjust by taking difference in days, average number of days
+                // and dst in the given months.
+                daysAdjust = (this - moment(this).startOf('month')) -
+                    (that - moment(that).startOf('month'));
+                // same as above but with zones, to negate all dst
+                daysAdjust -= ((this.zone() - moment(this).startOf('month').zone()) -
+                        (that.zone() - moment(that).startOf('month').zone())) * 6e4;
+                output += daysAdjust / diff;
+                if (units === 'year') {
+                    output = output / 12;
+                }
+            } else {
+                diff = (this - that);
+                output = units === 'second' ? diff / 1e3 : // 1000
+                    units === 'minute' ? diff / 6e4 : // 1000 * 60
+                    units === 'hour' ? diff / 36e5 : // 1000 * 60 * 60
+                    units === 'day' ? (diff - zoneDiff) / 864e5 : // 1000 * 60 * 60 * 24, negate dst
+                    units === 'week' ? (diff - zoneDiff) / 6048e5 : // 1000 * 60 * 60 * 24 * 7, negate dst
+                    diff;
+            }
+            return asFloat ? output : absRound(output);
+        },
+
+        from : function (time, withoutSuffix) {
+            return moment.duration({to: this, from: time}).locale(this.locale()).humanize(!withoutSuffix);
+        },
+
+        fromNow : function (withoutSuffix) {
+            return this.from(moment(), withoutSuffix);
+        },
+
+        calendar : function (time) {
+            // We want to compare the start of today, vs this.
+            // Getting start-of-today depends on whether we're zone'd or not.
+            var now = time || moment(),
+                sod = makeAs(now, this).startOf('day'),
+                diff = this.diff(sod, 'days', true),
+                format = diff < -6 ? 'sameElse' :
+                    diff < -1 ? 'lastWeek' :
+                    diff < 0 ? 'lastDay' :
+                    diff < 1 ? 'sameDay' :
+                    diff < 2 ? 'nextDay' :
+                    diff < 7 ? 'nextWeek' : 'sameElse';
+            return this.format(this.localeData().calendar(format, this, moment(now)));
+        },
+
+        isLeapYear : function () {
+            return isLeapYear(this.year());
+        },
+
+        isDST : function () {
+            return (this.zone() < this.clone().month(0).zone() ||
+                this.zone() < this.clone().month(5).zone());
+        },
+
+        day : function (input) {
+            var day = this._isUTC ? this._d.getUTCDay() : this._d.getDay();
+            if (input != null) {
+                input = parseWeekday(input, this.localeData());
+                return this.add(input - day, 'd');
+            } else {
+                return day;
+            }
+        },
+
+        month : makeAccessor('Month', true),
+
+        startOf : function (units) {
+            units = normalizeUnits(units);
+            // the following switch intentionally omits break keywords
+            // to utilize falling through the cases.
+            switch (units) {
+            case 'year':
+                this.month(0);
+                /* falls through */
+            case 'quarter':
+            case 'month':
+                this.date(1);
+                /* falls through */
+            case 'week':
+            case 'isoWeek':
+            case 'day':
+                this.hours(0);
+                /* falls through */
+            case 'hour':
+                this.minutes(0);
+                /* falls through */
+            case 'minute':
+                this.seconds(0);
+                /* falls through */
+            case 'second':
+                this.milliseconds(0);
+                /* falls through */
+            }
+
+            // weeks are a special case
+            if (units === 'week') {
+                this.weekday(0);
+            } else if (units === 'isoWeek') {
+                this.isoWeekday(1);
+            }
+
+            // quarters are also special
+            if (units === 'quarter') {
+                this.month(Math.floor(this.month() / 3) * 3);
+            }
+
+            return this;
+        },
+
+        endOf: function (units) {
+            units = normalizeUnits(units);
+            if (units === undefined || units === 'millisecond') {
+                return this;
+            }
+            return this.startOf(units).add(1, (units === 'isoWeek' ? 'week' : units)).subtract(1, 'ms');
+        },
+
+        isAfter: function (input, units) {
+            var inputMs;
+            units = normalizeUnits(typeof units !== 'undefined' ? units : 'millisecond');
+            if (units === 'millisecond') {
+                input = moment.isMoment(input) ? input : moment(input);
+                return +this > +input;
+            } else {
+                inputMs = moment.isMoment(input) ? +input : +moment(input);
+                return inputMs < +this.clone().startOf(units);
+            }
+        },
+
+        isBefore: function (input, units) {
+            var inputMs;
+            units = normalizeUnits(typeof units !== 'undefined' ? units : 'millisecond');
+            if (units === 'millisecond') {
+                input = moment.isMoment(input) ? input : moment(input);
+                return +this < +input;
+            } else {
+                inputMs = moment.isMoment(input) ? +input : +moment(input);
+                return +this.clone().endOf(units) < inputMs;
+            }
+        },
+
+        isSame: function (input, units) {
+            var inputMs;
+            units = normalizeUnits(units || 'millisecond');
+            if (units === 'millisecond') {
+                input = moment.isMoment(input) ? input : moment(input);
+                return +this === +input;
+            } else {
+                inputMs = +moment(input);
+                return +(this.clone().startOf(units)) <= inputMs && inputMs <= +(this.clone().endOf(units));
+            }
+        },
+
+        min: deprecate(
+                 'moment().min is deprecated, use moment.min instead. https://github.com/moment/moment/issues/1548',
+                 function (other) {
+                     other = moment.apply(null, arguments);
+                     return other < this ? this : other;
+                 }
+         ),
+
+        max: deprecate(
+                'moment().max is deprecated, use moment.max instead. https://github.com/moment/moment/issues/1548',
+                function (other) {
+                    other = moment.apply(null, arguments);
+                    return other > this ? this : other;
+                }
+        ),
+
+        // keepLocalTime = true means only change the timezone, without
+        // affecting the local hour. So 5:31:26 +0300 --[zone(2, true)]-->
+        // 5:31:26 +0200 It is possible that 5:31:26 doesn't exist int zone
+        // +0200, so we adjust the time as needed, to be valid.
+        //
+        // Keeping the time actually adds/subtracts (one hour)
+        // from the actual represented time. That is why we call updateOffset
+        // a second time. In case it wants us to change the offset again
+        // _changeInProgress == true case, then we have to adjust, because
+        // there is no such time in the given timezone.
+        zone : function (input, keepLocalTime) {
+            var offset = this._offset || 0,
+                localAdjust;
+            if (input != null) {
+                if (typeof input === 'string') {
+                    input = timezoneMinutesFromString(input);
+                }
+                if (Math.abs(input) < 16) {
+                    input = input * 60;
+                }
+                if (!this._isUTC && keepLocalTime) {
+                    localAdjust = this._dateTzOffset();
+                }
+                this._offset = input;
+                this._isUTC = true;
+                if (localAdjust != null) {
+                    this.subtract(localAdjust, 'm');
+                }
+                if (offset !== input) {
+                    if (!keepLocalTime || this._changeInProgress) {
+                        addOrSubtractDurationFromMoment(this,
+                                moment.duration(offset - input, 'm'), 1, false);
+                    } else if (!this._changeInProgress) {
+                        this._changeInProgress = true;
+                        moment.updateOffset(this, true);
+                        this._changeInProgress = null;
+                    }
+                }
+            } else {
+                return this._isUTC ? offset : this._dateTzOffset();
+            }
+            return this;
+        },
+
+        zoneAbbr : function () {
+            return this._isUTC ? 'UTC' : '';
+        },
+
+        zoneName : function () {
+            return this._isUTC ? 'Coordinated Universal Time' : '';
+        },
+
+        parseZone : function () {
+            if (this._tzm) {
+                this.zone(this._tzm);
+            } else if (typeof this._i === 'string') {
+                this.zone(this._i);
+            }
+            return this;
+        },
+
+        hasAlignedHourOffset : function (input) {
+            if (!input) {
+                input = 0;
+            }
+            else {
+                input = moment(input).zone();
+            }
+
+            return (this.zone() - input) % 60 === 0;
+        },
+
+        daysInMonth : function () {
+            return daysInMonth(this.year(), this.month());
+        },
+
+        dayOfYear : function (input) {
+            var dayOfYear = round((moment(this).startOf('day') - moment(this).startOf('year')) / 864e5) + 1;
+            return input == null ? dayOfYear : this.add((input - dayOfYear), 'd');
+        },
+
+        quarter : function (input) {
+            return input == null ? Math.ceil((this.month() + 1) / 3) : this.month((input - 1) * 3 + this.month() % 3);
+        },
+
+        weekYear : function (input) {
+            var year = weekOfYear(this, this.localeData()._week.dow, this.localeData()._week.doy).year;
+            return input == null ? year : this.add((input - year), 'y');
+        },
+
+        isoWeekYear : function (input) {
+            var year = weekOfYear(this, 1, 4).year;
+            return input == null ? year : this.add((input - year), 'y');
+        },
+
+        week : function (input) {
+            var week = this.localeData().week(this);
+            return input == null ? week : this.add((input - week) * 7, 'd');
+        },
+
+        isoWeek : function (input) {
+            var week = weekOfYear(this, 1, 4).week;
+            return input == null ? week : this.add((input - week) * 7, 'd');
+        },
+
+        weekday : function (input) {
+            var weekday = (this.day() + 7 - this.localeData()._week.dow) % 7;
+            return input == null ? weekday : this.add(input - weekday, 'd');
+        },
+
+        isoWeekday : function (input) {
+            // behaves the same as moment#day except
+            // as a getter, returns 7 instead of 0 (1-7 range instead of 0-6)
+            // as a setter, sunday should belong to the previous week.
+            return input == null ? this.day() || 7 : this.day(this.day() % 7 ? input : input - 7);
+        },
+
+        isoWeeksInYear : function () {
+            return weeksInYear(this.year(), 1, 4);
+        },
+
+        weeksInYear : function () {
+            var weekInfo = this.localeData()._week;
+            return weeksInYear(this.year(), weekInfo.dow, weekInfo.doy);
+        },
+
+        get : function (units) {
+            units = normalizeUnits(units);
+            return this[units]();
+        },
+
+        set : function (units, value) {
+            units = normalizeUnits(units);
+            if (typeof this[units] === 'function') {
+                this[units](value);
+            }
+            return this;
+        },
+
+        // If passed a locale key, it will set the locale for this
+        // instance.  Otherwise, it will return the locale configuration
+        // variables for this instance.
+        locale : function (key) {
+            var newLocaleData;
+
+            if (key === undefined) {
+                return this._locale._abbr;
+            } else {
+                newLocaleData = moment.localeData(key);
+                if (newLocaleData != null) {
+                    this._locale = newLocaleData;
+                }
+                return this;
+            }
+        },
+
+        lang : deprecate(
+            'moment().lang() is deprecated. Instead, use moment().localeData() to get the language configuration. Use moment().locale() to change languages.',
+            function (key) {
+                if (key === undefined) {
+                    return this.localeData();
+                } else {
+                    return this.locale(key);
+                }
+            }
+        ),
+
+        localeData : function () {
+            return this._locale;
+        },
+
+        _dateTzOffset : function () {
+            // On Firefox.24 Date#getTimezoneOffset returns a floating point.
+            // https://github.com/moment/moment/pull/1871
+            return Math.round(this._d.getTimezoneOffset() / 15) * 15;
+        }
+    });
+
+    function rawMonthSetter(mom, value) {
+        var dayOfMonth;
+
+        // TODO: Move this out of here!
+        if (typeof value === 'string') {
+            value = mom.localeData().monthsParse(value);
+            // TODO: Another silent failure?
+            if (typeof value !== 'number') {
+                return mom;
+            }
+        }
+
+        dayOfMonth = Math.min(mom.date(),
+                daysInMonth(mom.year(), value));
+        mom._d['set' + (mom._isUTC ? 'UTC' : '') + 'Month'](value, dayOfMonth);
+        return mom;
+    }
+
+    function rawGetter(mom, unit) {
+        return mom._d['get' + (mom._isUTC ? 'UTC' : '') + unit]();
+    }
+
+    function rawSetter(mom, unit, value) {
+        if (unit === 'Month') {
+            return rawMonthSetter(mom, value);
+        } else {
+            return mom._d['set' + (mom._isUTC ? 'UTC' : '') + unit](value);
+        }
+    }
+
+    function makeAccessor(unit, keepTime) {
+        return function (value) {
+            if (value != null) {
+                rawSetter(this, unit, value);
+                moment.updateOffset(this, keepTime);
+                return this;
+            } else {
+                return rawGetter(this, unit);
+            }
+        };
+    }
+
+    moment.fn.millisecond = moment.fn.milliseconds = makeAccessor('Milliseconds', false);
+    moment.fn.second = moment.fn.seconds = makeAccessor('Seconds', false);
+    moment.fn.minute = moment.fn.minutes = makeAccessor('Minutes', false);
+    // Setting the hour should keep the time, because the user explicitly
+    // specified which hour he wants. So trying to maintain the same hour (in
+    // a new timezone) makes sense. Adding/subtracting hours does not follow
+    // this rule.
+    moment.fn.hour = moment.fn.hours = makeAccessor('Hours', true);
+    // moment.fn.month is defined separately
+    moment.fn.date = makeAccessor('Date', true);
+    moment.fn.dates = deprecate('dates accessor is deprecated. Use date instead.', makeAccessor('Date', true));
+    moment.fn.year = makeAccessor('FullYear', true);
+    moment.fn.years = deprecate('years accessor is deprecated. Use year instead.', makeAccessor('FullYear', true));
+
+    // add plural methods
+    moment.fn.days = moment.fn.day;
+    moment.fn.months = moment.fn.month;
+    moment.fn.weeks = moment.fn.week;
+    moment.fn.isoWeeks = moment.fn.isoWeek;
+    moment.fn.quarters = moment.fn.quarter;
+
+    // add aliased format methods
+    moment.fn.toJSON = moment.fn.toISOString;
+
+    /************************************
+        Duration Prototype
+    ************************************/
+
+
+    function daysToYears (days) {
+        // 400 years have 146097 days (taking into account leap year rules)
+        return days * 400 / 146097;
+    }
+
+    function yearsToDays (years) {
+        // years * 365 + absRound(years / 4) -
+        //     absRound(years / 100) + absRound(years / 400);
+        return years * 146097 / 400;
+    }
+
+    extend(moment.duration.fn = Duration.prototype, {
+
+        _bubble : function () {
+            var milliseconds = this._milliseconds,
+                days = this._days,
+                months = this._months,
+                data = this._data,
+                seconds, minutes, hours, years = 0;
+
+            // The following code bubbles up values, see the tests for
+            // examples of what that means.
+            data.milliseconds = milliseconds % 1000;
+
+            seconds = absRound(milliseconds / 1000);
+            data.seconds = seconds % 60;
+
+            minutes = absRound(seconds / 60);
+            data.minutes = minutes % 60;
+
+            hours = absRound(minutes / 60);
+            data.hours = hours % 24;
+
+            days += absRound(hours / 24);
+
+            // Accurately convert days to years, assume start from year 0.
+            years = absRound(daysToYears(days));
+            days -= absRound(yearsToDays(years));
+
+            // 30 days to a month
+            // TODO (iskren): Use anchor date (like 1st Jan) to compute this.
+            months += absRound(days / 30);
+            days %= 30;
+
+            // 12 months -> 1 year
+            years += absRound(months / 12);
+            months %= 12;
+
+            data.days = days;
+            data.months = months;
+            data.years = years;
+        },
+
+        abs : function () {
+            this._milliseconds = Math.abs(this._milliseconds);
+            this._days = Math.abs(this._days);
+            this._months = Math.abs(this._months);
+
+            this._data.milliseconds = Math.abs(this._data.milliseconds);
+            this._data.seconds = Math.abs(this._data.seconds);
+            this._data.minutes = Math.abs(this._data.minutes);
+            this._data.hours = Math.abs(this._data.hours);
+            this._data.months = Math.abs(this._data.months);
+            this._data.years = Math.abs(this._data.years);
+
+            return this;
+        },
+
+        weeks : function () {
+            return absRound(this.days() / 7);
+        },
+
+        valueOf : function () {
+            return this._milliseconds +
+              this._days * 864e5 +
+              (this._months % 12) * 2592e6 +
+              toInt(this._months / 12) * 31536e6;
+        },
+
+        humanize : function (withSuffix) {
+            var output = relativeTime(this, !withSuffix, this.localeData());
+
+            if (withSuffix) {
+                output = this.localeData().pastFuture(+this, output);
+            }
+
+            return this.localeData().postformat(output);
+        },
+
+        add : function (input, val) {
+            // supports only 2.0-style add(1, 's') or add(moment)
+            var dur = moment.duration(input, val);
+
+            this._milliseconds += dur._milliseconds;
+            this._days += dur._days;
+            this._months += dur._months;
+
+            this._bubble();
+
+            return this;
+        },
+
+        subtract : function (input, val) {
+            var dur = moment.duration(input, val);
+
+            this._milliseconds -= dur._milliseconds;
+            this._days -= dur._days;
+            this._months -= dur._months;
+
+            this._bubble();
+
+            return this;
+        },
+
+        get : function (units) {
+            units = normalizeUnits(units);
+            return this[units.toLowerCase() + 's']();
+        },
+
+        as : function (units) {
+            var days, months;
+            units = normalizeUnits(units);
+
+            if (units === 'month' || units === 'year') {
+                days = this._days + this._milliseconds / 864e5;
+                months = this._months + daysToYears(days) * 12;
+                return units === 'month' ? months : months / 12;
+            } else {
+                // handle milliseconds separately because of floating point math errors (issue #1867)
+                days = this._days + Math.round(yearsToDays(this._months / 12));
+                switch (units) {
+                    case 'week': return days / 7 + this._milliseconds / 6048e5;
+                    case 'day': return days + this._milliseconds / 864e5;
+                    case 'hour': return days * 24 + this._milliseconds / 36e5;
+                    case 'minute': return days * 24 * 60 + this._milliseconds / 6e4;
+                    case 'second': return days * 24 * 60 * 60 + this._milliseconds / 1000;
+                    // Math.floor prevents floating point math errors here
+                    case 'millisecond': return Math.floor(days * 24 * 60 * 60 * 1000) + this._milliseconds;
+                    default: throw new Error('Unknown unit ' + units);
+                }
+            }
+        },
+
+        lang : moment.fn.lang,
+        locale : moment.fn.locale,
+
+        toIsoString : deprecate(
+            'toIsoString() is deprecated. Please use toISOString() instead ' +
+            '(notice the capitals)',
+            function () {
+                return this.toISOString();
+            }
+        ),
+
+        toISOString : function () {
+            // inspired by https://github.com/dordille/moment-isoduration/blob/master/moment.isoduration.js
+            var years = Math.abs(this.years()),
+                months = Math.abs(this.months()),
+                days = Math.abs(this.days()),
+                hours = Math.abs(this.hours()),
+                minutes = Math.abs(this.minutes()),
+                seconds = Math.abs(this.seconds() + this.milliseconds() / 1000);
+
+            if (!this.asSeconds()) {
+                // this is the same as C#'s (Noda) and python (isodate)...
+                // but not other JS (goog.date)
+                return 'P0D';
+            }
+
+            return (this.asSeconds() < 0 ? '-' : '') +
+                'P' +
+                (years ? years + 'Y' : '') +
+                (months ? months + 'M' : '') +
+                (days ? days + 'D' : '') +
+                ((hours || minutes || seconds) ? 'T' : '') +
+                (hours ? hours + 'H' : '') +
+                (minutes ? minutes + 'M' : '') +
+                (seconds ? seconds + 'S' : '');
+        },
+
+        localeData : function () {
+            return this._locale;
+        }
+    });
+
+    moment.duration.fn.toString = moment.duration.fn.toISOString;
+
+    function makeDurationGetter(name) {
+        moment.duration.fn[name] = function () {
+            return this._data[name];
+        };
+    }
+
+    for (i in unitMillisecondFactors) {
+        if (hasOwnProp(unitMillisecondFactors, i)) {
+            makeDurationGetter(i.toLowerCase());
+        }
+    }
+
+    moment.duration.fn.asMilliseconds = function () {
+        return this.as('ms');
+    };
+    moment.duration.fn.asSeconds = function () {
+        return this.as('s');
+    };
+    moment.duration.fn.asMinutes = function () {
+        return this.as('m');
+    };
+    moment.duration.fn.asHours = function () {
+        return this.as('h');
+    };
+    moment.duration.fn.asDays = function () {
+        return this.as('d');
+    };
+    moment.duration.fn.asWeeks = function () {
+        return this.as('weeks');
+    };
+    moment.duration.fn.asMonths = function () {
+        return this.as('M');
+    };
+    moment.duration.fn.asYears = function () {
+        return this.as('y');
+    };
+
+    /************************************
+        Default Locale
+    ************************************/
+
+
+    // Set default locale, other locale will inherit from English.
+    moment.locale('en', {
+        ordinalParse: /\d{1,2}(th|st|nd|rd)/,
+        ordinal : function (number) {
+            var b = number % 10,
+                output = (toInt(number % 100 / 10) === 1) ? 'th' :
+                (b === 1) ? 'st' :
+                (b === 2) ? 'nd' :
+                (b === 3) ? 'rd' : 'th';
+            return number + output;
+        }
+    });
+
+    /* EMBED_LOCALES */
+
+    /************************************
+        Exposing Moment
+    ************************************/
+
+    function makeGlobal(shouldDeprecate) {
+        /*global ender:false */
+        if (typeof ender !== 'undefined') {
+            return;
+        }
+        oldGlobalMoment = globalScope.moment;
+        if (shouldDeprecate) {
+            globalScope.moment = deprecate(
+                    'Accessing Moment through the global scope is ' +
+                    'deprecated, and will be removed in an upcoming ' +
+                    'release.',
+                    moment);
+        } else {
+            globalScope.moment = moment;
+        }
+    }
+
+    // CommonJS module is defined
+    if (hasModule) {
+        module.exports = moment;
+    } else if (typeof define === 'function' && define.amd) {
+        define('moment', function (require, exports, module) {
+            if (module.config && module.config() && module.config().noGlobal === true) {
+                // release the global variable
+                globalScope.moment = oldGlobalMoment;
+            }
+
+            return moment;
+        });
+        makeGlobal(true);
+    } else {
+        makeGlobal();
+    }
+}).call(this);
+
+/*
+ * Toastr
+ * Copyright 2012-2014 
+ * Authors: John Papa, Hans Fjällemark, and Tim Ferrell.
+ * All Rights Reserved.
+ * Use, reproduction, distribution, and modification of this code is subject to the terms and
+ * conditions of the MIT license, available at http://www.opensource.org/licenses/mit-license.php
+ *
+ * ARIA Support: Greta Krafsig
+ *
+ * Project: https://github.com/CodeSeven/toastr
+ */
+; (function (define) {
+    define(['jquery'], function ($) {
+        return (function () {
+            var $container;
+            var listener;
+            var toastId = 0;
+            var toastType = {
+                error: 'error',
+                info: 'info',
+                success: 'success',
+                warning: 'warning'
+            };
+
+            var toastr = {
+                clear: clear,
+                remove: remove,
+                error: error,
+                getContainer: getContainer,
+                info: info,
+                options: {},
+                subscribe: subscribe,
+                success: success,
+                version: '2.1.0',
+                warning: warning
+            };
+
+            var previousToast;
+
+            return toastr;
+
+            //#region Accessible Methods
+            function error(message, title, optionsOverride) {
+                return notify({
+                    type: toastType.error,
+                    iconClass: getOptions().iconClasses.error,
+                    message: message,
+                    optionsOverride: optionsOverride,
+                    title: title
+                });
+            }
+
+            function getContainer(options, create) {
+                if (!options) { options = getOptions(); }
+                $container = $('#' + options.containerId);
+                if ($container.length) {
+                    return $container;
+                }
+                if (create) {
+                    $container = createContainer(options);
+                }
+                return $container;
+            }
+
+            function info(message, title, optionsOverride) {
+                return notify({
+                    type: toastType.info,
+                    iconClass: getOptions().iconClasses.info,
+                    message: message,
+                    optionsOverride: optionsOverride,
+                    title: title
+                });
+            }
+
+            function subscribe(callback) {
+                listener = callback;
+            }
+
+            function success(message, title, optionsOverride) {
+                return notify({
+                    type: toastType.success,
+                    iconClass: getOptions().iconClasses.success,
+                    message: message,
+                    optionsOverride: optionsOverride,
+                    title: title
+                });
+            }
+
+            function warning(message, title, optionsOverride) {
+                return notify({
+                    type: toastType.warning,
+                    iconClass: getOptions().iconClasses.warning,
+                    message: message,
+                    optionsOverride: optionsOverride,
+                    title: title
+                });
+            }
+
+            function clear($toastElement) {
+                var options = getOptions();
+                if (!$container) { getContainer(options); }
+                if (!clearToast($toastElement, options)) {
+                    clearContainer(options);
+                }
+            }
+
+            function remove($toastElement) {
+                var options = getOptions();
+                if (!$container) { getContainer(options); }
+                if ($toastElement && $(':focus', $toastElement).length === 0) {
+                    removeToast($toastElement);
+                    return;
+                }
+                if ($container.children().length) {
+                    $container.remove();
+                }
+            }
+            //#endregion
+
+            //#region Internal Methods
+
+            function clearContainer (options) {
+                var toastsToClear = $container.children();
+                for (var i = toastsToClear.length - 1; i >= 0; i--) {
+                    clearToast($(toastsToClear[i]), options);
+                }
+            }
+
+            function clearToast ($toastElement, options) {
+                if ($toastElement && $(':focus', $toastElement).length === 0) {
+                    $toastElement[options.hideMethod]({
+                        duration: options.hideDuration,
+                        easing: options.hideEasing,
+                        complete: function () { removeToast($toastElement); }
+                    });
+                    return true;
+                }
+                return false;
+            }
+
+            function createContainer(options) {
+                $container = $('<div/>')
+                    .attr('id', options.containerId)
+                    .addClass(options.positionClass)
+                    .attr('aria-live', 'polite')
+                    .attr('role', 'alert');
+
+                $container.appendTo($(options.target));
+                return $container;
+            }
+
+            function getDefaults() {
+                return {
+                    tapToDismiss: true,
+                    toastClass: 'toast',
+                    containerId: 'toast-container',
+                    debug: false,
+
+                    showMethod: 'fadeIn', //fadeIn, slideDown, and show are built into jQuery
+                    showDuration: 300,
+                    showEasing: 'swing', //swing and linear are built into jQuery
+                    onShown: undefined,
+                    hideMethod: 'fadeOut',
+                    hideDuration: 1000,
+                    hideEasing: 'swing',
+                    onHidden: undefined,
+
+                    extendedTimeOut: 1000,
+                    iconClasses: {
+                        error: 'toast-error',
+                        info: 'toast-info',
+                        success: 'toast-success',
+                        warning: 'toast-warning'
+                    },
+                    iconClass: 'toast-info',
+                    positionClass: 'toast-top-right',
+                    timeOut: 5000, // Set timeOut and extendedTimeOut to 0 to make it sticky
+                    titleClass: 'toast-title',
+                    messageClass: 'toast-message',
+                    target: 'body',
+                    closeHtml: '<button>&times;</button>',
+                    newestOnTop: true,
+                    preventDuplicates: false,
+                    progressBar: false
+                };
+            }
+
+            function publish(args) {
+                if (!listener) { return; }
+                listener(args);
+            }
+
+            function notify(map) {
+                var options = getOptions(),
+                    iconClass = map.iconClass || options.iconClass;
+
+                if (options.preventDuplicates) {
+                    if (map.message === previousToast) {
+                        return;
+                    } else {
+                        previousToast = map.message;
+                    }
+                }
+
+                if (typeof (map.optionsOverride) !== 'undefined') {
+                    options = $.extend(options, map.optionsOverride);
+                    iconClass = map.optionsOverride.iconClass || iconClass;
+                }
+
+                toastId++;
+
+                $container = getContainer(options, true);
+                var intervalId = null,
+                    $toastElement = $('<div/>'),
+                    $titleElement = $('<div/>'),
+                    $messageElement = $('<div/>'),
+                    $progressElement = $('<div/>'),
+                    $closeElement = $(options.closeHtml),
+                    progressBar = {
+                        intervalId: null,
+                        hideEta: null,
+                        maxHideTime: null
+                    },
+                    response = {
+                        toastId: toastId,
+                        state: 'visible',
+                        startTime: new Date(),
+                        options: options,
+                        map: map
+                    };
+
+                if (map.iconClass) {
+                    $toastElement.addClass(options.toastClass).addClass(iconClass);
+                }
+
+                if (map.title) {
+                    $titleElement.append(map.title).addClass(options.titleClass);
+                    $toastElement.append($titleElement);
+                }
+
+                if (map.message) {
+                    $messageElement.append(map.message).addClass(options.messageClass);
+                    $toastElement.append($messageElement);
+                }
+
+                if (options.closeButton) {
+                    $closeElement.addClass('toast-close-button').attr('role', 'button');
+                    $toastElement.prepend($closeElement);
+                }
+
+                if (options.progressBar) {
+                    $progressElement.addClass('toast-progress');
+                    $toastElement.prepend($progressElement);
+                }
+
+                $toastElement.hide();
+                if (options.newestOnTop) {
+                    $container.prepend($toastElement);
+                } else {
+                    $container.append($toastElement);
+                }
+                $toastElement[options.showMethod](
+                    {duration: options.showDuration, easing: options.showEasing, complete: options.onShown}
+                );
+
+                if (options.timeOut > 0) {
+                    intervalId = setTimeout(hideToast, options.timeOut);
+                    progressBar.maxHideTime = parseFloat(options.timeOut);
+                    progressBar.hideEta = new Date().getTime() + progressBar.maxHideTime;
+                    if (options.progressBar) {
+                        progressBar.intervalId = setInterval(updateProgress, 10);
+                    }
+                }
+
+                $toastElement.hover(stickAround, delayedHideToast);
+                if (!options.onclick && options.tapToDismiss) {
+                    $toastElement.click(hideToast);
+                }
+
+                if (options.closeButton && $closeElement) {
+                    $closeElement.click(function (event) {
+                        if (event.stopPropagation) {
+                            event.stopPropagation();
+                        } else if (event.cancelBubble !== undefined && event.cancelBubble !== true) {
+                            event.cancelBubble = true;
+                        }
+                        hideToast(true);
+                    });
+                }
+
+                if (options.onclick) {
+                    $toastElement.click(function () {
+                        options.onclick();
+                        hideToast();
+                    });
+                }
+
+                publish(response);
+
+                if (options.debug && console) {
+                    console.log(response);
+                }
+
+                return $toastElement;
+
+                function hideToast(override) {
+                    if ($(':focus', $toastElement).length && !override) {
+                        return;
+                    }
+                    clearTimeout(progressBar.intervalId);
+                    return $toastElement[options.hideMethod]({
+                        duration: options.hideDuration,
+                        easing: options.hideEasing,
+                        complete: function () {
+                            removeToast($toastElement);
+                            if (options.onHidden && response.state !== 'hidden') {
+                                options.onHidden();
+                            }
+                            response.state = 'hidden';
+                            response.endTime = new Date();
+                            publish(response);
+                        }
+                    });
+                }
+
+                function delayedHideToast() {
+                    if (options.timeOut > 0 || options.extendedTimeOut > 0) {
+                        intervalId = setTimeout(hideToast, options.extendedTimeOut);
+                        progressBar.maxHideTime = parseFloat(options.extendedTimeOut);
+                        progressBar.hideEta = new Date().getTime() + progressBar.maxHideTime;
+                    }
+                }
+
+                function stickAround() {
+                    clearTimeout(intervalId);
+                    progressBar.hideEta = 0;
+                    $toastElement.stop(true, true)[options.showMethod](
+                        {duration: options.showDuration, easing: options.showEasing}
+                    );
+                }
+
+                function updateProgress() {
+                    var percentage = ((progressBar.hideEta - (new Date().getTime())) / progressBar.maxHideTime) * 100;
+                    $progressElement.width(percentage + '%');
+                }
+            }
+
+            function getOptions() {
+                return $.extend({}, getDefaults(), toastr.options);
+            }
+
+            function removeToast($toastElement) {
+                if (!$container) { $container = getContainer(); }
+                if ($toastElement.is(':visible')) {
+                    return;
+                }
+                $toastElement.remove();
+                $toastElement = null;
+                if ($container.children().length === 0) {
+                    $container.remove();
+                }
+            }
+            //#endregion
+
+        })();
+    });
+}(typeof define === 'function' && define.amd ? define : function (deps, factory) {
+    if (typeof module !== 'undefined' && module.exports) { //Node
+        module.exports = factory(require('jquery'));
+    } else {
+        window['toastr'] = factory(window['jQuery']);
+    }
+}));
+
+(function() {
   var WebSocket = window.WebSocket || window.MozWebSocket;
   var br = window.brunch = (window.brunch || {});
   var ar = br['auto-reload'] = (br['auto-reload'] || {});
@@ -35183,7 +35183,7 @@ module.exports = ret;
   connect();
 })();
 
-;require.register("scripts/app", function(exports, require, module) {
+require.register("scripts/app", function(exports, require, module) {
 var FeedList = require('./views/feeds');
 var EntriesView = require('./views/entries');
 var Feeds = require('./models/feeds');
@@ -35192,7 +35192,7 @@ var feedMetaView = require('./views/feed-meta');
 
 require('./etc/hbs-helpers'); // init only
 require('./etc/setup'); // init only
-var feeds = new Feeds(fds);
+var feeds = new Feeds(fds, {parse: true});
 
 var app = new Marionette.Application();
 
@@ -35249,10 +35249,12 @@ module.exports = app;
 
 $('.welcome').click(function () {
     $('.left-column').toggleClass('hide');
-})
 });
 
-;require.register("scripts/controller", function(exports, require, module) {
+console.log(fds);
+});
+
+require.register("scripts/controller", function(exports, require, module) {
 module.exports = {
     'showFeed': function (id) {
         console.log('show feed', id)
@@ -35261,7 +35263,7 @@ module.exports = {
 };
 });
 
-;require.register("scripts/etc/hbs-helpers", function(exports, require, module) {
+require.register("scripts/etc/hbs-helpers", function(exports, require, module) {
 Handlebars.registerHelper('nice_date' , niceDate);
 Handlebars.registerHelper('ago' , ago);
 
@@ -35301,13 +35303,13 @@ $(window.document).on('click', 'a[href]:not([data-bypass])', function(e) {
 });
 });
 
-;require.register("scripts/index", function(exports, require, module) {
+require.register("scripts/index", function(exports, require, module) {
 var app = require('./app');
 
 app.start();
 });
 
-;require.register("scripts/models/entries", function(exports, require, module) {
+require.register("scripts/models/entries", function(exports, require, module) {
 var Entry = Backbone.Model.extend({
     idAttribute: '_id'
 });
@@ -35320,6 +35322,19 @@ var Entries = Backbone.Collection.extend({
 
     comparator: function (e1, e2) {
         return e1.get('pubdate') > e2.get('pubdate')? -1 : 1;
+    },
+    /**
+     * get the count of unread entries since last read entry
+     * @returns {int}
+     */
+    getUnreadCount: function () {
+
+        var count = 0;
+        for (var i = 0; i< this.length; i ++ ) {
+            if (this.at(i).get('isread')) break;
+            count += 1;
+        }
+        return count;
     }
 });
 
@@ -35327,25 +35342,49 @@ var Entries = Backbone.Collection.extend({
 module.exports = Entries;
 });
 
-;require.register("scripts/models/feeds", function(exports, require, module) {
+require.register("scripts/models/feeds", function(exports, require, module) {
 var Entries = require('./entries');
 
 var Feed = Backbone.Model.extend({
     idAttribute: '_id',
+
+    parse: function (resp, options) {
+        this.setupEntriesCollection(resp[this.idAttribute]);
+
+        if (_.isArray(resp.articles)) {
+            this.setEntries(resp.articles);
+        }
+
+        delete resp.articles;
+        return resp;
+    },
+
+    setupEntriesCollection: function (fid) {
+        this.entries = new Entries([], {url: '/feeds/' + fid + '/entries'});
+        this.entries.on('change:isread add', function () {
+            this.trigger('read-entry');
+        }, this);
+    },
 
     setEntries: function (articles) {
         this.entries.set(articles);
     },
 
     initialize: function () {
-        this.entries = new Entries([], {url: '/feeds/' + this.id + '/entries'});
-
         this.on('destroy', function () {
             if (this.entries) {
                 this.entries.trigger('feed-destroyed');
             }
             this.entries = null;
         });
+    },
+
+    getUnreadCount: function () {
+        if (this.entries) {
+            return this.entries.getUnreadCount();
+        } else {
+            return 0;
+        }
     }
 });
 
@@ -35363,7 +35402,7 @@ module.exports = Feeds;
 
 });
 
-;require.register("scripts/router", function(exports, require, module) {
+require.register("scripts/router", function(exports, require, module) {
 var Router = Marionette.AppRouter.extend({
     appRoutes: {
         'feeds/:id': 'showFeed'
@@ -35375,7 +35414,7 @@ var Router = Marionette.AppRouter.extend({
 new Router();
 });
 
-;require.register("scripts/templates/entries", function(exports, require, module) {
+require.register("scripts/templates/entries", function(exports, require, module) {
 var __templateData = Handlebars.template(function (Handlebars,depth0,helpers,partials,data) {
   this.compilerInfo = [4,'>= 1.0.0'];
 helpers = this.merge(helpers, Handlebars.helpers); data = data || {};
@@ -35465,7 +35504,11 @@ helpers = this.merge(helpers, Handlebars.helpers); data = data || {};
   if (helper = helpers.author) { stack1 = helper.call(depth0, {hash:{},data:data}); }
   else { helper = (depth0 && depth0.author); stack1 = typeof helper === functionType ? helper.call(depth0, {hash:{},data:data}) : helper; }
   buffer += escapeExpression(stack1)
-    + "</div>\n    </div>\n    <div class=\"col-xs-3 text-right\">\n        12\n    </div>\n</div>\n";
+    + "</div>\n    </div>\n    <div class=\"col-xs-3 text-right\">\n        <span class=\"unread-counter\">";
+  if (helper = helpers.unreadCount) { stack1 = helper.call(depth0, {hash:{},data:data}); }
+  else { helper = (depth0 && depth0.unreadCount); stack1 = typeof helper === functionType ? helper.call(depth0, {hash:{},data:data}) : helper; }
+  buffer += escapeExpression(stack1)
+    + "</span>\n    </div>\n</div>\n";
   return buffer;
   });
 if (typeof define === 'function' && define.amd) {
@@ -35492,13 +35535,9 @@ function program1(depth0,data) {
   if (helper = helpers.title) { stack1 = helper.call(depth0, {hash:{},data:data}); }
   else { helper = (depth0 && depth0.title); stack1 = typeof helper === functionType ? helper.call(depth0, {hash:{},data:data}) : helper; }
   buffer += escapeExpression(stack1)
-    + "\n    </span>\n\n    <span data-id=\"";
-  if (helper = helpers._id) { stack1 = helper.call(depth0, {hash:{},data:data}); }
-  else { helper = (depth0 && depth0._id); stack1 = typeof helper === functionType ? helper.call(depth0, {hash:{},data:data}) : helper; }
-  buffer += escapeExpression(stack1)
-    + "\" class=\"btn pull-right btn-danger\" data-action=\"delete\">delete</span>\n\n    <time class=\"pull-right btn\"><i class=\"fa fa-clock-o\"></i> "
+    + "\n    </span>\n    <time class=\"pull-right btn\"><i class=\"fa fa-clock-o\"></i> "
     + escapeExpression((helper = helpers.nice_date || (depth0 && depth0.nice_date),options={hash:{},data:data},helper ? helper.call(depth0, (depth0 && depth0.pubdate), options) : helperMissing.call(depth0, "nice_date", (depth0 && depth0.pubdate), options)))
-    + "</time>\n\n";
+    + "</time>\n";
   return buffer;
   }
 
@@ -35541,6 +35580,10 @@ var EntryView = Marionette.ItemView.extend({
         'click @ui.title': 'toggleContent'
     },
 
+    modelEvents: {
+        'change:title': 'render'
+    },
+
     toggleContent: function () {
         var that = this;
         if (!this._isContentRendered) {
@@ -35559,7 +35602,7 @@ var EntriesView = Marionette.CompositeView.extend({
     childViewContainer: '.articles',
 
     initialize: function () {
-        this.collection.fetch();
+        this.collection.fetch({merge: true});
     },
 
     collectionEvents: {
@@ -35584,7 +35627,7 @@ var EntriesView = Marionette.CompositeView.extend({
 module.exports = EntriesView;
 });
 
-;require.register("scripts/views/feed-form", function(exports, require, module) {
+require.register("scripts/views/feed-form", function(exports, require, module) {
 var FeedForm = Backbone.View.extend({
 
     events: {
@@ -35642,7 +35685,7 @@ var FeedForm = Backbone.View.extend({
 module.exports = new FeedForm({el: '#feed-form'});
 });
 
-;require.register("scripts/views/feed-meta", function(exports, require, module) {
+require.register("scripts/views/feed-meta", function(exports, require, module) {
 var metaTemplate = require('../templates/feed-meta');
 var Feed = require('../models/feeds').Feed;
 
@@ -35681,7 +35724,7 @@ var FeedMetaView = Marionette.ItemView.extend({
 module.exports = new FeedMetaView;
 });
 
-;require.register("scripts/views/feeds", function(exports, require, module) {
+require.register("scripts/views/feeds", function(exports, require, module) {
 var feedItemTemplate = require('../templates/feed-item');
 
 var FeedItem = Marionette.ItemView.extend({
@@ -35690,11 +35733,23 @@ var FeedItem = Marionette.ItemView.extend({
     template: feedItemTemplate,
 
     ui: {
+        'unreadCounter': '.unread-counter'
+    },
 
+    modelEvents: {
+        'read-entry add-entry': 'updateUnreadCount'
     },
 
     events: {
         'click': 'loadFeed'
+    },
+
+    onShow: function () {
+        this.updateUnreadCount();
+    },
+
+    updateUnreadCount: function () {
+        this.ui.unreadCounter.text(this.model.getUnreadCount());
     },
 
     loadFeed: function () {
@@ -35731,7 +35786,7 @@ module.exports = FeedList;
 
 });
 
-;/*!
+/*!
 
  handlebars v1.3.0
 
@@ -36262,5 +36317,5 @@ var __module0__ = (function(__dependency1__, __dependency2__, __dependency3__, _
   return __module0__;
 })();
 
-;
+
 //# sourceMappingURL=app.js.map
