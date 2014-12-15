@@ -7,9 +7,10 @@
 @import "../../bower_components/toastr/toastr";
 @import "auth";
 @import "article";
+@import "mixins";
 
 
-$tool-color: #cffcff;
+$tool-color: #e0dde7;
 body, html {
     height: 100%;
     width: 100%;
@@ -27,19 +28,10 @@ a {
 }
 
 .top-region {
-    border-bottom: 1px solid #ddd;
-    flex: 0 0 auto;
-    @include display(flex);
-    background-color: $tool-color;
-
+    @include top-region;
     .welcome {
-        width: 320px;
-        @extend .btn;
-        text-align: left;
-        padding-left: 0;
-        font-weight: bold;
+        @include welcome;
     }
-
     #feed-meta-region {
         flex: 1 0 auto;
         .title {
@@ -82,14 +74,11 @@ a {
 
 $feed-item-bg: #c2c2c2;
 #feed-list-region {
+    padding: 0 15px;
     li.active {
-        background-color: darken($feed-item-bg, 10%);
-        box-shadow: inset 0 0 10px 1px #444;
+        @include selected-feed-item;
     }
     li {
-//        background-color: $feed-item-bg;
-        border-top: 1px solid #ddd;
-
         padding: 4px;
         margin: 0;
         color: #5b8187;
@@ -103,11 +92,7 @@ $feed-item-bg: #c2c2c2;
         }
     }
     li:hover {
-        background-color: darken($feed-item-bg, 10%);
-        cursor: pointer;
-        .author {
-            color: $text-color;
-        }
+        @include hover-feed-item;
     }
 }
 
@@ -141,6 +126,7 @@ $article-title-bg: #ffffff;
         @include article-style;
     }
     border-top: 1px solid #aaa;
+    border-left: 1px solid #aaa;
 }
 
 .load-more {
