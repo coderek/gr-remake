@@ -6,7 +6,7 @@ var feedMetaView = require('./views/feed-meta');
 
 require('./etc/hbs-helpers'); // init only
 require('./etc/setup'); // init only
-var feeds = new Feeds(fds);
+var feeds = new Feeds(fds, {parse: true});
 
 var app = new Marionette.Application();
 
@@ -63,4 +63,6 @@ module.exports = app;
 
 $('.welcome').click(function () {
     $('.left-column').toggleClass('hide');
-})
+});
+
+console.log(fds);

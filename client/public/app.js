@@ -35192,7 +35192,7 @@ var feedMetaView = require('./views/feed-meta');
 
 require('./etc/hbs-helpers'); // init only
 require('./etc/setup'); // init only
-var feeds = new Feeds(fds);
+var feeds = new Feeds(fds, {parse: true});
 
 var app = new Marionette.Application();
 
@@ -35249,7 +35249,9 @@ module.exports = app;
 
 $('.welcome').click(function () {
     $('.left-column').toggleClass('hide');
-})
+});
+
+console.log(fds);
 });
 
 ;require.register("scripts/controller", function(exports, require, module) {
@@ -35320,6 +35322,19 @@ var Entries = Backbone.Collection.extend({
 
     comparator: function (e1, e2) {
         return e1.get('pubdate') > e2.get('pubdate')? -1 : 1;
+    },
+    /**
+     * get the count of unread entries since last read entry
+     * @returns {int}
+     */
+    getUnreadCount: function () {
+
+        var count = 0;
+        for (var i = 0; i< this.length; i ++ ) {
+            if (this.at(i).get('isread')) break;
+            count += 1;
+        }
+        return count;
     }
 });
 
@@ -35333,19 +35348,43 @@ var Entries = require('./entries');
 var Feed = Backbone.Model.extend({
     idAttribute: '_id',
 
+    parse: function (resp, options) {
+        this.setupEntriesCollection(resp[this.idAttribute]);
+
+        if (_.isArray(resp.articles)) {
+            this.setEntries(resp.articles);
+        }
+
+        delete resp.articles;
+        return resp;
+    },
+
+    setupEntriesCollection: function (fid) {
+        this.entries = new Entries([], {url: '/feeds/' + fid + '/entries'});
+        this.entries.on('change:isread add', function () {
+            this.trigger('read-entry');
+        }, this);
+    },
+
     setEntries: function (articles) {
         this.entries.set(articles);
     },
 
     initialize: function () {
-        this.entries = new Entries([], {url: '/feeds/' + this.id + '/entries'});
-
         this.on('destroy', function () {
             if (this.entries) {
                 this.entries.trigger('feed-destroyed');
             }
             this.entries = null;
         });
+    },
+
+    getUnreadCount: function () {
+        if (this.entries) {
+            return this.entries.getUnreadCount();
+        } else {
+            return 0;
+        }
     }
 });
 
@@ -35465,7 +35504,11 @@ helpers = this.merge(helpers, Handlebars.helpers); data = data || {};
   if (helper = helpers.author) { stack1 = helper.call(depth0, {hash:{},data:data}); }
   else { helper = (depth0 && depth0.author); stack1 = typeof helper === functionType ? helper.call(depth0, {hash:{},data:data}) : helper; }
   buffer += escapeExpression(stack1)
-    + "</div>\n    </div>\n    <div class=\"col-xs-3 text-right\">\n        12\n    </div>\n</div>\n";
+    + "</div>\n    </div>\n    <div class=\"col-xs-3 text-right\">\n        <span class=\"unread-counter\">";
+  if (helper = helpers.unreadCount) { stack1 = helper.call(depth0, {hash:{},data:data}); }
+  else { helper = (depth0 && depth0.unreadCount); stack1 = typeof helper === functionType ? helper.call(depth0, {hash:{},data:data}) : helper; }
+  buffer += escapeExpression(stack1)
+    + "</span>\n    </div>\n</div>\n";
   return buffer;
   });
 if (typeof define === 'function' && define.amd) {
@@ -35492,13 +35535,9 @@ function program1(depth0,data) {
   if (helper = helpers.title) { stack1 = helper.call(depth0, {hash:{},data:data}); }
   else { helper = (depth0 && depth0.title); stack1 = typeof helper === functionType ? helper.call(depth0, {hash:{},data:data}) : helper; }
   buffer += escapeExpression(stack1)
-    + "\n    </span>\n\n    <span data-id=\"";
-  if (helper = helpers._id) { stack1 = helper.call(depth0, {hash:{},data:data}); }
-  else { helper = (depth0 && depth0._id); stack1 = typeof helper === functionType ? helper.call(depth0, {hash:{},data:data}) : helper; }
-  buffer += escapeExpression(stack1)
-    + "\" class=\"btn pull-right btn-danger\" data-action=\"delete\">delete</span>\n\n    <time class=\"pull-right btn\"><i class=\"fa fa-clock-o\"></i> "
+    + "\n    </span>\n    <time class=\"pull-right btn\"><i class=\"fa fa-clock-o\"></i> "
     + escapeExpression((helper = helpers.nice_date || (depth0 && depth0.nice_date),options={hash:{},data:data},helper ? helper.call(depth0, (depth0 && depth0.pubdate), options) : helperMissing.call(depth0, "nice_date", (depth0 && depth0.pubdate), options)))
-    + "</time>\n\n";
+    + "</time>\n";
   return buffer;
   }
 
@@ -35541,6 +35580,10 @@ var EntryView = Marionette.ItemView.extend({
         'click @ui.title': 'toggleContent'
     },
 
+    modelEvents: {
+        'change:title': 'render'
+    },
+
     toggleContent: function () {
         var that = this;
         if (!this._isContentRendered) {
@@ -35559,7 +35602,7 @@ var EntriesView = Marionette.CompositeView.extend({
     childViewContainer: '.articles',
 
     initialize: function () {
-        this.collection.fetch();
+        this.collection.fetch({merge: true});
     },
 
     collectionEvents: {
@@ -35690,11 +35733,23 @@ var FeedItem = Marionette.ItemView.extend({
     template: feedItemTemplate,
 
     ui: {
+        'unreadCounter': '.unread-counter'
+    },
 
+    modelEvents: {
+        'read-entry add-entry': 'updateUnreadCount'
     },
 
     events: {
         'click': 'loadFeed'
+    },
+
+    onShow: function () {
+        this.updateUnreadCount();
+    },
+
+    updateUnreadCount: function () {
+        this.ui.unreadCounter.text(this.model.getUnreadCount());
     },
 
     loadFeed: function () {

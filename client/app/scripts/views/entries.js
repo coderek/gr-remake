@@ -20,6 +20,10 @@ var EntryView = Marionette.ItemView.extend({
         'click @ui.title': 'toggleContent'
     },
 
+    modelEvents: {
+        'change:title': 'render'
+    },
+
     toggleContent: function () {
         var that = this;
         if (!this._isContentRendered) {
@@ -38,7 +42,7 @@ var EntriesView = Marionette.CompositeView.extend({
     childViewContainer: '.articles',
 
     initialize: function () {
-        this.collection.fetch();
+        this.collection.fetch({merge: true});
     },
 
     collectionEvents: {
