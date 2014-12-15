@@ -1,17 +1,30 @@
+// phone
 @media (max-width: 650px) {
     body {
         display: block;
         overflow: auto;
     }
-
-    .top-region, .middle-region, .bottom-region {
+    .top-region {
+        .welcome {
+            width: 50px;
+            .brand {
+                display: none;
+            }
+        }
+    }
+    .middle-region, .bottom-region {
         display: block;
         max-width: 100%;
+    }
+
+    .welcome {
+        display: none;
     }
 
     .left-column {
         position: absolute;
         z-index: 2;
+        box-shadow: 1px 2px 10px 0px #888;
     }
     .middle-region {
         z-index: 2;

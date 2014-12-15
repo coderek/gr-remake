@@ -35263,9 +35263,19 @@ module.exports = {
 
 ;require.register("scripts/etc/hbs-helpers", function(exports, require, module) {
 Handlebars.registerHelper('nice_date' , niceDate);
+Handlebars.registerHelper('ago' , ago);
 
 function niceDate(str) {
-    return moment(str).format('YYYY-MM-DD HH:mma');
+    var date = moment(str);
+    if (!date.isValid()) return '';
+
+    return date.format('YYYY-MM-DD HH:mma');
+}
+
+function ago(str) {
+    var date = moment(str);
+    if (!date.isValid()) return '';
+    return date.fromNow();
 }
 });
 
@@ -35409,18 +35419,20 @@ if (typeof define === 'function' && define.amd) {
 var __templateData = Handlebars.template(function (Handlebars,depth0,helpers,partials,data) {
   this.compilerInfo = [4,'>= 1.0.0'];
 helpers = this.merge(helpers, Handlebars.helpers); data = data || {};
-  var buffer = "", stack1, helper, functionType="function", escapeExpression=this.escapeExpression;
+  var buffer = "", stack1, helper, options, functionType="function", helperMissing=helpers.helperMissing, escapeExpression=this.escapeExpression;
 
 
-  buffer += "<div class=\"title\">\n";
+  buffer += "<div class=\"row title\">\n\n    <div class=\"col-md-8\">\n        ";
   if (helper = helpers.title) { stack1 = helper.call(depth0, {hash:{},data:data}); }
   else { helper = (depth0 && depth0.title); stack1 = typeof helper === functionType ? helper.call(depth0, {hash:{},data:data}) : helper; }
   if(stack1 || stack1 === 0) { buffer += stack1; }
-  buffer += " <a href=\"";
+  buffer += "\n    </div>\n\n    <div class=\"col-md-4 text-right\">\n        <time class=\"\">"
+    + escapeExpression((helper = helpers.ago || (depth0 && depth0.ago),options={hash:{},data:data},helper ? helper.call(depth0, (depth0 && depth0.pubdate), options) : helperMissing.call(depth0, "ago", (depth0 && depth0.pubdate), options)))
+    + "</time>\n\n        <a href=\"";
   if (helper = helpers.link) { stack1 = helper.call(depth0, {hash:{},data:data}); }
   else { helper = (depth0 && depth0.link); stack1 = typeof helper === functionType ? helper.call(depth0, {hash:{},data:data}) : helper; }
   buffer += escapeExpression(stack1)
-    + "\" target=\"_blank\" data-bypass>\n    <i class=\"fa fa-link fa-fw\"></i></a>\n\n    <i class=\"fa fa-bookmark-o fa-fw\"></i>\n\n</div>\n\n<div class=\"content\" style=\"display: none\">\n</div>\n";
+    + "\" target=\"_blank\" data-bypass>\n            <i class=\"fa fa-link fa-fw\"></i>\n        </a>\n\n        <i class=\"fa fa-bookmark-o fa-fw\"></i>\n    </div>\n</div>\n\n<div class=\"content\" style=\"display: none\">\n</div>\n";
   return buffer;
   });
 if (typeof define === 'function' && define.amd) {
@@ -35441,7 +35453,7 @@ helpers = this.merge(helpers, Handlebars.helpers); data = data || {};
   var buffer = "", stack1, helper, functionType="function", escapeExpression=this.escapeExpression;
 
 
-  buffer += "<div class=\"title\" title=\"";
+  buffer += "<div class=\"row\">\n    <div class=\"col-xs-9\">\n        <div class=\"title\" title=\"";
   if (helper = helpers.title) { stack1 = helper.call(depth0, {hash:{},data:data}); }
   else { helper = (depth0 && depth0.title); stack1 = typeof helper === functionType ? helper.call(depth0, {hash:{},data:data}) : helper; }
   buffer += escapeExpression(stack1)
@@ -35449,11 +35461,11 @@ helpers = this.merge(helpers, Handlebars.helpers); data = data || {};
   if (helper = helpers.title) { stack1 = helper.call(depth0, {hash:{},data:data}); }
   else { helper = (depth0 && depth0.title); stack1 = typeof helper === functionType ? helper.call(depth0, {hash:{},data:data}) : helper; }
   buffer += escapeExpression(stack1)
-    + "</div>\n<div class=\"author\">";
+    + "</div>\n        <div class=\"author\">";
   if (helper = helpers.author) { stack1 = helper.call(depth0, {hash:{},data:data}); }
   else { helper = (depth0 && depth0.author); stack1 = typeof helper === functionType ? helper.call(depth0, {hash:{},data:data}) : helper; }
   buffer += escapeExpression(stack1)
-    + "</div>";
+    + "</div>\n    </div>\n    <div class=\"col-xs-3 text-right\">\n        12\n    </div>\n</div>\n";
   return buffer;
   });
 if (typeof define === 'function' && define.amd) {
