@@ -18,6 +18,8 @@
     pre {
         white-space: nowrap;
         overflow-x: auto;
+        word-break: initial;
+        word-wrap: normal;
     }
 
 }
