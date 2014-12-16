@@ -31,6 +31,7 @@
     "cookie-session": "~1.1.0",
     "compression": "~1.2.1",
     "winston": "~0.8.3",
-    "cheerio": "~0.18.0"
+    "cheerio": "~0.18.0",
+    "mongodb": "~1.4.23"
   }
 }

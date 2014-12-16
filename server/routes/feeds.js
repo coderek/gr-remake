@@ -12,7 +12,8 @@ router.post('/', function (req, res) {
     createAndSaveNewFeed(feed_url)
         .then(function (resp) {
             res.json(resp);
-        }, function () {
+        }, function (err) {
+            console.log(err);
             res.status(400).json({message: 'Invalid url'});
         });
 });
@@ -55,7 +56,6 @@ module.exports = router;
 
 function createAndSaveNewFeed(url) {
     return ff(url).then(function (obj) {
-//        processEntries(obj);
         return Feed.create(obj);
     });
 }
