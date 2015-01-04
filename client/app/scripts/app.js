@@ -64,5 +64,3 @@ module.exports = app;
 $('.welcome').click(function () {
     $('.left-column').toggleClass('hide');
 });
-
-console.log(fds);

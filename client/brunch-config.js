@@ -2,7 +2,10 @@ exports.config = {
 
     files: {
         javascripts: {
-            joinTo: 'app.js'
+            joinTo: {
+                'app.js': /^app\/scripts\//,
+                'vendor.js': /^(vendor\/scripts|bower_components)\//
+            }
         },
 
         stylesheets: {
@@ -15,5 +18,6 @@ exports.config = {
             joinTo: 'app.js',
             defaultExtension: 'hbs'
         }
-    }
+    },
+    sourceMaps: 'absoluteUrl'
 };

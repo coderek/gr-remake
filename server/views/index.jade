@@ -33,7 +33,9 @@ block content
                   | Add Feed
 
 script(src="/app.js")
+script(src="/vendor.js")
 
 script.
+  Bugsnag.apiKey = '3a19b2eb82ec42ad18bb5d8094d4ab92';
   var fds = !{JSON.stringify(feeds)};
   require('scripts')
