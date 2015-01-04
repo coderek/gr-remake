@@ -27,6 +27,8 @@ app.on('start', function () {
 });
 
 app.commands.setHandler('show-entries', function (feed, entries) {
+    Bugsnag.notifyException(new Error('show entries'), "CustomErrorName");
+
     var view = new EntriesView({collection: entries});
     app.entriesRegion.show(view);
     feedMetaView.trigger('update', feed);
