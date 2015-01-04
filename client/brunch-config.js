@@ -19,5 +19,11 @@ exports.config = {
             defaultExtension: 'hbs'
         }
     },
-    sourceMaps: 'absoluteUrl'
+
+    overrides: {
+        production: {
+            optimize: true,
+            sourceMaps: true
+        }
+    }
 };
