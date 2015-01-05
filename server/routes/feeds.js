@@ -13,7 +13,6 @@ router.post('/', function (req, res) {
         .then(function (resp) {
             res.json(resp);
         }, function (err) {
-            console.log(err);
             res.status(400).json({message: 'Invalid url'});
         });
 });
