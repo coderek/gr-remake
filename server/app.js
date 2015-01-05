@@ -6,6 +6,7 @@ var session = require('cookie-session');
 var bodyParser = require('body-parser');
 var init = require('./initializers');
 var compress = require('compression');
+var flash = require('connect-flash');
 
 var app = express();
 
@@ -18,6 +19,7 @@ app.use(bodyParser.urlencoded({ extended: false }));
 app.use(cookieParser());
 app.use(express.static(path.join(__dirname, '../client/public')));
 app.use(session({keys: ['jdkskdkdjs']}));
+app.use(flash());
 
 init.passport(app);
 init.routes(app);

@@ -21,12 +21,13 @@ router.post('/register', function (req, res) {
 });
 
 router.get('/login', function(req, res) {
-    res.render('login', { user : req.user });
+    res.render('login', { user : req.user, errors: req.flash('error')});
 });
 
-router.post('/login', passport.authenticate('local'), function(req, res) {
-    res.redirect('/');
-});
+router.post('/login', passport.authenticate('local', {
+    failureFlash: 'Username or password is wrong',
+    failureRedirect: '/login'
+}));
 
 router.get('/logout', function(req, res) {
     req.logout();
