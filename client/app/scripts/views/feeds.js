@@ -25,9 +25,13 @@ var FeedItem = Marionette.ItemView.extend({
         this.ui.unreadCounter.text(this.model.getUnreadCount());
     },
 
-    loadFeed: function () {
+    setActive: function () {
         this.$el.addClass('active');
         this.$el.siblings().removeClass('active');
+    },
+
+    loadFeed: function () {
+        this.setActive();
         Backbone.history.navigate('/feeds/' + this.model.id, {trigger: true});
     },
 
@@ -50,14 +54,13 @@ var FeedList = Marionette.CollectionView.extend({
         child.$el.siblings('.active').removeClass('active');
 
         feedCh.command('show:entries', child.model, entries);
-/*
     },
 
-    beforeCollectionRender: function () {
-        feedCh.on('feed:shown', function () {
-
-        })
-*/
+    initialize: function () {
+        this.listenTo(feedCh, 'feed:shown', function (feed) {
+            var itemView = this.children.findByModel(feed);
+            itemView.setActive();
+        });
     }
 });
 
