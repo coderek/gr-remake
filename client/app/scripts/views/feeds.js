@@ -49,7 +49,7 @@ var FeedList = Marionette.CollectionView.extend({
         child.$el.addClass('active');
         child.$el.siblings('.active').removeClass('active');
 
-        app.execute('show-entries', child.model, entries);
+        feedCh.command('show-entries', child.model, entries);
     }
 });
 

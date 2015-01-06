@@ -9,6 +9,8 @@ require('./etc/setup'); // init only
 var feeds = new Feeds(fds, {parse: true});
 
 var app = new Marionette.Application();
+var globalCh = window.globalCh = Backbone.Radio.channel('global');
+var feedCh = window.feedCh = Backbone.Radio.channel('feed');
 
 app.addRegions({
     feedsRegion: '#feed-list-region',
@@ -26,7 +28,7 @@ app.on('start', function () {
     Backbone.history.start({pushState: true});
 });
 
-app.commands.setHandler('show-entries', function (feed, entries) {
+feedCh.comply('show-entries', function (feed, entries) {
     Bugsnag.notifyException(new Error('show entries'), "CustomErrorName");
 
     var view = new EntriesView({collection: entries});
@@ -34,13 +36,13 @@ app.commands.setHandler('show-entries', function (feed, entries) {
     feedMetaView.trigger('update', feed);
 });
 
-app.commands.setHandler('add-feed', function (rawFeed) {
+feedCh.comply('add-feed', function (rawFeed) {
     var feed = feeds.add(_.omit(rawFeed, 'articles'));
     feed.setEntries(rawFeed.articles);
-    app.execute('show-entries', feed, feed.entries);
+    feedCh.command('show-entries', feed, feed.entries);
 });
 
-app.commands.setHandler('delete-feed', function (fid) {
+feedCh.comply('delete-feed', function (fid) {
     var feed = feeds.get(fid);
     if (feed) {
         return feed.destroy({success: function () {
@@ -50,10 +52,11 @@ app.commands.setHandler('delete-feed', function (fid) {
     }
 });
 
-app.commands.setHandler('show-feed', function (fid) {
+feedCh.comply('show-feed', function (fid) {
     var feed = feeds.get(fid);
     if (feed) {
-        app.execute('show-entries', feed, feed.entries);
+        feedCh.command('show-entries', feed, feed.entries);
+        app.trigger('')
     } else {
         toastr.warning('Feed is not found.');
     }

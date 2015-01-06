@@ -16,7 +16,7 @@ var FeedForm = Backbone.View.extend({
         var url = this.$('input').val();
         this.sendNewFeedRequest(url).then(function (feed) {
             toastr.success('Feed is added.');
-            app.execute('add-feed', feed);
+            feedCh.command('add-feed', feed);
         }, function (xhr) {
             var msg = xhr.responseJSON.message;
             toastr.error(JSON.stringify(msg));
