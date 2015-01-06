@@ -10,7 +10,7 @@ var FeedItem = Marionette.ItemView.extend({
     },
 
     modelEvents: {
-        'read-entry add-entry': 'updateUnreadCount'
+        'read:entry add:entry': 'updateUnreadCount'
     },
 
     events: {
@@ -32,7 +32,7 @@ var FeedItem = Marionette.ItemView.extend({
     },
 
     showEntries: function () {
-        this.trigger('show-entries', this.model.entries);
+        this.trigger('show:entries', this.model.entries);
     }
 });
 
@@ -42,14 +42,22 @@ var FeedList = Marionette.CollectionView.extend({
     tagName  : 'ul',
 
     childEvents: {
-        'show-entries': 'showEntries'
+        'show:entries': 'showEntries'
     },
 
     showEntries: function (child, entries) {
         child.$el.addClass('active');
         child.$el.siblings('.active').removeClass('active');
 
-        feedCh.command('show-entries', child.model, entries);
+        feedCh.command('show:entries', child.model, entries);
+/*
+    },
+
+    beforeCollectionRender: function () {
+        feedCh.on('feed:shown', function () {
+
+        })
+*/
     }
 });
 

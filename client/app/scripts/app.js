@@ -28,21 +28,19 @@ app.on('start', function () {
     Backbone.history.start({pushState: true});
 });
 
-feedCh.comply('show-entries', function (feed, entries) {
-    Bugsnag.notifyException(new Error('show entries'), "CustomErrorName");
-
+feedCh.comply('show:entries', function (feed, entries) {
     var view = new EntriesView({collection: entries});
     app.entriesRegion.show(view);
     feedMetaView.trigger('update', feed);
 });
 
-feedCh.comply('add-feed', function (rawFeed) {
+feedCh.comply('add:feed', function (rawFeed) {
     var feed = feeds.add(_.omit(rawFeed, 'articles'));
     feed.setEntries(rawFeed.articles);
-    feedCh.command('show-entries', feed, feed.entries);
+    feedCh.command('show:entries', feed, feed.entries);
 });
 
-feedCh.comply('delete-feed', function (fid) {
+feedCh.comply('delete:feed', function (fid) {
     var feed = feeds.get(fid);
     if (feed) {
         return feed.destroy({success: function () {
@@ -52,11 +50,11 @@ feedCh.comply('delete-feed', function (fid) {
     }
 });
 
-feedCh.comply('show-feed', function (fid) {
+feedCh.comply('show:feed', function (fid) {
     var feed = feeds.get(fid);
     if (feed) {
-        feedCh.command('show-entries', feed, feed.entries);
-        app.trigger('')
+        feedCh.command('show:entries', feed, feed.entries);
+//        feedCh.trigger('feed:shown')
     } else {
         toastr.warning('Feed is not found.');
     }
