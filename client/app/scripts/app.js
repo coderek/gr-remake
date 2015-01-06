@@ -54,7 +54,7 @@ feedCh.comply('show:feed', function (fid) {
     var feed = feeds.get(fid);
     if (feed) {
         feedCh.command('show:entries', feed, feed.entries);
-//        feedCh.trigger('feed:shown')
+        feedCh.trigger('feed:shown', feed);
     } else {
         toastr.warning('Feed is not found.');
     }
