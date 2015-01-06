@@ -11,7 +11,8 @@
     "font-awesome": "~4.2.0",
     "toastr": "~2.1.0",
     "moment": "~2.8.4",
-    "backbone.paginator": "~2.0.2"
+    "backbone.paginator": "~2.0.2",
+    "backbone.radio": "~0.8.4"
   },
   "overrides": {
     "backbone": {
@@ -21,8 +22,8 @@
       },
       "main": "backbone.js"
     },
-      "backbone.paginator": {
-          "main": "lib/backbone.paginator.js"
-      }
+    "backbone.paginator": {
+      "main": "lib/backbone.paginator.js"
+    }
   }
 }
