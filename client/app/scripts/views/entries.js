@@ -46,7 +46,7 @@ var EntriesView = Marionette.CompositeView.extend({
     },
 
     collectionEvents: {
-        'feed-destroyed': 'destroy'
+        'feed:destroyed': 'destroy'
     },
 
     ui : {
