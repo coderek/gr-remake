@@ -22,7 +22,7 @@ exports.config = {
 
     overrides: {
         production: {
-            optimize: true,
+            optimize  : true,
             sourceMaps: true
         }
     }
