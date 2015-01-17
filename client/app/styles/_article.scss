@@ -14,12 +14,4 @@
     &:after {
         @extend .clearfix;
     }
-
-    pre {
-        white-space: pre;
-        overflow-x: auto;
-        word-break: initial;
-        word-wrap: normal;
-    }
-
 }
