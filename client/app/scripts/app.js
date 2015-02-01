@@ -65,5 +65,14 @@ window.app = app;
 module.exports = app;
 
 $('.welcome').click(function () {
-    $('.left-column').toggleClass('hide');
+    $('.left-column').toggleClass('off');
+});
+
+$('body').click(function (ev) {
+    if (
+        !$.contains($('.welcome').get(0), ev.target) &&
+        !$.contains($('.left-column').get(0), ev.target)
+        ) {
+        $('.left-column').addClass('off');
+    }
 });

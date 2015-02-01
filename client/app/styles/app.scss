@@ -20,7 +20,7 @@ body {
     font: 14px "Lucida Grande", Helvetica, Arial, sans-serif;
     display: flex;
     flex-direction: column;
-    overflow: hidden;
+    background-color: #ddd;
 }
 
 a {
@@ -29,48 +29,63 @@ a {
 
 .top-region {
     @include top-region;
+    background-color: #efefef;
+    z-index: 3;
+    top: 0;
+    left: 0;
+    width: 100%;
+    height: 40px;
+    line-height: 40px;
+    position: fixed;
+    box-shadow: 0 1px 10px #000;
     .welcome {
         @include welcome;
     }
     #feed-meta-region {
-        flex: 1 0 auto;
         .title {
             font-weight: bold;
-            @extend .btn;
         }
     }
 }
 
 .middle-region {
     display: flex;
-    flex: 1 100%;
+
+    overflow-y: scroll;
+
     .left-column {
+        margin-top: 40px;
+        padding-top: 10px;
+        position: fixed;
+        left: 0;
         width: 320px;
         overflow-y: auto;
-        flex: none;
-        background-color: #e9e9e9;
+        background-color: #efefef;
+        z-index: 2;
+        border-right: 1px solid darken(#efefef, 5%);
+        box-shadow: 4px 0px 10px 0px #525252;
+        @include transition(left 0.5s);
+        height: 100%;
+    }
+    .left-column.off {
+        left: -320px;
     }
 
     .right-column {
-        flex: 1 100%;
-        overflow-y: auto;
+        width: 800px;
+        margin: 50px auto;
         background-color: white;
     }
+    margin-bottom: 10px;
 }
 
-.bottom-region {
-    border-top: 1px solid #ddd;
-    flex: 0 1 auto;
-
-    #feed-form {
-        input {
-            border: none;
-            background-color: $tool-color;
-        }
+#feed-form {
+    input {
+        border: none;
     }
-    background-color: $tool-color;
-
+    margin: 10px;
 }
+
 
 $feed-item-bg: #c2c2c2;
 #feed-list-region {
@@ -96,8 +111,8 @@ $feed-item-bg: #c2c2c2;
     }
 }
 
-$visited-article-title-bg: #e0e0e0;
-$visited-article-title-color: $text-muted;
+$visited-article-title-bg: #78b0e0;
+$visited-article-title-color: #fff;
 $article-title-bg: #ffffff;
 
 .article {
@@ -106,6 +121,9 @@ $article-title-bg: #ffffff;
             background-color: $visited-article-title-bg;
             color: $visited-article-title-color;
             border: $visited-article-title-color;
+            .fa.fa-link {
+                color: #fff;
+            }
         }
     }
     .title {
@@ -118,15 +136,18 @@ $article-title-bg: #ffffff;
             cursor: pointer;
         }
         .fa.fa-link {
-            color: #aaa;
+            color: $text-color;
         }
     }
 
     .content {
         @include article-style;
     }
-    border-top: 1px solid #aaa;
-    border-left: 1px solid #aaa;
+    border: 1px solid #aaa;
+    border-bottom: none;
+    &:last-of-type {
+        border-bottom: 1px solid #aaa;
+    }
 }
 
 .load-more {
@@ -142,6 +163,16 @@ $article-title-bg: #ffffff;
     border-top: 1px solid #aaa;
     border-bottom: 1px solid #aaa;
     @include linear-gradient(to top, #e0dde7 5%, #f4f4f4 50%, #e0dde7 95%);
+}
+
+.copy-right {
+    width: 100%;
+    text-align: center;
+    $color: #c2c2c2;
+    color: darkent($color, 10%);
+    text-shadow: 1px 0px $color;
+    font-size: 12px;
+    margin-bottom: 10px;
 }
 
 

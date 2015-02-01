@@ -5,30 +5,31 @@ block styles
 
 block content
 
-  .top-region
-    strong.welcome
-      i.fa.fa-th.fa-fw
-      span.brand Geek Reader
-    #feed-meta-region
+  .top-region.container
+    .row
+      .col-sm-3
+        strong.welcome
+          i.fa.fa-th.fa-fw
+          span.brand Geek Reader
+      #feed-meta-region.col-sm-9.hidden-xs
 
   .middle-region
 
     .left-column
+      #feed-form
+        .input-group
+          input.form-control(placeholder="Feed url").input-sm
+          .input-group-btn
+            button.btn.btn-success(data-action="add-feed").btn-sm
+              i.fa
+              | Add Feed
+
       #feed-list-region
     .right-column
       #entries-region
 
   .bottom-region
-    .container
-      .form-horizontal
-        #feed-form
-          .col-md-offset-6.col-md-6
-            .input-group
-              input.form-control(placeholder="Feed url")
-              .input-group-btn
-                button.btn.btn-success(data-action="add-feed")
-                  i.fa
-                  | Add Feed
+    .copy-right Derek Zeng@2015
 
 script(src="/app.js")
 script(src="/vendor.js")
