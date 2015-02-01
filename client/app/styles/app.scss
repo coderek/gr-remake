@@ -54,8 +54,8 @@ a {
     overflow-y: scroll;
 
     .left-column {
-        margin-top: 40px;
-        padding-top: 10px;
+        margin: 40px 0;
+        padding: 10px 0;
         position: fixed;
         left: 0;
         width: 320px;
@@ -89,7 +89,8 @@ a {
 
 $feed-item-bg: #c2c2c2;
 #feed-list-region {
-    padding: 0 15px;
+    margin-bottom: 10px;
+    padding: 15px;
     li.active {
         @include selected-feed-item;
     }
