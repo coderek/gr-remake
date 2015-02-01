@@ -5,36 +5,13 @@
         overflow: auto;
     }
     .top-region {
-        .welcome {
-            width: 50px;
-            .brand {
-                display: none;
-            }
-        }
     }
+
     .middle-region, .bottom-region {
         display: block;
-        max-width: 100%;
-    }
-
-    .welcome {
-        display: none;
-    }
-
-    .left-column {
-        position: absolute;
-        z-index: 2;
-        box-shadow: 1px 2px 10px 0px #888;
-    }
-    .middle-region {
-        z-index: 2;
-    }
-
-    .bottom-region {
-        margin-top: 10px;
-        padding-top: 10px;
-//        border-top: 1px solid #888;
-        z-index: 1;
+        .right-column {
+            width: 100%;
+        }
     }
 
     #feed-meta-region {
